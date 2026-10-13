@@ -24,10 +24,21 @@ if(location.protocol==='file:'||selectedMode==='local'){
   const script=document.createElement('script');script.src='online.js';document.body.append(script);
 }else{
   document.body.classList.add('choosing');
+  document.querySelector('header>div').textContent='ОНЛАЙН / ОБЫЧНАЯ ИГРА';
   const chooser=document.createElement('main');chooser.id='mode-picker';
   chooser.innerHTML='<div class="eyebrow">ВЫБЕРИ СВОЮ ГОНКУ</div><h1>Держи газ.<br><em>С друзьями или дома.</em></h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>С разных телефонов и компьютеров. Любой нажимает «Готово» — через 10 секунд общий старт.</p><b>В общую комнату →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Три гонщика на одном устройстве. Знакомые машины, трассы и способности. Можно играть без интернета.</p><b>В гараж →</b></a></div><p class="hint">Установи игру на телефон кнопкой «Установить» вверху.</p>';
   document.body.append(chooser);
 }
 if('serviceWorker' in navigator && location.protocol!=='file:'){
   navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{});
+}
+if(location.protocol!=='file:'&&selectedMode!=='online'){
+  let appVersion;
+  async function checkAppVersion(){
+    try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());
+      if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}
+      appVersion=health.version;
+    }catch{}
+  }
+  checkAppVersion();setInterval(checkAppVersion,5000);
 }
