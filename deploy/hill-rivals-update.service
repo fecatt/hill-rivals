@@ -1,0 +1,9 @@
+[Unit]
+Description=Deploy Hill Rivals main from GitHub
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/hill-rivals/update.sh
+TimeoutStartSec=300

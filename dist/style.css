@@ -7,6 +7,13 @@ body[data-biome="moon"] header{color:#f0eee2}body[data-biome="moon"] .eyebrow,bo
 .bottom{gap:12px;flex-wrap:wrap}.vehicle-choice{font-size:13px}.vehicle-choice select{max-width:185px;font-size:12px}.bottom>label:first-child select{max-width:230px}
 #vehicle-description,#vehicle-stats{margin:4px 0;line-height:1.35;font-size:11px}
 
+#online-bar{position:fixed;z-index:6;bottom:12px;left:50%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;background:#fff8e7ed;color:#20382f;font-size:12px;font-weight:bold;white-space:nowrap;max-width:96vw;overflow:auto}
+body.online #picks{grid-template-columns:minmax(240px,360px);float:left;width:35%;margin-right:3%}
+#room-panel{background:#fff8e7e8;border-radius:16px;padding:14px 20px;margin-top:20px;min-height:215px;overflow:hidden}
+#room-panel h3{margin:0 0 12px}.room-list{max-height:150px;overflow:auto}.room-list>div{padding:6px 0;border-bottom:1px solid #20382f18;font-size:13px}.room-list b{color:#44863e}#room-status{font-size:13px;line-height:1.5}.bottom{clear:both;padding-top:12px}
+button:disabled{opacity:.55;cursor:default}#hud{max-height:180px;overflow:auto}.stat{min-width:200px}#touch-controls{position:fixed;z-index:4;bottom:56px;left:15px;right:15px;display:flex;gap:12px;justify-content:space-between;pointer-events:none}#touch-controls button{pointer-events:auto;touch-action:none;user-select:none;background:#fff8e7c9;border:2px solid #20382f40;border-radius:14px;padding:18px;color:#20382f;font-weight:bold}#overlay{max-height:80vh;overflow:auto}
+@media(max-width:750px){body{overflow:auto}header{flex-wrap:wrap}header>div{display:block;font-size:8px}nav{gap:4px}body.online #picks{float:none;width:100%;margin-right:0;grid-template-columns:1fr}.pick .portrait{height:90px}#room-panel{margin-top:12px;min-height:0}h1{font-size:38px}.intro{font-size:12px}.bottom{gap:10px;justify-content:center}.bottom>label{width:100%;display:flex;justify-content:space-between}#start{width:100%}footer{display:none}main{padding-bottom:65px}#hud{top:100px;max-height:100px}.stat{min-width:160px}#overlay{min-width:0;width:94vw;padding:24px}#online-bar{font-size:10px}#touch-controls button{padding:18px 10px;font-size:11px}}
+
 @media(max-height:760px){header{padding:16px 36px}h1{font-size:40px}.pick .portrait{height:90px}#picks{margin-top:8px}.bottom{margin-top:12px}.intro{line-height:1.4}.hint{margin:6px 0}}
 
 body[data-players="1"] #picks{grid-template-columns:minmax(260px,350px)}body[data-players="2"] #picks{grid-template-columns:repeat(2,1fr)}body[data-players="1"] #hud{max-width:400px}

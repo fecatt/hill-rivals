@@ -1,0 +1,8 @@
+{
+  "name": "hill-rivals",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"start": "node server/index.js", "test": "node --test test/room.test.js"},
+  "dependencies": {"ws": "^8.18.3"}
+}
