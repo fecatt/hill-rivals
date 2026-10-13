@@ -8,3 +8,5 @@ body[data-biome="moon"] header{color:#f0eee2}body[data-biome="moon"] .eyebrow,bo
 #vehicle-description,#vehicle-stats{margin:4px 0;line-height:1.35;font-size:11px}
 
 @media(max-height:760px){header{padding:16px 36px}h1{font-size:40px}.pick .portrait{height:90px}#picks{margin-top:8px}.bottom{margin-top:12px}.intro{line-height:1.4}.hint{margin:6px 0}}
+
+body[data-players="1"] #picks{grid-template-columns:minmax(260px,350px)}body[data-players="2"] #picks{grid-template-columns:repeat(2,1fr)}body[data-players="1"] #hud{max-width:400px}
