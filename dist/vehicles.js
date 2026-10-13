@@ -1,0 +1,45 @@
+'use strict';
+const VEHICLES=[
+ {name:'Классический джип',kind:'jeep',lift:0,radius:18,wheels:[-31,31],mass:900,engine:820,maxSpeed:680,spring:95,damper:12,mount:18,travel:12,grip:1.65,rotation:1,drag:.48,bodyScale:1,description:'Универсальный: средняя тяга и мягкая подвеска.'},
+ {name:'Песчаный багги',kind:'buggy',lift:0,radius:21,wheels:[-35,35],mass:580,engine:720,maxSpeed:720,spring:52,damper:8,mount:22,travel:20,grip:1.7,rotation:1.25,drag:.42,bodyScale:1.1,description:'Лёгкий, резвый и прыгучий. Длинный ход подвески.'},
+ {name:'Пикап 6×6',kind:'pickup',lift:0,radius:22,wheels:[-50,0,50],mass:1600,engine:1450,maxSpeed:560,spring:110,damper:15,mount:24,travel:15,grip:1.85,rotation:.65,drag:.7,bodyScale:1.4,description:'Тяжёлый трёхосный грузовик: три колеса в боковом виде, тяга на подъёмах.'},
+ {name:'Ралли',kind:'rally',lift:0,radius:16,wheels:[-34,34],mass:760,engine:950,maxSpeed:830,spring:135,damper:16,mount:14,travel:8,grip:1.95,rotation:.85,drag:.32,bodyScale:1.08,description:'Быстрый разгон, высокая скорость и короткая жёсткая подвеска.'},
+ {name:'Монстр-трак 8×8',kind:'monster',lift:0,radius:28,wheels:[-93,-31,31,93],mass:2800,engine:2650,maxSpeed:490,spring:150,damper:21,mount:32,travel:24,grip:2.15,rotation:.48,drag:1,bodyScale:2,description:'Четыре оси и огромные колёса. Мощный, устойчивый, но медленный.'},
+ {name:'Хот-род',kind:'hotrod',lift:2,radius:19,wheelRadii:[24,15],wheels:[-38,38],mass:1050,engine:1400,maxSpeed:950,spring:145,damper:12,mount:18,travel:9,grip:1.75,rotation:1.15,drag:.25,bodyScale:1.18,description:'Большие задние колёса, маленькие передние. Очень быстрый, легко встаёт на дыбы.'},
+ {name:'Турборакета',kind:'rocket',lift:0,radius:14,wheels:[-33,33],mass:980,engine:820,maxSpeed:1100,spring:115,damper:14,mount:16,travel:10,grip:1.7,rotation:.8,drag:.4,bodyScale:1.15,rocket:true,description:'Газ даёт реактивную тягу вперёд и вверх даже в воздухе. Тормоз управляет носом; расход топлива повышен.'}
+];
+function carSpec(c){return VEHICLES[c.model??vehicleModel]}
+function wheelSpecs(v){return v.wheels.map((x,i)=>({x,r:v.wheelRadii?.[i]??v.radius}))}
+function inertia(v){const span=v.wheels[v.wheels.length-1]-v.wheels[0];return 1120*(v.mass/900)*(span/62)**2}
+function describeVehicle(){const v=VEHICLES[+$('#vehicle').value],s=wheelSpecs(v);$('#vehicle-description').textContent=v.description;$('#vehicle-stats').textContent=`${v.mass} кг · ${s.length} оси (колёс: ${s.length*2}) · радиус колёс ${s.map(w=>w.r).join('/')} · до ${Math.round(v.maxSpeed*.36)} км/ч · ход ${v.travel} · жёсткость ${v.spring}`}
+let vehicleModel=0;
+const suspensionVisuals=new WeakMap();
+function visualPose(c){let p=suspensionVisuals.get(c);if(!p){p={wheels:carSpec(c).wheels.map(()=>carSpec(c).mount),bob:0,lastVY:c.vy,lastVX:c.vx};suspensionVisuals.set(c,p)}return p}
+function animateSuspension(dt){if(mode!=='race'||paused||count>0)return;for(const c of cars){if(!c.alive)continue;const v=carSpec(c),wheels=wheelSpecs(v),p=visualPose(c),cos=Math.cos(c.a),sin=Math.sin(c.a);for(let j=0;j<wheels.length;j++){const {x:rx,r}=wheels[j],contact=c.contacts.find(w=>w.rx===rx);let target=v.mount+v.travel;if(contact&&cos>.45){const wx=c.x+rx*cos-v.mount*sin;target=(terrain(wx)-r-c.y-rx*sin)/cos;target=Math.max(v.mount-v.travel,Math.min(v.mount+v.travel,target))}p.wheels[j]+=(target-p.wheels[j])*(1-Math.exp(-dt*(v.spring>110?25:14)))}const bump=Math.max(-3,Math.min(3,(c.vy-p.lastVY)*.055));p.bob+=(-bump-p.bob)*(1-Math.exp(-dt*12));p.lastVY=c.vy;p.lastVX=c.vx}}
+function strokeLine(points,color,width){ctx.beginPath();points.forEach((v,i)=>i?ctx.lineTo(...v):ctx.moveTo(...v));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();ctx.lineCap='butt'}
+function spring(ax,ay,bx,by){strokeLine([[ax,ay],[bx,by]],'#26312d',5);strokeLine([[ax,ay],[bx,by]],'#a3aaa0',2);const dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len,pts=[[ax,ay]];for(let j=1;j<10;j++){const k=j/10,offset=j%2?3:-3;pts.push([ax+dx*k+px*offset,ay+dy*k+py*offset])}pts.push([bx,by]);strokeLine(pts,'#e0cf8b',1.8)}
+function seatedDriver(c,lift){const im=images[chosen[c.i]],mirror=[0,5].includes(chosen[c.i]);ctx.save();ctx.translate(-4,lift);if(im.complete&&im.naturalWidth){const iw=im.naturalWidth,ih=im.naturalHeight;ctx.save();ctx.translate(-3,-37);ctx.rotate(-.08);if(mirror)ctx.scale(-1,1);ctx.drawImage(im,iw*.22,0,iw*.56,ih*.68,-22,-27,44,52);ctx.restore();
+// Complete the seated silhouette with the original trousers and shoes.
+ctx.save();ctx.translate(-9,-9);ctx.rotate(-1.04);if(mirror)ctx.scale(-1,1);ctx.drawImage(im,iw*.3,ih*.72,iw*.36,ih*.18,-6,0,17,21);ctx.restore();ctx.save();ctx.translate(8,-1);ctx.rotate(-.28);ctx.drawImage(im,iw*.3,ih*.83,iw*.23,ih*.17,-5,0,14,15);ctx.restore();ctx.drawImage(im,iw*.3,ih*.89,iw*.43,ih*.11,7,7,23,8)}ctx.restore()}
+function vehicleBody(c,v,bob){const col=colors[c.i],y=v.lift+bob;ctx.save();ctx.translate(0,y);ctx.fillStyle='#29372f';ctx.fillRect(-48,8,100,5);ctx.fillStyle='#39433d';ctx.fillRect(-25,-34,10,35);ctx.save();ctx.scale(1/v.bodyScale,1);seatedDriver(c,0);ctx.restore();let outline;
+if(v.kind==='jeep')outline=[[-48,-14],[-23,-14],[-20,7],[21,7],[24,-19],[45,-17],[51,6],[43,12],[-45,12]];
+if(v.kind==='buggy')outline=[[-48,-4],[-25,-10],[-18,8],[23,8],[26,-9],[48,-6],[51,8],[36,12],[-40,12]];
+if(v.kind==='pickup')outline=[[-51,-21],[-26,-21],[-23,7],[23,7],[25,-22],[46,-21],[51,9],[-50,12]];
+if(v.kind==='rally')outline=[[-50,-19],[-27,-23],[-23,7],[23,7],[29,-23],[45,-13],[52,7],[44,12],[-45,12]];
+if(v.kind==='monster')outline=[[-51,-20],[-24,-20],[-20,7],[22,7],[25,-25],[49,-23],[54,9],[-49,12]];
+if(v.kind==='rocket')outline=[[-50,-18],[-24,-18],[-20,7],[23,7],[26,-24],[48,-15],[58,1],[47,12],[-46,12]];
+if(v.kind==='hotrod')outline=[[-46,-13],[-25,-10],[-21,7],[23,7],[27,-20],[47,-20],[54,4],[47,11],[-45,11]];
+path(outline,col,'#493e2b',2.5);path([outline[0],[outline[0][0]+20,outline[0][1]],[outline[0][0]+20,outline[0][1]+4],[outline[0][0]+2,outline[0][1]+4]],'#ffffff50');ctx.fillStyle='#f5df93';ctx.fillRect(43,-13+(v.kind==='monster'?-6:0),7,7);ctx.fillStyle='#26342f';ctx.fillRect(-55,5,11,5);ctx.fillRect(47,7,11,5);
+// Open sides keep the complete seated driver visible.
+strokeLine([[14,-18],[25,-24]],'#31433b',3);ctx.save();ctx.translate(17,-19);ctx.rotate(-.5);ctx.strokeStyle='#263b30';ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,3,9,0,0,Math.PI*2);ctx.stroke();ctx.restore();
+if(v.kind==='buggy'){strokeLine([[-30,1],[-26,-41],[20,-44],[35,-5]],'#303d37',4);strokeLine([[-25,11],[26,-5]],'#f3dc9b',2)}
+if(v.kind==='pickup'){ctx.fillStyle='#3c5146';ctx.fillRect(-46,-17,19,17);strokeLine([[-49,-24],[-28,-24]],'#f3d4ad',3);strokeLine([[25,-22],[23,-45],[31,-46]],'#3a4940',3)}
+if(v.kind==='rally'){strokeLine([[-38,-26],[-45,-28]],'#353f38',5);ctx.fillStyle='#eee5cb';ctx.fillRect(31,-11,10,17);ctx.fillStyle='#303c38';ctx.font='bold 10px Arial';ctx.fillText('R',32,2);strokeLine([[26,-21],[22,-43],[36,-38]],'#3c5149',3)}
+if(v.kind==='monster'){ctx.fillStyle='#d6cbd0';for(let j=0;j<3;j++)ctx.fillRect(30+j*5,-18,3,9);strokeLine([[-47,1],[-27,1]],'#efdda2',4)}
+if(v.kind==='hotrod'){ctx.fillStyle='#b6b9ac';ctx.fillRect(28,-29,19,9);for(let j=0;j<3;j++)strokeLine([[31+j*5,-21],[31+j*5,-37]],'#d6d5c1',3);path([[-44,1],[-29,-5],[-34,3],[-22,5],[-44,7]],'#ffe382')}
+if(v.rocket){ctx.fillStyle='#6d8791';ctx.fillRect(-57,-26,27,15);path([[-59,-29],[-70,-24],[-70,-8],[-59,-11]],'#394d58','#1d3038');path([[28,-25],[37,-46],[43,-22]],col,'#493e2b')}
+ctx.fillStyle='#fff2ce';ctx.font='bold 12px Arial';ctx.fillText('0'+(c.i+1),-44,6);ctx.restore()}
+function drawVehicle(c){const v=carSpec(c),p=visualPose(c),wheels=wheelSpecs(v);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.a);if(!c.alive)ctx.globalAlpha=.4;for(let j=0;j<wheels.length;j++){const {x:rx,r}=wheels[j],yy=p.wheels[j];strokeLine([[rx-13,v.lift+p.bob+5],[rx,yy],[rx+13,v.lift+p.bob+5]],'#3d4940',3);spring(rx+(rx<0?8:-8),v.lift+p.bob-4,rx,yy-3);ctx.save();ctx.translate(rx,yy);ctx.rotate(c.wheel*18/r);circle(0,0,r,'#28302d','#172520');circle(0,0,r*.6,'#9ba9a5','#172520');circle(0,0,4,'#d8dfd8');for(let k=0;k<10;k++){ctx.rotate(Math.PI/5);ctx.fillStyle='#4a514d';ctx.fillRect(r-5,-2,5,4)}ctx.restore()}ctx.save();ctx.scale(v.bodyScale,1);vehicleBody(c,v,p.bob);if(c.alive&&v.rocket&&c.rocketOn){const flame=22+Math.sin(time*55)*8;path([[-68,-23],[-68-flame,-18],[-68,-12]],'#ff8933');path([[-68,-21],[-68-flame*.65,-18],[-68,-14]],'#fff2a3')}ctx.restore();if(c.shield>0){ctx.strokeStyle='#79e9f5';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,-10,65*v.bodyScale,0,Math.PI*2);ctx.stroke()}if(c.alive&&c.boost>0&&!v.rocket)path([[-49*v.bodyScale,0],[-72*v.bodyScale,-8],[-63*v.bodyScale,3],[-80*v.bodyScale,8],[-49*v.bodyScale,9]],'#ffc442');ctx.restore();if(c.alive&&c.noticeTime>0){ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillStyle='#fff9df';ctx.strokeStyle='#2d4935';ctx.lineWidth=4;ctx.strokeText(c.notice,c.x,c.y-87);ctx.fillText(c.notice,c.x,c.y-87);ctx.textAlign='left'}}
+
+
+
