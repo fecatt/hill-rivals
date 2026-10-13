@@ -7,7 +7,7 @@ import {Room} from './room.js';
 const root=path.resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const version=process.env.APP_VERSION||'development';
 const room=new Room();
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png'};
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.webmanifest':'application/manifest+json','.svg':'image/svg+xml'};
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({ok:true,version,online:room.clients.size,phase:room.phase}));return;}
   let file;

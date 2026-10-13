@@ -8,7 +8,7 @@ const touch=document.createElement('div');touch.id='touch-controls';touch.hidden
 document.title='Hill Rivals · Онлайн-гонка';
 $('header>div').textContent='ONLINE MULTIPLAYER';
 $('.eyebrow').textContent='ОБЩАЯ КОМНАТА. ОДИН ПОБЕДИТЕЛЬ.';
-$('.intro').textContent='Выбери персонажа и нажми «Готово». Когда все готовы — общий отсчёт 10 секунд и старт!';
+$('.intro').textContent='Выбери персонажа. Кто-то нажимает «Готово» — через 10 секунд все в комнате начинают гонку!';
 document.querySelector('.vehicle-choice').firstChild.textContent='Машина для гонки ';
 const hints=document.querySelectorAll('.hint');hints[hints.length-1].textContent='W / D / ↑ / → — газ · S / A / ↓ / ← — тормоз · E / пробел — способность. На телефоне — кнопки внизу. Новые посетители во время гонки наблюдают и ждут следующий старт.';
 $('#pause').hidden=true;
@@ -21,13 +21,13 @@ if(!abilityNames[localAbility])localAbility='turbo';
 function send(msg){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(msg));}
 function renderPick(){
   $('#picks').innerHTML=`<section class="pick"><h3>ВАШ ГОНЩИК</h3><img class="portrait" src="assets/${assetNames[localCharacter]}.png"><div class="choose"><button id="prev-char" aria-label="Предыдущий персонаж">‹</button><b>${names[localCharacter]}</b><button id="next-char" aria-label="Следующий персонаж">›</button></div><label class="ability-select">Способность<select id="my-ability">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===localAbility?'selected':''}>${label}</option>`).join('')}</select></label></section>`;
-  const change=d=>{if(roomState?.phase!=='lobby')return;localCharacter=(localCharacter+d+7)%7;localStorage.setItem('hill-character',localCharacter);renderPick();sendProfile();};
+  const change=d=>{if(!['lobby','countdown'].includes(roomState?.phase))return;localCharacter=(localCharacter+d+7)%7;localStorage.setItem('hill-character',localCharacter);renderPick();sendProfile();};
   $('#prev-char').onclick=()=>change(-1);$('#next-char').onclick=()=>change(1);
   $('#my-ability').onchange=e=>{localAbility=e.target.value;localStorage.setItem('hill-ability',localAbility);sendProfile();};
 }
 function sendProfile(){send({type:'profile',character:localCharacter,ability:localAbility});}
 renderPick();
-$('#start').onclick=()=>{const me=roomState?.players.find(p=>p.id===roomState.you);if(me)send({type:'ready',ready:!me.ready});};
+$('#start').onclick=()=>send({type:'ready',ready:true});
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 togglePause=()=>{};
@@ -79,25 +79,24 @@ function installGame(state){
   if(state.phase==='race')$('#overlay').hidden=true;
 }
 function renderRoom(state){
-  const me=state.players.find(p=>p.id===state.you),host=state.host===state.you;
   const ready=state.players.filter(p=>p.ready).length;
   const spectator=state.phase==='race'&&!state.racers.some(p=>p.id===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.innerHTML=`<h3>Комната · ${state.players.length} онлайн</h3><div class="room-list">${state.players.map((p,i)=>`<div>${p.id===state.you?'Вы':'Гонщик '+(i+1)} · ${names[p.character]} <b>${p.ready?'✓ Готов':'Выбирает'}</b>${p.id===state.host?' · организатор':''}</div>`).join('')}</div><p id="room-status"></p>`;
+  roomPanel.innerHTML=`<h3>Комната · ${state.players.length} онлайн</h3><div class="room-list">${state.players.map((p,i)=>`<div>${p.id===state.you?'Вы':'Гонщик '+(i+1)} · ${names[p.character]} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('')}</div><p id="room-status"></p>`;
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
-  $('#track').disabled=$('#vehicle').disabled=!host||state.phase!=='lobby';
-  $('#my-ability').disabled=state.phase!=='lobby';
-  $('#prev-char').disabled=$('#next-char').disabled=state.phase!=='lobby';
+  $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby';
+  $('#my-ability').disabled=!['lobby','countdown'].includes(state.phase);
+  $('#prev-char').disabled=$('#next-char').disabled=!['lobby','countdown'].includes(state.phase);
   updateMapDescription();describeVehicle();
-  $('#start').disabled=state.phase==='race';
-  $('#start').textContent=me?.ready?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
+  $('#start').disabled=['race','countdown'].includes(state.phase);
+  $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С':'ГОТОВО';
   $('#menu').disabled=['race','countdown'].includes(state.phase);
   if(state.phase==='lobby'){
     mode='lobby';count=0;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
-    $('#room-status').textContent='Ждём готовности всех. Трассу и машину выбирает организатор.';
+    $('#room-status').textContent='Любой может выбрать трассу и машину. Нажми «Готово», чтобы запустить гонку для всех.';
   }
   if(state.phase==='countdown'){
-    $('#room-status').textContent='Все готовы! До старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Отмена готовности остановит отсчёт.';
+    $('#room-status').textContent='До общего старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Все, кто в комнате, участвуют!';
     mode='lobby';$('#lobby').hidden=false;$('#overlay').hidden=true;
   }
   if(state.phase==='result'&&oldPhase!=='result'){

@@ -11,7 +11,6 @@ export class Room {
   join(send) {
     const id=randomUUID();
     this.clients.set(id,{id,send,character:0,ability:'turbo',ready:false,gas:false,brake:false,lastInput:0});
-    if(this.phase==='countdown') this.cancelCountdown();
     this.broadcast(); return id;
   }
   leave(id) {
@@ -19,13 +18,10 @@ export class Room {
     if(this.phase==='race' && index>=0) this.sim.disconnect(index);
     this.clients.delete(id);
     if(!this.clients.size) {this.phase='lobby';this.sim=null;this.startAt=null;this.racers=[];}
-    else if(this.phase==='countdown') this.cancelCountdown();
-    this.considerStart();
     this.broadcast();
   }
-  cancelCountdown() {this.phase='lobby';this.startAt=null;}
   considerStart() {
-    if(this.phase==='lobby'&&this.clients.size&&[...this.clients.values()].every(p=>p.ready)){
+    if(this.phase==='lobby'&&this.clients.size&&[...this.clients.values()].some(p=>p.ready)){
       this.phase='countdown';this.startAt=this.now()+this.countdownMs;
     }
   }
@@ -40,16 +36,15 @@ export class Room {
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {
       if(this.phase==='result') {this.phase='lobby';this.sim=null;this.racers=[];}
-      p.ready=msg.ready===true;
-      if(!p.ready && this.phase==='countdown')this.cancelCountdown();
+      if(msg.ready===true)p.ready=true;
       this.considerStart();
     }
-    if(msg.type==='profile' && this.phase==='lobby') {
+    if(msg.type==='profile' && ['lobby','countdown'].includes(this.phase)) {
       if(Number.isInteger(msg.character)&&msg.character>=0&&msg.character<7)p.character=msg.character;
       if(['turbo','jump','shield'].includes(msg.ability))p.ability=msg.ability;
       p.ready=false;
     }
-    if(msg.type==='settings' && this.phase==='lobby' && id===this.clients.keys().next().value) {
+    if(msg.type==='settings' && this.phase==='lobby') {
       if(Number.isInteger(msg.track)&&msg.track>=0&&msg.track<7)this.track=msg.track;
       if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<7)this.vehicle=msg.vehicle;
       for(const c of this.clients.values())c.ready=false;
@@ -72,7 +67,7 @@ export class Room {
   snapshot(id) {
     const state=this.sim?.state();
     return {type:'state',you:id,phase:this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
-      track:this.track,vehicle:this.vehicle,host:this.clients.keys().next().value,
+      track:this.track,vehicle:this.vehicle,
       online:this.clients.size,inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.id)).length:0,
       players:[...this.clients.values()].map(p=>({id:p.id,character:p.character,ability:p.ability,ready:p.ready})),
       racers:this.racers.map(p=>({id:p.id,character:p.character,ability:p.ability,color:p.color})),
