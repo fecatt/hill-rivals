@@ -21,6 +21,8 @@ test('unready and new arrivals cancel countdown; disconnect does not block next 
   room.message(b,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
   room.message(a,{type:'ready',ready:false});assert.equal(room.phase,'lobby');
   room.leave(a);room.message(b,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
+  const c=room.join(()=>{});assert.equal(room.phase,'lobby');
+  room.leave(c);assert.equal(room.phase,'countdown');
 });
 test('host settings validated; active race visitors spectate; disconnect ends two-car race',()=>{
   let now=0;const room=new Room({now:()=>now});const a=room.join(()=>{}),b=room.join(()=>{});

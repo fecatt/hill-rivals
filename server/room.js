@@ -20,9 +20,15 @@ export class Room {
     this.clients.delete(id);
     if(!this.clients.size) {this.phase='lobby';this.sim=null;this.startAt=null;this.racers=[];}
     else if(this.phase==='countdown') this.cancelCountdown();
+    this.considerStart();
     this.broadcast();
   }
   cancelCountdown() {this.phase='lobby';this.startAt=null;}
+  considerStart() {
+    if(this.phase==='lobby'&&this.clients.size&&[...this.clients.values()].every(p=>p.ready)){
+      this.phase='countdown';this.startAt=this.now()+this.countdownMs;
+    }
+  }
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
     if(msg.type==='input') {
@@ -36,9 +42,7 @@ export class Room {
       if(this.phase==='result') {this.phase='lobby';this.sim=null;this.racers=[];}
       p.ready=msg.ready===true;
       if(!p.ready && this.phase==='countdown')this.cancelCountdown();
-      if(this.phase==='lobby' && [...this.clients.values()].every(c=>c.ready)) {
-        this.phase='countdown';this.startAt=this.now()+this.countdownMs;
-      }
+      this.considerStart();
     }
     if(msg.type==='profile' && this.phase==='lobby') {
       if(Number.isInteger(msg.character)&&msg.character>=0&&msg.character<7)p.character=msg.character;
