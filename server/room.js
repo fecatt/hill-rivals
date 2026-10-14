@@ -14,7 +14,7 @@ export class Room {
   setSeats(p,profiles){
     if(!Array.isArray(profiles)||profiles.length<1||profiles.length>3)return false;
     const others=this.seatCount()-p.seats.length;if(others+profiles.length>8)return false;
-    if(this.phase==='race')return false;
+    if(this.phase==='race'&&p.seats.length)return false;
     p.seats=profiles.map((profile,slot)=>{
       const old=p.seats[slot]||{};
       const number=old.number||(slot===0?p.number:++this.playerSerial);
@@ -26,7 +26,7 @@ export class Room {
   join(send,id=randomUUID(),name='') {
     const number=++this.playerSerial;
     const party={id,send,number,name:name||'Игрок '+number,ready:false,inGarage:false,seats:[],directPeers:new Set()};
-    this.clients.set(id,party);this.setSeats(party,[{name:party.name}]);
+    this.clients.set(id,party);party.gas=false;party.brake=false;this.setSeats(party,[{name:party.name}]);
     if(!this.host)this.host=id;
     this.considerStart(); this.broadcast(); return id;
   }
@@ -86,13 +86,13 @@ export class Room {
         const slot=Number.isInteger(item.slot)?item.slot:0,index=this.racerIndex(id,slot),seat=p.seats[slot];
         if(index<0||!seat||!Number.isSafeInteger(item.seq)||item.seq<1||item.seq<=(seat.poseSeq||0))continue;
         if(!Number.isFinite(item.time)||item.time<(seat.poseTime||0)||item.time>(now-this.raceStartedAt)/1000+.5)continue;
-        if(this.sim.pose(index,item.pose,Math.max(0,(now-(seat.lastPoseAt??this.raceStartedAt))/1000))){seat.poseSeq=item.seq;seat.poseTime=item.time;seat.lastPoseAt=now;seat.localPhysics=true;}
+        if(this.sim.pose(index,item.pose,Math.max(0,(now-(seat.lastPoseAt??this.raceStartedAt))/1000))){seat.poseSeq=item.seq;seat.poseTime=item.time;seat.lastPoseAt=now;seat.localPhysics=true;if(slot===0)p.localPhysics=true;}
       }
       return;
     }
     if(msg.type==='input') {
       const controls=Array.isArray(msg.seats)?msg.seats:[{slot:0,gas:msg.gas,brake:msg.brake,ability:msg.ability}];
-      for(const control of controls.slice(0,3)){const seat=p.seats[control.slot];if(!seat)continue;seat.gas=control.gas===true;seat.brake=control.brake===true;seat.lastInput=this.now();if(control.ability===true&&this.phase==='race'&&!seat.localPhysics){const index=this.racerIndex(id,control.slot);if(index>=0)this.sim.ability(index);}}
+      for(const control of controls.slice(0,3)){const seat=p.seats[control.slot];if(!seat)continue;seat.gas=control.gas===true;seat.brake=control.brake===true;seat.lastInput=this.now();if(control.slot===0){p.gas=seat.gas;p.brake=seat.brake;p.lastInput=seat.lastInput;}if(control.ability===true&&this.phase==='race'&&!seat.localPhysics){const index=this.racerIndex(id,control.slot);if(index>=0)this.sim.ability(index);}}
       return;
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {
@@ -123,7 +123,7 @@ export class Room {
     }
     if(this.phase==='race') {
       for(const [index,p] of this.racers.entries()){
-        if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;}
+        if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;for(const seat of p.seats)if(this.now()-seat.lastInput>1500){seat.gas=false;seat.brake=false;if(seat.slot===0){p.gas=false;p.brake=false;}}}
         if(p.localPhysics&&p.disconnectedAt==null&&this.now()-p.lastPoseAt>30000)this.sim.disconnect(index);
       }
       this.sim.step();

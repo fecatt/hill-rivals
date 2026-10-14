@@ -2,6 +2,7 @@
 // LAN candidates use WebRTC; the existing WebSocket route remains available at all times.
 function createPeerTransport(send,getRoom){
  const peers=new Map();let round=-1,enabled=true;
+ const ownerOf=player=>player.owner??player.id;
  const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)]??Infinity;
  const sample=(values,value)=>{if(Number.isFinite(value)&&value>=0&&value<10000){values.push(value);if(values.length>8)values.shift();}};
  const notify=()=>send({type:'transport',peers:[...peers.values()].filter(p=>p.selected&&p.channel?.readyState==='open').map(p=>p.id)});
@@ -33,7 +34,7 @@ function createPeerTransport(send,getRoom){
  }
  return {
   update(state){
-    const ids=new Set(state.players.filter(p=>p.owner!==state.you).map(p=>p.owner));
+    const ids=new Set(state.players.map(ownerOf).filter(owner=>owner!==state.you));
    for(const [id,peer] of peers)if(!ids.has(id)){peer.pc.close();peers.delete(id);}
    for(const [id,peer] of peers)if(['failed','closed'].includes(peer.pc.connectionState)&&performance.now()-peer.created>15000){peer.pc.close();peers.delete(id);}
    if(round!==state.round){round=state.round;for(const peer of peers.values())peer.frames.clear();}
@@ -46,7 +47,7 @@ function createPeerTransport(send,getRoom){
    }
   },
   async signal(msg){
-   if(!getRoom()?.players.some(p=>p.owner===msg.from))return;
+   if(!getRoom()?.players.some(p=>ownerOf(p)===msg.from))return;
    const peer=ensure(msg.from);if(!peer)return;
    try{
     if(msg.data?.description){
@@ -89,7 +90,7 @@ function createPeerTransport(send,getRoom){
    pose.x+=b.pose.vx*ahead;pose.y+=b.pose.vy*ahead;pose.a+=b.pose.av*ahead;pose.wheel+=b.pose.vx*ahead/17;
    return pose;
   },
-  summary(){let direct=0;for(const peer of peers.values())if(peer.selected&&peer.channel?.readyState==='open')direct++;const count=Math.max(0,new Set((getRoom()?.players||[]).map(p=>p.owner).filter(id=>id!==getRoom()?.you)).size);return count?'Напрямую: '+direct+' · Через сервер: '+(count-direct):'Ожидаем игроков';},
+  summary(){let direct=0;for(const peer of peers.values())if(peer.selected&&peer.channel?.readyState==='open')direct++;const count=Math.max(0,new Set((getRoom()?.players||[]).map(ownerOf).filter(id=>id!==getRoom()?.you)).size);return count?'Напрямую: '+direct+' · Через сервер: '+(count-direct):'Ожидаем игроков';},
   reset(){for(const peer of peers.values())peer.pc.close();peers.clear();round=-1;},
   debug(){return [...peers.values()].map(p=>({id:p.id,connected:p.channel?.readyState==='open',directRtt:median(p.direct),relayRtt:median(p.relay),selected:p.selected,frames:[...p.frames.values()].reduce((count,frames)=>count+frames.length,0)}));},
  };

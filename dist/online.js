@@ -88,7 +88,7 @@ onlineCharacters[0]=localCharacter;onlineAbilities[0]=localAbility;
 function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>p.owner===roomState.you&&p.slot===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
 window.syncOnlineFromGarage=setup=>{
  if(!setup)return;
- if(Number.isInteger(setup.playerCount)){onlineSeatCount=touchDevice.matches?1:Math.max(1,Math.min(3,setup.playerCount));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);}
+ if(Number.isInteger(setup.playerCount)){onlineSeatCount=touchDevice.matches?1:Math.max(1,Math.min(3,setup.playerCount));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);}
  for(let i=0;i<3;i++){if(Number.isInteger(setup.chosen?.[i]))onlineCharacters[i]=setup.chosen[i];if(setup.abilities?.[i])onlineAbilities[i]=setup.abilities[i];}
  if(Number.isInteger(setup.track))$('#track').value=String(setup.track);if(Number.isInteger(setup.vehicle))$('#vehicle').value=String(setup.vehicle);
  localCharacter=onlineCharacters[0]||0;localAbility=onlineAbilities[0]||'turbo';renderPick();
@@ -102,7 +102,7 @@ function renderPick(){
 }
 function sendProfile(){const seats=Array.from({length:onlineSeatCount},(_,slot)=>profileForSeat(slot));send({type:'profile',seats});}
 renderPick();
-function setOnlineSeatCount(count){if(touchDevice.matches)count=1;onlineSeatCount=Math.max(1,Math.min(3,count));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);renderPick();sendProfile();}
+function setOnlineSeatCount(count){if(touchDevice.matches)count=1;onlineSeatCount=Math.max(1,Math.min(3,count));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);renderPick();sendProfile();}
 window.onlineSeatCountChanged=setOnlineSeatCount;
 touchDevice.addEventListener('change',()=>{if(touchDevice.matches&&onlineSeatCount>1&&['lobby','countdown'].includes(roomState?.phase))setOnlineSeatCount(1);});
 window.changeOnlineParty=delta=>{
@@ -231,7 +231,7 @@ function renderRoom(state){
   roomUI.state(state);
   track=state.track;vehicleModel=state.vehicle;
   const owned=state.players.filter(p=>p.owner===state.you).sort((a,b)=>a.slot-b.slot);
-  if(owned.length&&owned.length!==onlineSeatCount){onlineSeatCount=owned.length;$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#players').value=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);renderPick();}
+  if(owned.length&&owned.length!==onlineSeatCount){onlineSeatCount=owned.length;$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#players').value=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);renderPick();}
   $('#add-local-racer').hidden=touchDevice.matches||state.phase==='race'||onlineSeatCount>=3||state.players.length>=8;
   $('#remove-local-racer').hidden=touchDevice.matches||state.phase==='race'||onlineSeatCount<=1;
   const ready=state.players.filter(p=>p.ready).length;
