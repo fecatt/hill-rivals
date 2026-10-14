@@ -82,7 +82,7 @@ let localAbility=localStorage.getItem('hill-ability')||'turbo';
 if(!abilityNames[localAbility])localAbility='turbo';
 // A fresh party starts with one racer. Add couch teammates explicitly from the room UI.
 let onlineSeatCount=1;
-document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);
+document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);
 const onlineCharacters=[...chosen],onlineAbilities=[...abilities];
 onlineCharacters[0]=localCharacter;onlineAbilities[0]=localAbility;
 function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>p.owner===roomState.you&&p.slot===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
