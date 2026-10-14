@@ -2,7 +2,7 @@
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),$=s=>document.querySelector(s);
 const assetNames=['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'],names=assetNames.map(n=>({'Голубой':'Гейнинзя','Комунистичкий':'Комунинзя'}[n]||n)),images=assetNames.map(n=>{let i=new Image;i.src='assets/'+n+'.png';return i}),colors=['#e64d36','#418acb','#e5b83d'],chosen=[0,1,2],abilities=['turbo','jump','shield'],keys={};
 let playerCount=1;
-let W=innerWidth,H=innerHeight,mode='lobby',cars=[],cam=0,zoom=1,cameraY=0,time=0,count=3,bonus=[],particles=[],nextDrop=6,track=0,paused=false,winner=null,audio=null,sound=false,osc,gain,snowStart=Infinity,snowEnd=0,nextSnow=8;
+let W=innerWidth,H=innerHeight,mode='lobby',cars=[],cam=0,zoom=1,cameraY=0,time=0,count=3,bonus=[],particles=[],nextDrop=6,track=0,paused=false,winner=null,audio=null,sound=false,engineAudio,snowStart=Infinity,snowEnd=0,nextSnow=8;
 const checkpoint=1500,baseScale=()=>Math.min(1.3,Math.max(.7,W/1250)),scale=()=>baseScale()*(mode==='lobby'?1:zoom);
 const abilityNames={turbo:'Турбо',jump:'Прыжок',shield:'Щит'},abilityKeys=['E','Правый Shift','СКМ'];
 // Bound the backing store on dense phone screens; physics stays in CSS pixels.
@@ -34,7 +34,79 @@ function start(){vehicleModel=+$('#vehicle').value;newWorldSeed();track=+$('#tra
 $('#start').onclick=start;function keysClear(){Object.keys(keys).forEach(k=>keys[k]=false)}function garage(){mode='lobby';paused=false;$('#lobby').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;$('#foot').hidden=false;keysClear()}$('#menu').onclick=garage;
 function togglePause(){if(mode!=='race')return;paused=!paused;keysClear();$('#overlay').hidden=!paused;if(paused){$('#overlay').innerHTML='<h2>Пауза</h2><p>Переведи дыхание. Холмы подождут.</p><button id="resume">Продолжить</button>';$('#resume').onclick=togglePause}}$('#pause').onclick=togglePause;
 addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(!e.repeat){const i=['KeyE','ShiftRight','unused'].indexOf(e.code);if(i>=0)activateAbility(cars[i])}if(e.code==='Escape'&&!e.repeat)togglePause()});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('blur',()=>{keysClear();if(mode==='race'&&!paused)togglePause()});document.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('mousedown',e=>{keys['Mouse'+e.button]=true;if(e.button===1)activateAbility(cars[2]);e.preventDefault()});addEventListener('mouseup',e=>keys['Mouse'+e.button]=false);
-$('#sound').onclick=()=>{sound=!sound;$('#sound').textContent='Звук: '+(sound?'вкл':'выкл');if(!audio){audio=new AudioContext;osc=audio.createOscillator();gain=audio.createGain();osc.type='sawtooth';osc.connect(gain);gain.connect(audio.destination);gain.gain.value=0;osc.start()}audio.resume()};
+// Engine audio: combustion pulses, exhaust resonance and filtered intake air.
+// Kept in game.js so the existing offline cache includes the complete sound.
+class RacingEngineAudio {
+ constructor(context){
+  this.context=context;this.rpm=850;this.throttle=0;this.gear=0;this.shiftUntil=0;
+  this.master=context.createGain();this.master.gain.value=0;
+  const compressor=context.createDynamicsCompressor();
+  compressor.threshold.value=-18;compressor.knee.value=12;compressor.ratio.value=3;
+  this.master.connect(compressor);compressor.connect(context.destination);
+  this.exhaust=context.createBiquadFilter();this.exhaust.type='lowpass';this.exhaust.frequency.value=650;this.exhaust.Q.value=.55;
+  const body=context.createBiquadFilter();body.type='peaking';body.frequency.value=125;body.Q.value=.7;body.gain.value=3;
+  const rumbleCut=context.createBiquadFilter();rumbleCut.type='highpass';rumbleCut.frequency.value=32;rumbleCut.Q.value=.5;
+  this.exhaust.connect(body);body.connect(rumbleCut);rumbleCut.connect(this.master);
+  this.motor=context.createBufferSource();this.motor.buffer=this.combustionBuffer();this.motor.loop=true;this.motor.playbackRate.value=850/1600;
+  this.motor.connect(this.exhaust);this.motor.start();
+  this.intake=context.createBufferSource();
+  const air=context.createBuffer(1,context.sampleRate*2,context.sampleRate),data=air.getChannelData(0);
+  for(let i=0;i<data.length;i++)data[i]=Math.random()*2-1;
+  this.intake.buffer=air;this.intake.loop=true;
+  const airFilter=context.createBiquadFilter();airFilter.type='bandpass';airFilter.frequency.value=850;airFilter.Q.value=.5;
+  this.airGain=context.createGain();this.airGain.gain.value=.015;
+  this.intake.connect(airFilter);airFilter.connect(this.airGain);this.airGain.connect(this.master);this.intake.start();
+ }
+ combustionBuffer(){
+  const sr=this.context.sampleRate,period=60/(1600*2),fires=96,length=Math.round(period*fires*sr);
+  const buffer=this.context.createBuffer(1,length,sr),data=buffer.getChannelData(0);
+  let seed=1729;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  for(let fire=0;fire<fires;fire++){
+   const start=Math.round((fire+((random()-.5)*.025))*length/fires);
+   const strength=[1,.89,.96,.85][fire%4]*(.95+random()*.1);
+   for(let j=0;j<sr*.085;j++){
+    const t=j/sr,envelope=(1-Math.exp(-t*1800))*Math.exp(-t*80);
+    const thump=Math.sin(2*Math.PI*95*t)*.7+Math.sin(2*Math.PI*185*t)*.22;
+    const burn=(random()*2-1)*Math.exp(-t*230)*.28;
+    const index=(start+j+length)%length;
+    data[index]+=strength*(thump*envelope+burn);
+   }
+  }
+  let peak=0;for(const x of data)peak=Math.max(peak,Math.abs(x));
+  for(let i=0;i<data.length;i++)data[i]=data[i]/peak*.8;
+  return buffer;
+ }
+ update(dt,state,now=this.context.currentTime){
+  const c=state.car,active=state.active&&c?.alive&&c.fuel>0;
+  const spec=state.spec||{},heavy=['pickup','monster','hotrod'].includes(spec.kind);
+  const throttle=active&&state.gas&&!state.brake?1:0;
+  this.throttle+=(throttle-this.throttle)*(1-Math.exp(-dt*9));
+  const speed=Math.abs(c?.vx||0),ratio=Math.min(1,speed/(spec.maxSpeed||680));
+  const gear=Math.min(4,Math.floor(ratio*5));
+  if(gear>this.gear&&throttle)this.shiftUntil=now+.16;
+  this.gear=gear;
+  const idle=heavy?700:850,range=heavy?2600:3400;
+  const roadRPM=idle+700+(ratio*5-gear)*range*.65;
+  let target=idle+this.throttle*(750+ratio*1100);
+  if(speed>45)target=Math.max(target,roadRPM*(throttle?1:.78));
+  if((c?.air||0)>.15&&throttle)target+=800;
+  if((c?.boost||0)>0&&throttle)target+=350;
+  if(now<this.shiftUntil)target*=.72;
+  target=Math.max(idle,Math.min(heavy?3900:4800,target));
+  this.rpm+=(target-this.rpm)*(1-Math.exp(-dt*(target>this.rpm?5:3)));
+  this.motor.playbackRate.setTargetAtTime(this.rpm/1600,now,.055);
+  this.exhaust.frequency.setTargetAtTime((heavy?480:580)+this.throttle*650+ratio*220,now,.09);
+  this.airGain.gain.setTargetAtTime(.012+this.throttle*.075+(c?.rocketOn?.15:0),now,.08);
+  this.master.gain.setTargetAtTime(active?.19+this.throttle*.09:0,now,active?.08:.045);
+ }
+ silence(){this.master.gain.setTargetAtTime(0,this.context.currentTime,.025);}
+}
+
+$('#sound').onclick=()=>{
+ sound=!sound;$('#sound').textContent='Звук: '+(sound?'вкл':'выкл');
+ if(sound){if(!audio){audio=new (window.AudioContext||window.webkitAudioContext)();engineAudio=new RacingEngineAudio(audio);}audio.resume().catch(()=>{});}
+ else engineAudio?.silence();
+};
 function input(i){return i===0?[keys.KeyW||keys.KeyD||keys.TouchGas,keys.KeyS||keys.KeyA||keys.TouchBrake]:i===1?[keys.ArrowUp||keys.ArrowRight,keys.ArrowDown||keys.ArrowLeft]:[keys.Mouse2,keys.Mouse0]}
 function activateAbility(c){if(mode!=='race'||paused||count>0||!c?.alive||c.cooldown>0)return;if(c.ability==='turbo'){c.boost=Math.max(c.boost,2.8);c.cooldown=11;announce(c,'ТУРБО АКТИВИРОВАНО')}if(c.ability==='jump'){c.vy=Math.min(c.vy,-250);c.cooldown=8;announce(c,'ПРЫЖОК')}if(c.ability==='shield'){c.shield=Math.max(c.shield,4);c.cooldown=14;announce(c,'ЩИТ АКТИВИРОВАН')}}
 function announce(c,t){c.notice=t;c.noticeTime=2.5}
@@ -98,10 +170,13 @@ function frame(now){
  const dt=Math.min(.05,(now-last)/1000);last=now;
  acc+=dt;while(acc>=1/120){update(1/120);acc-=1/120}
  syncGameScreen();animateSuspension(dt);draw();
- if(gain){gain.gain.setTargetAtTime(sound&&mode==='race'&&!paused&&count<=0?.025:0,audio.currentTime,.08);osc.frequency.setTargetAtTime(45+Math.max(0,...cars.map(c=>Math.abs(c.vx)))*.4,audio.currentTime,.1)}
+ if(engineAudio){
+  const ownIndex=window.onlineIndex??0,c=cars[ownIndex],controls=c?input(c.i):[false,false];
+  engineAudio.update(dt,{active:sound&&mode==='race'&&!paused&&count<=0,car:c,spec:c?carSpec(c):null,gas:controls[0],brake:controls[1]});
+ }
 }
 requestAnimationFrame(frame);
-document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;});
+document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;if(document.hidden)engineAudio?.silence();});
 window.gameDebug={getState:()=>({mode,playerCount,count,cam,zoom,time,renderRatio,cars:cars.map(c=>({...c})),bonus:bonus.length,seed:worldSeed,vehicle:VEHICLES[vehicleModel].name,track,biome:mapBiome(track,cam+W/scale()*.5),snowing:snowing()}),activateAbility,start,step:n=>{for(let j=0;j<n;j++)update(1/120)},setInput:(i,g,b)=>{const k=[['KeyD','KeyA'],['ArrowRight','ArrowLeft'],['Mouse2','Mouse0']][i];keys[k[0]]=g;keys[k[1]]=b}};
 
 
