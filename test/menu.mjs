@@ -15,6 +15,9 @@ try {
  assert.equal(await page.locator('.pick[data-online-seat]').count(),1);
  assert.equal(await page.locator('.empty-seat').count(),3);
  assert.equal(await page.locator('#world-preview').count(),0);
+ assert.equal(await page.locator('#vehicle-preview').count(),0);
+ assert.ok((await page.locator('#car-specs').textContent()).includes('Макс. скорость'));
+ assert.ok((await page.locator('#car-specs').textContent()).includes('л.с.'));
  assert.equal(await page.locator('#join-code button[type=submit]').count(),0);
  assert.equal(await page.locator('#join-code #network-toggle .icon-globe').count(),1);
  assert.equal(await page.locator('#track-specs dd').count(),3);
@@ -32,12 +35,24 @@ try {
   assert.ok(result.scroll<=result.width+1,'no horizontal overflow: '+JSON.stringify(result));assert.equal(result.overlap,false,'code entry is not covered by ready: '+JSON.stringify(result));
  };
  await checkLayout(page);await shot('menu-desktop');
+ const terrainCheck=await page.evaluate(()=>{
+  const beforeTrack=$('#track').value,beforeVehicle=$('#vehicle').value,surfaces=[];
+  for(let i=0;i<7;i++){$('#track').value=String(i);draw();surfaces.push(canvas.toDataURL());}
+  $('#track').value=beforeTrack;$('#vehicle').value='0';draw();const jeep=canvas.toDataURL();$('#vehicle').value='4';draw();const monster=canvas.toDataURL();$('#vehicle').value=beforeVehicle;draw();
+  return {distinct:new Set(surfaces).size,changes:jeep!==monster};
+ });assert.equal(terrainCheck.distinct,7);assert.equal(terrainCheck.changes,true);
  for(const viewport of [{width:1280,height:720},{width:1024,height:768}]){await page.setViewportSize(viewport);await checkLayout(page);await shot('menu-'+viewport.width);}
  await page.setViewportSize({width:1440,height:900});
  await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===3);
  await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===4);
  assert.equal(await page.locator('.empty-seat').count(),0);await checkLayout(page);
+ await page.locator('#player-name-3').fill('Ёрик');
+ await page.waitForFunction(()=>document.querySelector('.room-list').textContent.includes('Ёрик'));
+ assert.equal(await page.locator('.room-list>div').count(),4);
+ await shot('menu-four-racers');
  await page.locator('.remove-seat').click();await page.waitForFunction(()=>roomState.players.length===3);
+ assert.ok(!(await page.locator('.room-list').textContent()).includes('Ёрик'));
+ assert.equal(await page.locator('.room-list>div').count(),3);
  await page.locator('.remove-seat').click();await page.waitForFunction(()=>roomState.players.length===2);
  const code=await page.evaluate(()=>roomState.room.code);
  const phone=await browser.newContext({viewport:{width:393,height:852},deviceScaleFactor:2,isMobile:true,hasTouch:true,serviceWorkers:'block'});

@@ -40,7 +40,13 @@ function refreshChoices(){
  $('#ability-panel').replaceChildren();
  for(const button of document.querySelectorAll('#picks [data-char-seat]'))if(!button.querySelector('svg'))button.innerHTML=menuIcon(button.dataset.step==='-1'?'left':'right');
  const v=VEHICLES[+$('#vehicle').value];
- if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div><div><dt>Тяга</dt><dd>'+v.engine+'</dd></div><div><dt>Ход подвески</dt><dd>'+v.travel+'</dd></div><div><dt>Сцепление</dt><dd>'+v.grip.toFixed(2)+'</dd></div>';}
+ if($('#car-specs').dataset.model!==$('#vehicle').value){
+  const drive=v.wheels.length*2+'×'+v.wheels.length*2;
+  // The physics engine uses mass/900 and world units. Convert force × speed to metric hp.
+  const forceNewtons=v.engine*900/WORLD_UNITS_PER_METRE,powerHp=Math.round(forceNewtons*worldMetres(v.maxSpeed)/735.5);
+  const rows=[['Макс. скорость',Math.round(speedKph(v.maxSpeed))+' км/ч'],['Мощность',powerHp+' л.с.'],['Масса',v.mass+' кг'],['Привод',drive],['Колёса / оси',v.wheels.length*2+' / '+v.wheels.length],['Ход подвески',Math.round(worldMetres(v.travel*2)*100)+' см']];
+  $('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML=rows.map(([label,value])=>'<div'+(label==='Мощность'?' title="Расчётная игровая мощность на колёсах: сила тяги × максимальная скорость."':'')+'><dt>'+label+'</dt><dd>'+value+'</dd></div>').join('');
+ }
  $('#world-description').textContent=MAPS[+$('#track').value].description;
  const map=MAPS[+$('#track').value];
  if($('#track-specs').dataset.map!==$('#track').value){
@@ -66,27 +72,10 @@ const settings=$('.bottom'),worldLabel=$('#track').closest('label'),vehicleLabel
 worldLabel.classList.add('setting-card','world-setting');vehicleLabel.classList.add('setting-card','vehicle-setting');
 worldLabel.firstChild.textContent='';vehicleLabel.firstChild.textContent='';worldLabel.setAttribute('aria-label','Выбор трассы');vehicleLabel.setAttribute('aria-label','Выбор машины');
 
-const vehiclePreview=document.createElement('canvas');vehiclePreview.id='vehicle-preview';vehiclePreview.width=640;vehiclePreview.height=220;vehicleLabel.insertBefore(vehiclePreview,$('#vehicle'));vehicleLabel.append($('#vehicle-description'));$('#map-description').hidden=true;
+vehicleLabel.append($('#vehicle-description'));$('#map-description').hidden=true;
 const racerColumn=document.createElement('section');racerColumn.id='racer-column';$('#picks').before(racerColumn);racerColumn.append($('#picks'));const abilityPanel=document.createElement('section');abilityPanel.id='ability-panel';racerColumn.append(abilityPanel);
  const worldDescription=document.createElement('p');worldDescription.id='world-description';worldLabel.append(worldDescription);
  const trackSpecs=document.createElement('dl');trackSpecs.id='track-specs';worldLabel.append(trackSpecs);
  const specs=document.createElement('dl');specs.id='car-specs';vehicleLabel.append(specs);
- let lastVehiclePreview='';
-function renderSettingPreviews(){
- if(mode!=='lobby')return;
-
- const v=VEHICLES[+$('#vehicle').value],im=paintedBodies[v.kind];if(!im?.complete||!im.naturalWidth)return;
- const stamp=v.kind+':'+im.naturalWidth;if(stamp===lastVehiclePreview)return;lastVehiclePreview=stamp;
- const preview=vehiclePreview.getContext('2d'),wheels=wheelSpecs(v),a=BODY_ANCHORS[v.kind],crop=BODY_BOUNDS[v.kind];
- const first=wheels[0].x,last=wheels.at(-1).x,unit=(last-first)/(a.axles.at(-1)-a.axles[0])*BODY_ART_SCALE;
- const length=last-first+((a.axles[0]-crop[0])+(crop[0]+crop[2]-a.axles.at(-1)))*unit,maxRadius=Math.max(...wheels.map(w=>w.r)),scale=Math.min(3.6,530/length,190/(maxRadius+(a.y-crop[1])*unit));
- preview.clearRect(0,0,640,220);preview.save();preview.translate(320,205-maxRadius*scale);preview.scale(scale,scale);
- for(const wheel of wheels){preview.fillStyle='#233b40';preview.beginPath();preview.arc(wheel.x,0,wheel.r,0,Math.PI*2);preview.fill();preview.fillStyle='#a5bbc0';preview.beginPath();preview.arc(wheel.x,0,wheel.r*.62,0,Math.PI*2);preview.fill();preview.fillStyle='#48626b';preview.beginPath();preview.arc(wheel.x,0,wheel.r*.32,0,Math.PI*2);preview.fill();}
- let strips;
- if(v.kind==='monster'){const s=a.axles;strips=[[crop[0],s[0],first-(s[0]-crop[0])*unit,first],[s[0],s[1],first,wheels[1].x],[s[0],s[1],wheels[1].x,wheels[2].x],[s[1],s[2],wheels[2].x,last],[s[2],crop[0]+crop[2],last,last+(crop[0]+crop[2]-s[2])*unit]];}
- else{const source=[crop[0],...a.axles,crop[0]+crop[2]],dest=[first-(a.axles[0]-crop[0])*unit,...wheels.map(w=>w.x),last+(crop[0]+crop[2]-a.axles.at(-1))*unit];strips=source.slice(0,-1).map((x,i)=>[x,source[i+1],dest[i],dest[i+1]]);}
- for(const [s1,s2,x1,x2] of strips)preview.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,(crop[1]-a.y)*unit,x2-x1+.15,crop[3]*unit);
- preview.restore();
-}
 new MutationObserver(()=>refreshChoices()).observe($('#picks'),{childList:true,subtree:true});
-window.refreshChoices=refreshChoices;window.renderSettingPreviews=renderSettingPreviews;refreshChoices();
+window.refreshChoices=refreshChoices;refreshChoices();

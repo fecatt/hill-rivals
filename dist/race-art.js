@@ -69,15 +69,13 @@ function drawVehicle(c){
 }
 const CRATE_COLORS=['#d65d46','#e8ad36','#4dafbc','#987044'];
 function drawGarageRoad(){
- const roadY=H*.89,t=+$('#track').value,v=VEHICLES[vehicleModel],size=Math.min(1.7,Math.max(.9,W/1000));
+ const roadY=H*.89,t=+$('#track').value,model=+$('#vehicle').value,v=VEHICLES[model],size=Math.min(1.7,Math.max(.9,W/1000));
  const x=W*.13/size,ground=0;
  ctx.save();ctx.translate(0,roadY);ctx.scale(size,size);
  // A level garage road keeps the parked vehicle clear of the menu.
  const roadWidth=W/size,roadHeight=(H-roadY)/size;
- ctx.fillStyle='#657277';ctx.fillRect(0,0,roadWidth,roadHeight+4);
- ctx.fillStyle='#b5bfaa';ctx.fillRect(0,0,roadWidth,5);
- ctx.strokeStyle='#f1dfb3';ctx.lineWidth=3;ctx.setLineDash([34,32]);ctx.beginPath();ctx.moveTo(0,roadHeight*.6);ctx.lineTo(roadWidth,roadHeight*.6);ctx.stroke();ctx.setLineDash([]);
- const parked={i:0,model:vehicleModel,x,y:ground-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r)),vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
+ drawGround(t,0,roadWidth,roadHeight+300,true);
+ const parked={i:0,model,x,y:ground-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r)),vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
  drawVehicle(parked);ctx.restore();
 }
 let crateSerial=0;

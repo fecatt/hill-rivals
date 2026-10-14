@@ -75,7 +75,7 @@ function createRoomsUI(){
    if(activeRoomCode!==state.room.code){activeRoomCode=state.room.code;messages=[];lastChatId=0;unreadCount=0;$('#chat-log').replaceChildren();setUnread();}
    browser.hidden=false;$('#lobby').hidden=false;$('#menu').hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
    $('#room-title').textContent=state.room.name;$('#copy-code').textContent=state.room.code+' ⧉';$('#rename-room').hidden=state.room.host!==state.you;$('#rename-room').disabled=!['lobby','result'].includes(state.phase);if(state.room.host!==state.you)$('#rename-form').hidden=true;
-   const me=state.players.find(p=>p.owner===state.you&&p.slot===0),field=$('#player-name-0');if(field&&document.activeElement!==field)field.value=me?.name||'';
+   for(const player of state.players.filter(p=>playerOwner(p)===state.you)){const field=$('#player-name-'+(player.slot??0));if(field&&document.activeElement!==field)field.value=player.name||'';}
    $('#host-caption').textContent=state.room.host===state.you?'Вы ведущий · выбирайте трассу и машину.':'Трассу и машину выбирает ведущий.';
    $('#lobby h1').textContent='Комната '+state.room.code;$('#lobby .eyebrow').textContent='ГОТОВИМСЯ К ГОНКЕ';$('#lobby .intro').textContent='Выберите гонщиков на этом устройстве и нажмите «Готово». После готовности всех — старт через 3 секунды.';window.refreshChoices?.();
    const url=new URL(location.href);url.searchParams.set('room',state.room.code);history.replaceState({},'',url);
