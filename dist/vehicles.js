@@ -25,12 +25,12 @@ function inertia(v){const span=v.wheels[v.wheels.length-1]-v.wheels[0];return 11
 function describeVehicle(){const v=VEHICLES[+$('#vehicle').value],s=wheelSpecs(v);$('#vehicle-description').textContent=v.description;$('#vehicle-stats').textContent=`${v.mass} кг · ${s.length} оси (колёс: ${s.length*2}) · радиус колёс ${s.map(w=>w.r).join('/')} · до ${Math.round(speedKph(v.maxSpeed))} км/ч · ход ${v.travel} · жёсткость ${v.spring}`}
 let vehicleModel=0;
 const suspensionVisuals=new WeakMap();
-function visualPose(c){let p=suspensionVisuals.get(c);if(!p){p={wheels:carSpec(c).wheels.map(()=>carSpec(c).mount),bob:0,lastVY:c.vy,lastVX:c.vx};suspensionVisuals.set(c,p)}return p}
+function visualPose(c){let p=suspensionVisuals.get(c);if(!p||p.model!==carSpec(c).kind){p={model:carSpec(c).kind,wheels:carSpec(c).wheels.map(()=>carSpec(c).mount),bob:0,lastVY:c.vy,lastVX:c.vx};suspensionVisuals.set(c,p)}return p}
 function animateSuspension(dt){if(mode!=='race'||paused||count>0)return;for(const c of cars){if(!c.alive)continue;const v=carSpec(c),wheels=wheelSpecs(v),p=visualPose(c),cos=Math.cos(c.a),sin=Math.sin(c.a);for(let j=0;j<wheels.length;j++){const {x:rx,r}=wheels[j],contact=c.contacts.find(w=>w.rx===rx);let target=v.mount+v.travel;if(contact&&cos>.45){const wx=c.x+rx*cos-v.mount*sin;target=(terrain(wx)-r-c.y-rx*sin)/cos;target=Math.max(v.mount-v.travel,Math.min(v.mount+v.travel,target))}p.wheels[j]+=(target-p.wheels[j])*(1-Math.exp(-dt*(v.spring>110?25:14)))}const bump=Math.max(-3,Math.min(3,(c.vy-p.lastVY)*.055));p.bob+=(-bump-p.bob)*(1-Math.exp(-dt*12));p.lastVY=c.vy;p.lastVX=c.vx}}
 function strokeLine(points,color,width){ctx.beginPath();points.forEach((v,i)=>i?ctx.lineTo(...v):ctx.moveTo(...v));ctx.strokeStyle=color;ctx.lineWidth=width;ctx.lineJoin='round';ctx.lineCap='round';ctx.stroke();ctx.lineCap='butt'}
 function spring(ax,ay,bx,by){strokeLine([[ax,ay],[bx,by]],'#26312d',5);strokeLine([[ax,ay],[bx,by]],'#a3aaa0',2);const dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1,px=-dy/len,py=dx/len,pts=[[ax,ay]];for(let j=1;j<10;j++){const k=j/10,offset=j%2?3:-3;pts.push([ax+dx*k+px*offset,ay+dy*k+py*offset])}pts.push([bx,by]);strokeLine(pts,'#e0cf8b',1.8)}
 function seatedDriver(c,lift){
- const im=images[chosen[c.i]],mirror=[0,5].includes(chosen[c.i]);if(!im.complete||!im.naturalWidth)return;
+ const im=images[chosen[c.i]],mirror=[0,5].includes(chosen[c.i]);if(!im?.complete||!im.naturalWidth)return;
  const iw=im.naturalWidth,ih=im.naturalHeight;ctx.save();ctx.translate(-6,lift);ctx.imageSmoothingEnabled=true;
  // Head and torso have separate scales: a smaller head and a full visible upper body.
  ctx.save();if(mirror)ctx.scale(-1,1);ctx.drawImage(im,iw*.27,0,iw*.44,ih*.43,-14,-66,28,27);ctx.drawImage(im,iw*.18,ih*.41,iw*.64,ih*.31,-20,-40,40,44);ctx.restore();

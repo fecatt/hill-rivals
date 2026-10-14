@@ -266,7 +266,13 @@ function renderHud(){
   }
  });
 }
-function draw(){background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
+// Each frame starts independently of any interrupted or clipped drawing.
+function resetDrawingSurface(){
+ if(typeof ctx.reset==='function')ctx.reset();
+ else canvas.width=canvas.width;
+ ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
+}
+function draw(){resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
 let last=performance.now(),lastDraw=0,acc=0;
 function frame(now){
  requestAnimationFrame(frame);

@@ -28,7 +28,8 @@ function chooseMode(next,push=true){
   $('#lobby').hidden=next!=='local';$('#players').closest('label').hidden=next==='online';
   document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':next==='local'?'ОБЫЧНАЯ ИГРА':'ГОНКИ ПО ХОЛМАМ';
   modeButton.textContent=next==='online'?'Играть на одном устройстве':'Играть онлайн';
-  (next==='online'?$('#room-browser'):next==='local'?$('#lobby'):chooser).append(cardTools);
+  cardTools.hidden=next===null;
+  (next==='online'?$('#room-browser'):$('#lobby')).append(cardTools);
   document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
   if(next==='local'){
    colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;
