@@ -248,7 +248,7 @@ function renderRoom(state){
   const ready=state.players.filter(p=>p.ready).length;
   const spectator=state.phase==='race'&&!state.racers.some(p=>playerOwner(p)===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${playerOwner(p)===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${playerOwner(p)===state.you?' · На этом устройстве':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
+  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div><span class="room-player-name" ${playerOwner(p)===state.you?'title="На этом устройстве"':''}>${playerOwner(p)===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}</span><b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#picks').querySelectorAll('select,[data-char-seat]').forEach(control=>control.disabled=!['lobby','countdown'].includes(state.phase));

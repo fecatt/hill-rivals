@@ -75,6 +75,9 @@ try {
  await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);assert.ok((await guest.locator('[data-online-seat="0"]').boundingBox()).height<=300,'landscape phone card stays bounded');
  for(const height of [280,320,393,320]){
   await guest.setViewportSize({width:852,height});
+  await guest.waitForFunction(()=>{const r=$('#room-panel').getBoundingClientRect();return r.bottom<=(visualViewport?.height||innerHeight)+1;});
+  const visible=await guest.evaluate(()=>['.world-setting','.vehicle-setting','#racer-column','#room-panel','#start'].map(selector=>({selector,rect:$(selector).getBoundingClientRect().toJSON(),w:document.documentElement.clientWidth,h:visualViewport?.height||innerHeight})));
+  for(const item of visible){assert.ok(item.rect.left>=-1&&item.rect.right<=item.w+1&&item.rect.top>=-1&&item.rect.bottom<=item.h+1,'whole menu fits with browser bar at '+height+': '+JSON.stringify(item));}
   const bounds=await guest.evaluate(()=>{const panel=$('#room-panel').getBoundingClientRect();return [...document.querySelectorAll('#room-sidebar>button')].map(b=>({id:b.id,r:b.getBoundingClientRect().toJSON(),panel:panel.toJSON()}));});
   for(const b of bounds){assert.ok(b.r.right<=b.panel.right&&b.r.left>=b.panel.left&&b.r.top>=b.panel.top&&b.r.bottom<=b.panel.bottom,'toolbar stays inside at '+height+': '+JSON.stringify(b));}
   await guest.locator('#room-settings').tap();await guest.waitForSelector('#room-options[open]');await guest.waitForTimeout(420);await guest.evaluate(name=>send({type:'name',name}),'Телефон '+height);await guest.waitForFunction(name=>roomState.players.some(p=>playerOwner(p)===roomState.you&&p.name===name),'Телефон '+height);assert.ok(await guest.locator('#room-options .drawer-body #sound').isVisible());await guest.locator('#close-settings').tap();await guest.waitForSelector('#room-options',{state:'hidden'});

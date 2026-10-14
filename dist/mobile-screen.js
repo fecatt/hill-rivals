@@ -47,3 +47,17 @@ window.refreshMobileSettings=()=>{
  }
 };
 document.addEventListener('pointerdown',e=>{if(!localOptions.hidden&&!localOptions.contains(e.target)&&!localSettingsButton.contains(e.target))localOptions.hidden=true;});
+
+// Fit one fixed landscape composition into the visible browser area as a whole.
+// Cards never change their internal tracks when Android chrome opens or collapses.
+const compactGarageMedia=matchMedia('(pointer:coarse) and (orientation:landscape) and (min-width:700px)');
+function fitCompactGarage(){
+ const lobby=$('#lobby');if(!lobby)return;
+ const viewport=window.visualViewport,width=viewport?.width||innerWidth;
+ const keyboard=document.activeElement?.matches('input,textarea')&&viewport&&viewport.height<innerHeight*.75;
+ const height=keyboard?innerHeight:(viewport?.height||innerHeight);
+ const fitted=Math.min(1,(width-20)/1000,(height-20)/350);
+ lobby.style.setProperty('--garage-fit',String(Math.max(.35,fitted)));
+}
+compactGarageMedia.addEventListener('change',fitCompactGarage);addEventListener('resize',fitCompactGarage);
+window.visualViewport?.addEventListener('resize',fitCompactGarage);document.addEventListener('focusout',fitCompactGarage);fitCompactGarage();

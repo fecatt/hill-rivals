@@ -384,3 +384,11 @@ body.online #room-options .drawer-head button { width:36px;margin:0!important; }
  body.online #room-panel #room-status { min-height:28px;height:28px;overflow:hidden; }
  body.online #room-options[open] { width:min(400px,94vw); }
 }
+body.online #room-panel .room-list>div { display:flex!important;flex-wrap:nowrap!important;align-items:center;gap:8px; }
+body.online #room-panel .room-player-name { display:block;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+body.online #room-panel .room-list>div>b { flex:0 0 auto;white-space:nowrap; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { width:1000px!important;max-width:none;height:350px;min-height:350px;margin:10px auto;zoom:var(--garage-fit,1); }
+ body.online #room-panel { height:350px;min-height:350px; }
+ body.online #room-panel .room-list>div { height:26px;min-height:26px; }
+}
