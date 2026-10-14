@@ -13,6 +13,10 @@ function createRoomsUI(){
  $('#cancel-rename').onclick=()=>$('#rename-form').hidden=true;
  $('#rename-form').onsubmit=e=>{e.preventDefault();const name=$('#room-name').value.trim();if(name){send({type:'rename-room',name});$('#rename-form').hidden=true;}};
  $('#chat-form').onsubmit=e=>{e.preventDefault();const text=$('#chat-text').value.trim();if(text){send({type:'chat',text});$('#chat-text').value='';}};
+ const sidebar=document.createElement('div');sidebar.id='room-sidebar';sidebar.append($('#copy-link'),$('#show-qr'));panel.append(sidebar);$('#copy-link').textContent='Ссылка';
+ const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.textContent='Настройки';sidebar.append(settingsButton);
+ const options=document.createElement('div');options.id='room-options';options.hidden=true;panel.append(options);settingsButton.onclick=()=>{options.hidden=!options.hidden;settingsButton.setAttribute('aria-expanded',String(!options.hidden));};
+ const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.textContent='Открыть чат';panel.append(chatToggle);$('#room-chat').hidden=true;chatToggle.onclick=()=>{const open=$('#room-chat').hidden;$('#room-chat').hidden=!open;panel.classList.toggle('chat-open',open);chatToggle.textContent=open?'Показать игроков':'Открыть чат';chatToggle.setAttribute('aria-expanded',String(open));if(open)$('#chat-text').focus();};
  const invitation=()=>{const url=new URL(location.href);url.search='';url.searchParams.set('mode','online');url.searchParams.set('room',roomState.room.code);return url.href;};
  const shareDialog=document.createElement('dialog');shareDialog.id='invite-dialog';shareDialog.innerHTML='<button id="close-invite" class="dialog-close" aria-label="Закрыть приглашение">Закрыть ×</button><h2>Пригласить в комнату</h2><div id="invite-qr" role="img" aria-label="QR-код для подключения к комнате"></div><p>Откройте камеру телефона и наведите её на код.</p><input id="invite-url" readonly aria-label="Ссылка на комнату"><button id="copy-invite-link">Скопировать ссылку</button>';document.body.append(shareDialog);
  const copy=async(value,label)=>{try{await navigator.clipboard.writeText(value);$('#invite-status').textContent=label;}catch{$('#invite-url').value=value;if(!shareDialog.open)shareDialog.showModal();$('#invite-url').focus();$('#invite-url').select();$('#invite-status').textContent='Выделите и скопируйте ссылку.';}};
@@ -47,6 +51,6 @@ function createRoomsUI(){
    for(const message of messages){const line=document.createElement('p'),author=document.createElement('b');author.textContent=(message.name||'Игрок')+' · ';line.append(author,document.createTextNode(message.text));log.append(line);}if(atBottom)log.scrollTop=log.scrollHeight;
   },
   notice(text){$('#directory-notice').textContent=text;const field=$('#room-code');field.classList.remove('code-error');void field.offsetWidth;field.classList.add('code-error');field.setAttribute('aria-invalid','true');},
-  hide(){browser.hidden=true;shareDialog.close();},
+  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;$('#room-chat').hidden=true;panel.classList.remove('chat-open');chatToggle.textContent='Открыть чат';},
  };
 }

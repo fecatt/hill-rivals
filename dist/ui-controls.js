@@ -5,6 +5,12 @@ function mountChoiceControls(){
  for(const select of document.querySelectorAll('#lobby select')){
   if(choiceControls.has(select))continue;
   select.classList.add('choice-model');select.tabIndex=-1;select.setAttribute('aria-hidden','true');
+  if(select.id==='my-ability'||select.dataset.ability!==undefined||select.id==='players'){
+   const group=document.createElement('div');group.className='choice-tiles';group.setAttribute('role','group');
+   const icons={turbo:'ϟ',jump:'↟',shield:'◇'};
+   for(const option of select.options){const button=document.createElement('button');button.type='button';button.dataset.value=option.value;button.innerHTML=select.id==='players'?option.value:'<span aria-hidden="true">'+icons[option.value]+'</span><small>'+option.textContent+'</small>';button.setAttribute('aria-label',option.textContent);button.onclick=()=>{if(select.disabled)return;select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refreshChoices();};group.append(button);}
+   select.after(group);choiceControls.set(select,{tiles:true,group,buttons:group.querySelectorAll('button')});continue;
+  }
   const group=document.createElement('div');group.className='choice-switch';group.setAttribute('role','group');
   const title=select.id==='track'?'мир':select.id==='vehicle'?'машина':select.id==='players'?'число игроков':'способность';
   group.innerHTML=`<button type="button" class="choice-arrow" aria-label="Предыдущий вариант: ${title}">‹</button><span class="choice-value" aria-live="polite"></span><button type="button" class="choice-arrow" aria-label="Следующий вариант: ${title}">›</button>`;
@@ -24,13 +30,19 @@ function refreshChoices(){
  mountChoiceControls();
  for(const [select,control] of choiceControls){
   if(!select.isConnected){choiceControls.delete(select);continue;}
+  if(control.tiles){for(const b of control.buttons){b.disabled=select.disabled;b.classList.toggle('selected',b.dataset.value===select.value);b.setAttribute('aria-pressed',String(b.dataset.value===select.value));}continue;}
   const option=select.selectedOptions[0],label=select.id==='track'?MAPS[+select.value].name:option?.textContent.split(' · ')[0]||'';
   if(control.last!==label){control.value.textContent=label;control.last=label;}
   for(const button of control.buttons)button.disabled=select.disabled;control.group.classList.toggle('locked',select.disabled);
  }
  const online=!!window.onlineActive;
+ if(online){const ability=$('#picks .ability-select');if(ability&&ability.parentElement!==$('#ability-panel'))$('#ability-panel').replaceChildren(ability);}
+ else $('#ability-panel').replaceChildren();
+ const v=VEHICLES[+$('#vehicle').value];
+ if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div>';}
+ $('#world-description').textContent=MAPS[+$('#track').value].description;
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
- if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=false;if(window.cardTools&&$('#menu').parentElement!==window.cardTools)window.cardTools.append($('#menu'));}
+ if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=false;if($('#menu').parentElement!==$('#room-sidebar'))$('#room-sidebar').append($('#menu'));if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
  else if(online&&mode==='race'){$('#menu').hidden=false;if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));}
  else if(!online){if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));$('#menu').hidden=mode==='lobby';$('#pause').hidden=mode==='lobby';}
 }
@@ -39,7 +51,10 @@ worldLabel.classList.add('setting-card','world-setting');vehicleLabel.classList.
 worldLabel.firstChild.textContent='МИР';vehicleLabel.firstChild.textContent='МАШИНА';
 const worldPreview=document.createElement('canvas');worldPreview.id='world-preview';worldPreview.width=640;worldPreview.height=220;worldLabel.insertBefore(worldPreview,$('#track'));
 const vehiclePreview=document.createElement('canvas');vehiclePreview.id='vehicle-preview';vehiclePreview.width=640;vehiclePreview.height=220;vehicleLabel.insertBefore(vehiclePreview,$('#vehicle'));vehicleLabel.append($('#vehicle-description'));$('#map-description').hidden=true;
-let lastVehiclePreview='';
+const racerColumn=document.createElement('section');racerColumn.id='racer-column';$('#picks').before(racerColumn);racerColumn.append($('#picks'));const abilityPanel=document.createElement('section');abilityPanel.id='ability-panel';racerColumn.append(abilityPanel);
+ const worldDescription=document.createElement('p');worldDescription.id='world-description';worldLabel.append(worldDescription);
+ const specs=document.createElement('dl');specs.id='car-specs';vehicleLabel.append(specs);
+ let lastVehiclePreview='';
 function renderSettingPreviews(){
  if(mode!=='lobby')return;
  const worldContext=worldPreview.getContext('2d'),sourceW=canvas.width*.4,sourceH=canvas.height*.3;

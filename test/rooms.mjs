@@ -16,6 +16,9 @@ try{
  assert.equal(await a.locator('nav #mode-button,nav #sound,nav #install-app').count(),0);assert.equal(await a.locator('#mode-button').textContent(),'Играть на одном устройстве');
  await a.locator('#create-room').click();await a.waitForFunction(()=>roomState?.room.code);const code=await a.evaluate(()=>roomState.room.code);assert.match(code,/^[A-Z]{5}$/);assert.equal(await a.locator('#room-title').textContent(),'Гонка '+code);
  assert.equal(await a.locator('#chat-log').isVisible(),false);assert.equal(await a.locator('#player-name').inputValue(),'Игрок 1');
+ const grid=await a.evaluate(()=>['racer-column','room-panel'].map(id=>{const b=document.getElementById(id).getBoundingClientRect();return {top:b.top,height:b.height};}));assert.ok(Math.abs(grid[0].top-grid[1].top)<1&&Math.abs(grid[0].height-grid[1].height)<1,'columns share top and bottom edges');
+ assert.equal(await a.locator('#ability-panel .choice-tiles button').count(),3);await a.locator('#ability-panel button[data-value="jump"]').click();await a.waitForFunction(()=>roomState.players[0].ability==='jump');
+ await a.locator('#room-settings').click();assert.equal(await a.locator('#mode-button').isVisible(),true);await a.locator('#room-settings').click();assert.equal(await a.locator('#mode-button').isVisible(),false);
  await a.locator('#rename-room').click();await a.locator('#room-name').fill('Вечерняя гонка');await a.locator('#rename-form button').first().click();await a.waitForFunction(()=>roomState.room.name==='Вечерняя гонка');
  await a.locator('#player-name').fill('Фёдор');await a.locator('#player-name').press('Enter');await a.waitForFunction(()=>roomState.players[0].name==='Фёдор');
  const invite=base+'/?mode=online&room='+code;
@@ -37,7 +40,7 @@ try{
  for(const page of [a,b]){
   const [track,vehicle]=await Promise.all([page.locator('#track + .choice-switch').boundingBox(),page.locator('#vehicle + .choice-switch').boundingBox()]);assert.ok(Math.abs(track.width-vehicle.width)<1,JSON.stringify({track,vehicle}));assert.ok(Math.abs(track.height-vehicle.height)<1);
  }
- assert.equal(await b.locator('#chat-toggle').count(),0);assert.equal(await b.locator('#chat-log').isVisible(),false);const sendBox=await b.locator('#chat-form button').boundingBox();assert.ok(Math.abs(sendBox.width-sendBox.height)<1);assert.equal(await b.locator('#chat-form button svg').count(),1);
+ assert.equal(await b.locator('#chat-toggle').count(),0);assert.equal(await b.locator('#room-chat').isVisible(),false);await a.locator('#room-chat-toggle').click();await b.locator('#room-chat-toggle').click();assert.equal(await b.locator('#chat-log').isVisible(),false);const sendBox=await b.locator('#chat-form button').boundingBox();assert.ok(Math.abs(sendBox.width-sendBox.height)<1);assert.equal(await b.locator('#chat-form button svg').count(),1);
  const emptyHeight=(await a.locator('#room-panel').boundingBox()).height;
  await b.locator('#chat-text').fill('<b>Привет!</b>');await b.locator('#chat-form button').click();await a.waitForSelector('#chat-log p');assert.ok((await a.locator('#chat-log').textContent()).includes('<b>Привет!</b>'));assert.equal(await a.locator('#chat-log p b').count(),1);
  assert.ok(Math.abs((await a.locator('#room-panel').boundingBox()).height-emptyHeight)<1,'first message does not resize the room');
@@ -49,7 +52,7 @@ try{
  await a.waitForFunction(()=>mode==='race',{},{timeout:7000});assert.equal(await b.locator('#touch-controls').isVisible(),true);await a.waitForFunction(()=>document.querySelector('#hud').textContent.includes('Фёдор'));
  await a.locator('#menu').click();await a.waitForSelector('#room-browser:not([hidden])');await b.waitForFunction(()=>roomState.room.host===roomState.you);
  await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#mode-button').textContent(),'Играть онлайн');
- await a.locator('#players + .choice-switch button').first().click();await shot(a,'garage-grass');
+ await a.locator('#players + .choice-tiles button[data-value="3"]').click();await shot(a,'garage-grass');
  await a.locator('#mode-button').click();await a.waitForSelector('#room-browser:not([hidden])');await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#players').inputValue(),'3');assert.equal(documents,1,'mode switches do not reload the page');
  assert.deepEqual(errors,[]);console.log('PASS: automatic title, rename permissions, persistent escaped names, QR decode/link join, hidden empty chat, square send icon, equal selects, 3-second start, terrain preview, mobile fit, direct mode switches.');
  await desktop.close();await phone.close();
