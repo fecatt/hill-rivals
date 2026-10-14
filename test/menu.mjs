@@ -14,6 +14,10 @@ try {
  await page.waitForFunction(()=>roomState?.room&&assetsLoaded);
  assert.equal(await page.locator('.pick[data-online-seat]').count(),1);
  assert.equal(await page.locator('.empty-seat').count(),3);
+ assert.equal(await page.locator('#world-preview').count(),0);
+ assert.equal(await page.locator('#join-code button[type=submit]').count(),0);
+ assert.equal(await page.locator('#join-code #network-toggle .icon-globe').count(),1);
+ assert.equal(await page.locator('#track-specs dd').count(),3);
  assert.equal(await page.locator('[data-ability-seat="0"] + .choice-tiles button').count(),3);
  await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===2);
  assert.equal(await page.locator('.pick[data-online-seat]').count(),2);
