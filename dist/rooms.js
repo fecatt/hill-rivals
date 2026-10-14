@@ -13,11 +13,20 @@ function createRoomsUI(){
  $('#rename-room').onclick=()=>{$('#rename-form').hidden=false;$('#room-name').value=roomState.room.name;$('#room-name').focus();$('#room-name').select();};
  $('#cancel-rename').onclick=()=>$('#rename-form').hidden=true;
  $('#rename-form').onsubmit=e=>{e.preventDefault();const name=$('#room-name').value.trim();if(name){send({type:'rename-room',name});$('#rename-form').hidden=true;}};
- $('#chat-form').onsubmit=e=>{e.preventDefault();const text=$('#chat-text').value.trim();if(text){send({type:'chat',text});$('#chat-text').value='';}};
+ $('#chat-form').onsubmit=e=>{e.preventDefault();const text=$('#chat-text').value.trim();if(text){send({type:'chat',text});$('#chat-text').value='';$('#chat-text').focus();}};
+ const chatDialog=document.createElement('dialog');chatDialog.id='chat-dialog';chatDialog.innerHTML='<button id="close-chat" type="button" aria-label="Закрыть чат">×</button>';document.body.append(chatDialog);chatDialog.append($('#room-chat'));
+ const chatLog=$('#chat-log'),chatInput=$('#chat-text');chatInput.setAttribute('enterkeyhint','send');
+ const syncChatViewport=()=>{const viewport=window.visualViewport;if(viewport){chatDialog.style.setProperty('--chat-viewport-top',viewport.offsetTop+'px');chatDialog.style.setProperty('--chat-viewport-height',viewport.height+'px');}};
+ syncChatViewport();window.visualViewport?.addEventListener('resize',syncChatViewport);window.visualViewport?.addEventListener('scroll',syncChatViewport);
+ let unreadCount=0,lastChatId=0,activeRoomCode='';
+ const setUnread=()=>{const badge=$('#chat-unread');badge.textContent=unreadCount>99?'99+':String(unreadCount);badge.hidden=!unreadCount;chatToggle.setAttribute('aria-label',unreadCount?'Чат, непрочитанных сообщений: '+unreadCount:'Открыть чат');};
+ const markChatRead=()=>{unreadCount=0;lastChatId=Math.max(lastChatId,...messages.map(message=>message.id||0));setUnread();};
+ const closeChat=()=>chatDialog.close();
+ $('#close-chat').onclick=closeChat;chatDialog.addEventListener('click',event=>{if(event.target===chatDialog)closeChat();});
  const sidebar=document.createElement('div');sidebar.id='room-sidebar';sidebar.append($('#copy-link'),$('#show-qr'),panel.querySelector('.room-party-controls'));panel.append(sidebar);$('#copy-link').textContent='Ссылка';
  const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.textContent='Настройки';sidebar.append(settingsButton);
  const options=document.createElement('div');options.id='room-options';options.hidden=true;panel.append(options);settingsButton.onclick=()=>{options.hidden=!options.hidden;settingsButton.setAttribute('aria-expanded',String(!options.hidden));};
- const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.textContent='Открыть чат';panel.append(chatToggle);$('#room-chat').hidden=true;chatToggle.onclick=()=>{const open=$('#room-chat').hidden;$('#room-chat').hidden=!open;panel.classList.toggle('chat-open',open);chatToggle.textContent=open?'Показать игроков':'Открыть чат';chatToggle.setAttribute('aria-expanded',String(open));if(open)$('#chat-text').focus();};
+ const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.type='button';chatToggle.innerHTML='Чат<span id="chat-unread" class="chat-unread" hidden></span>';chatToggle.setAttribute('aria-label','Открыть чат');sidebar.append(chatToggle);chatToggle.onclick=()=>{if(chatDialog.open){chatDialog.close();return;}chatDialog.showModal();markChatRead();syncChatViewport();requestAnimationFrame(()=>chatInput.focus());};
  const invitation=()=>{const url=new URL(location.href);url.search='';url.searchParams.set('mode','online');url.searchParams.set('room',roomState.room.code);return url.href;};
  document.addEventListener('pointerdown',e=>{if(!options.hidden&&!options.contains(e.target)&&!settingsButton.contains(e.target)){options.hidden=true;settingsButton.setAttribute('aria-expanded','false');}});
  const shareDialog=document.createElement('dialog');shareDialog.id='invite-dialog';shareDialog.innerHTML='<button id="close-invite" class="dialog-close" aria-label="Закрыть приглашение">Закрыть ×</button><h2>Пригласить в комнату</h2><div id="invite-qr" role="img" aria-label="QR-код для подключения к комнате"></div><p>Откройте камеру телефона и наведите её на код.</p><input id="invite-url" readonly aria-label="Ссылка на комнату"><button id="copy-invite-link">Скопировать ссылку</button>';document.body.append(shareDialog);
@@ -38,9 +47,10 @@ function createRoomsUI(){
    $('#lobby').hidden=true;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)browser.append(window.cardTools);
    const local=state.rooms.filter(room=>room.local);list($('#local-rooms'),local);list($('#global-rooms'),state.rooms);$('#local-count').textContent=local.length;$('#global-count').textContent=state.rooms.length;
    onlineBar.textContent='На сайте: '+state.online+' · Комнат: '+state.rooms.length;if(!$('#room-code').hasAttribute('aria-invalid'))$('#directory-notice').textContent='';$('#menu').hidden=true;
-   messages=[];$('#chat-log').replaceChildren();$('#chat-log').hidden=true;$('#rename-form').hidden=true;shareDialog.close();window.peerTransport?.reset();
+   messages=[];lastChatId=0;unreadCount=0;setUnread();$('#chat-log').replaceChildren();$('#chat-log').hidden=false;$('#rename-form').hidden=true;shareDialog.close();chatDialog.close();window.peerTransport?.reset();
   },
   state(state){
+   if(activeRoomCode!==state.room.code){activeRoomCode=state.room.code;messages=[];lastChatId=0;unreadCount=0;$('#chat-log').replaceChildren();setUnread();}
    browser.hidden=true;$('#menu').hidden=false;$('#menu').textContent='Выйти из комнаты';if(window.cardTools)$('#lobby').append(window.cardTools);
    $('#room-title').textContent=state.room.name;$('#copy-code').textContent=state.room.code+' ⧉';$('#rename-room').hidden=state.room.host!==state.you;$('#rename-room').disabled=!['lobby','result'].includes(state.phase);if(state.room.host!==state.you)$('#rename-form').hidden=true;
    const me=state.players.find(p=>p.owner===state.you&&p.slot===0),field=$('#player-name-0');if(field&&document.activeElement!==field)field.value=me?.name||'';
@@ -49,10 +59,13 @@ function createRoomsUI(){
    const url=new URL(location.href);url.searchParams.set('room',state.room.code);history.replaceState({},'',url);
   },
   chat(incoming){
-   if(JSON.stringify(messages)===JSON.stringify(incoming))return;messages=incoming;const log=$('#chat-log'),atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<40;log.replaceChildren();log.hidden=!messages.length;
+   if(JSON.stringify(messages)===JSON.stringify(incoming))return;const log=$('#chat-log'),atBottom=log.scrollHeight-log.scrollTop-log.clientHeight<40;
+   for(const message of incoming){if((message.id||0)>lastChatId&&!chatDialog.open&&message.from!==roomState?.you)unreadCount++;}
+   messages=incoming;lastChatId=Math.max(lastChatId,...messages.map(message=>message.id||0));log.replaceChildren();log.hidden=false;
    for(const message of messages){const line=document.createElement('p'),author=document.createElement('b');author.textContent=(message.name||'Игрок')+' · ';line.append(author,document.createTextNode(message.text));log.append(line);}if(atBottom)log.scrollTop=log.scrollHeight;
+   if(chatDialog.open)markChatRead();else setUnread();
   },
   notice(text){$('#directory-notice').textContent=text;const field=$('#room-code');field.classList.remove('code-error');void field.offsetWidth;field.classList.add('code-error');field.setAttribute('aria-invalid','true');},
-  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;$('#room-chat').hidden=true;panel.classList.remove('chat-open');chatToggle.textContent='Открыть чат';},
+  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;chatDialog.close();unreadCount=0;lastChatId=0;activeRoomCode='';setUnread();},
  };
 }

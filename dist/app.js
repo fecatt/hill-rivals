@@ -1,52 +1,49 @@
 'use strict';
 const modeQuery=new URLSearchParams(location.search);
-let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode')||(modeQuery.has('room')?'online':null);
+// Open the shared garage by default. The room browser is an optional route from it.
+let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode')||(modeQuery.has('room')?'online':'local');
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
 document.querySelector('nav').prepend(modeButton);
 const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
 const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
-const chooser=document.createElement('main');chooser.id='mode-picker';chooser.hidden=true;
-chooser.innerHTML='<div class="eyebrow">ОДИН ГАРАЖ · ДВА СПОСОБА ИГРАТЬ</div><h1>Как будем гоняться?</h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн-комната</h2><p>Создайте комнату или введите код. На компьютере можно добавить ещё двух гонщиков за одной клавиатурой; друзья подключатся с телефонов и компьютеров.</p><b>Играть онлайн →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Один экран</h2><p>Соло или гонка до трёх игроков за одним компьютером. На телефоне доступен одиночный заезд.</p><b>Играть на одном устройстве →</b></a></div>';
-document.body.append(chooser);
 let currentMode=null;
 let savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
 function chooseMode(next,push=true){
- if(!['online','local'].includes(next))next=null;
+ if(!['online','local'].includes(next))next='local';
  if(currentMode===next&&currentMode!==undefined)return;
  const apply=()=>{
   if(currentMode==='local')savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
   window.onlineActive=false;window.onlineSession.exit();
   mode='lobby';count=0;time=0;cam=0;zoom=1;cameraY=0;cars=[];bonus=[];particles=[];keysClear();resetHillBridges();window.onlineIndex=undefined;
   currentMode=selectedMode=next;
-  document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.toggle('choosing',next===null);
+  document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.remove('choosing');
   const hooks=next==='online'?window.onlineGameHooks:window.localGameHooks;
   update=hooks.update;input=hooks.input;activateAbility=hooks.activateAbility;togglePause=hooks.togglePause;garage=hooks.garage;
   start=next==='local'?()=>{if(assetsLoaded)window.localGameHooks.start();}:window.localGameHooks.start;
   $('#start').onclick=next==='online'?hooks.start:start;$('#track').onchange=hooks.trackChange;$('#vehicle').onchange=()=>{hooks.vehicleChange();if(next==='local')vehicleModel=+$('#vehicle').value;};
   $('#menu').onclick=garage;$('#pause').onclick=togglePause;$('#pause').hidden=next!=='local';$('#menu').hidden=next!=='local';$('#menu').disabled=false;$('#menu').textContent='Гараж';
-  $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;chooser.hidden=next!==null;
-  $('#lobby').hidden=next!=='local';$('#players').closest('label').hidden=next==='online';
-  document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':next==='local'?'ОБЫЧНАЯ ИГРА':'ГОНКИ ПО ХОЛМАМ';
-  modeButton.textContent=next==='online'?'Играть на одном устройстве':'Играть онлайн';
-  cardTools.hidden=next===null;
+  $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;
+  $('#lobby').hidden=next==='online';$('#room-browser').hidden=next!=='online';$('#players').closest('label').hidden=next==='online'||mobileInput.matches;
+  document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':'ЕДИНЫЙ ГАРАЖ';
+  modeButton.textContent=next==='online'?'Вернуться в гараж':'Играть онлайн';
+  cardTools.hidden=false;
   (next==='online'?$('#room-browser'):$('#lobby')).append(cardTools);
   document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
   if(next==='local'){
    colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;
    $('#players').value=playerCount;document.body.dataset.players=playerCount;$('#track').value=savedLocal.track;$('#vehicle').value=savedLocal.vehicle;
-   picks();vehicleModel=+$('#vehicle').value;$('#lobby h1').textContent='Обычная игра';$('#lobby .eyebrow').textContent='СОЛО ИЛИ ОДИН ЭКРАН';
-   $('#lobby .intro').textContent='Выберите машину, трассу и персонажа.';$('#start').textContent='НА СТАРТ →';$('#start').disabled=!assetsLoaded;
+   picks();vehicleModel=+$('#vehicle').value;$('#lobby h1').textContent='Гараж';$('#lobby .eyebrow').textContent='ОДНА КОМАНДА · ДО ТРЁХ ГОНЩИКОВ';
+   $('#lobby .intro').textContent='Выберите гонщиков, машину и трассу. Для гонки с друзьями откройте онлайн-комнаты.';$('#start').textContent='НА СТАРТ →';$('#start').disabled=!assetsLoaded;
    $('#track').disabled=$('#vehicle').disabled=false;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;updateMapDescription();describeVehicle();
   }
   if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.syncOnlineFromGarage?.(savedLocal);window.onlineSession.enter();}
   window.refreshChoices?.();syncGameScreen();window.scrollTo(0,0);
-  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next!=='online')url.searchParams.delete('room');if(next)url.searchParams.set('mode',next);else url.searchParams.delete('mode');history.pushState({},'',url);}
+  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next!=='online')url.searchParams.delete('room');if(next==='online')url.searchParams.set('mode','online');else url.searchParams.delete('mode');history.pushState({},'',url);}
  };
  if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
 }
 modeButton.onclick=()=>chooseMode(currentMode==='online'?'local':'online');
-for(const link of chooser.querySelectorAll('a'))link.onclick=e=>{e.preventDefault();chooseMode(new URL(link.href).searchParams.get('mode'));};
-addEventListener('popstate',()=>chooseMode(new URLSearchParams(location.search).get('mode'),false));
+addEventListener('popstate',()=>{const params=new URLSearchParams(location.search);chooseMode(params.get('mode')||(params.has('room')?'online':'local'),false);});
 let installPrompt;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
 installButton.onclick=async()=>{
