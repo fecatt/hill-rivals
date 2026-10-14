@@ -1,5 +1,6 @@
 'use strict';
 const touchDevice=matchMedia('(pointer:coarse), (max-width:750px)');
+const playerOwner=player=>player.owner??player.id;
 window.localGameHooks={update,input,activateAbility,togglePause,garage,start,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
@@ -85,7 +86,7 @@ let onlineSeatCount=1;
 document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);
 const onlineCharacters=[...chosen],onlineAbilities=[...abilities];
 onlineCharacters[0]=localCharacter;onlineAbilities[0]=localAbility;
-function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>p.owner===roomState.you&&p.slot===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
+function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>playerOwner(p)===roomState.you&&(p.slot??0)===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
 window.syncOnlineFromGarage=setup=>{
  if(!setup)return;
  if(Number.isInteger(setup.playerCount)){onlineSeatCount=touchDevice.matches?1:Math.max(1,Math.min(3,setup.playerCount));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);}
@@ -109,7 +110,7 @@ window.changeOnlineParty=delta=>{
  const max=Math.min(3,8-(roomState?.players.length-onlineSeatCount||0));
  setOnlineSeatCount(Math.max(1,Math.min(max,onlineSeatCount+delta)));
 };
-$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.owner===roomState.you)?.ready});};
+$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>playerOwner(p)===roomState.you)?.ready});};
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 togglePause=()=>{if(mode!=='race')return;paused=!paused;keysClear();sendInput();$('#overlay').hidden=!paused;if(paused)showPauseMenu();};
@@ -209,7 +210,7 @@ function installGame(state){
   chosen.splice(0,chosen.length,...state.racers.map(p=>p.character));
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
   state.racers.forEach((_,i)=>abilityKeys[i]='E / пробел');
-  window.onlineIndices=state.racers.map((p,i)=>p.owner===state.you?i:-1).filter(i=>i>=0);window.onlineIndex=window.onlineIndices[0]??-1;
+  window.onlineIndices=state.racers.map((p,i)=>playerOwner(p)===state.you?i:-1).filter(i=>i>=0);window.onlineIndex=window.onlineIndices[0]??-1;
   track=g.track;vehicleModel=g.vehicle;snowStart=g.snowStart;snowEnd=g.snowEnd;
   if(newRound)time=g.time;
   // Keep object identities so suspension smoothing survives incoming packets.
@@ -224,26 +225,26 @@ function installGame(state){
   mode=state.phase==='result'?'result':'race';if(newRound||state.phase==='result')paused=false;
   if(state.phase==='race')installLocalCar(state);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
-  touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.owner===state.you);
+  touch.hidden=state.phase!=='race'||!state.racers.some(p=>playerOwner(p)===state.you);
   if(state.phase==='race'&&!paused)$('#overlay').hidden=true;
 }
 function renderRoom(state){
   roomUI.state(state);
   track=state.track;vehicleModel=state.vehicle;
-  const owned=state.players.filter(p=>p.owner===state.you).sort((a,b)=>a.slot-b.slot);
+  const owned=state.players.filter(p=>playerOwner(p)===state.you).sort((a,b)=>(a.slot??0)-(b.slot??0));
   if(owned.length&&owned.length!==onlineSeatCount){onlineSeatCount=owned.length;$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#players').value=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);renderPick();}
   $('#add-local-racer').hidden=touchDevice.matches||state.phase==='race'||onlineSeatCount>=3||state.players.length>=8;
   $('#remove-local-racer').hidden=touchDevice.matches||state.phase==='race'||onlineSeatCount<=1;
   const ready=state.players.filter(p=>p.ready).length;
-  const spectator=state.phase==='race'&&!state.racers.some(p=>p.owner===state.you);
+  const spectator=state.phase==='race'&&!state.racers.some(p=>playerOwner(p)===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.owner===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${p.owner===state.you?' · На этом устройстве':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
+  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${playerOwner(p)===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${playerOwner(p)===state.you?' · На этом устройстве':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#picks').querySelectorAll('select,[data-char-seat]').forEach(control=>control.disabled=!['lobby','countdown'].includes(state.phase));
   updateMapDescription();describeVehicle();
   $('#start').disabled=state.phase==='race';
-  const myReady=state.players.find(p=>p.owner===state.you)?.ready;
+  const myReady=state.players.find(p=>playerOwner(p)===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
   if(state.phase==='lobby'){
