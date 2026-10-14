@@ -34,7 +34,10 @@ try{
  await a.waitForFunction(()=>window.peerTransport.debug().some(p=>p.connected),{},{timeout:15000});
  await a.waitForTimeout(5000);console.log('Peer transport:',await a.evaluate(()=>window.peerTransport.debug()));
  await a.locator('#start').click();await b.locator('#start').click();await a.waitForFunction(()=>mode==='race',{},{timeout:15000});
- assert.equal(await b.locator('#touch-controls').isVisible(),true);await a.waitForTimeout(250);
+ assert.equal(await b.locator('#touch-controls').isVisible(),true);await a.waitForTimeout(500);
+ const paths=await a.evaluate(()=>window.peerTransport.debug());
+ for(const path of paths)if(path.connected&&path.directRtt<path.relayRtt*.8){assert.equal(path.selected,true,'faster direct route must be selected');assert.ok(path.frames>0,'direct car coordinates must arrive');}
+ console.log('Race routes:',paths);
  await a.locator('#menu').click();await a.waitForSelector('#room-browser:not([hidden])');await a.locator('#mode-button').click();await a.waitForSelector('#mode-picker:not([hidden])');await a.locator('a[href="?mode=local"]').click();await a.waitForSelector('#lobby:not([hidden])');
  assert.equal(await a.locator('#players').inputValue(),'3');await a.locator('#start').click();await a.waitForFunction(()=>mode==='race');assert.equal(await a.evaluate(()=>cars.length),3,'local profiles survive an online race');assert.equal(documents,1);
  assert.deepEqual(errors,[]);console.log('PASS: directory, LAN discovery, code join, host permissions/migration, escaped chat, WebRTC, ready race, mobile layout, animated menu, no mode reload');
