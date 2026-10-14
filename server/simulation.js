@@ -16,6 +16,7 @@ export function createSimulation(players, trackId, model) {
     document: {body:{dataset:{}},querySelector: element, querySelectorAll: () => [], addEventListener() {}},
     Image: class {}, innerWidth: 1280, innerHeight: 800, devicePixelRatio: 1,
     addEventListener() {}, requestAnimationFrame() {}, performance,
+    matchMedia: () => ({matches:false,addEventListener() {}}),
     crypto: webcrypto, window: {}, console
   });
   for (const file of ['maps.js', 'vehicles.js', 'hills.js', 'race-art.js', 'game.js']) {

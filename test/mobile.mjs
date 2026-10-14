@@ -1,0 +1,78 @@
+import assert from 'node:assert/strict';
+import {spawn} from 'node:child_process';
+import {mkdir} from 'node:fs/promises';
+import {chromium} from 'playwright';
+
+const port=process.env.TEST_PORT||'3108',base=`http://127.0.0.1:${port}`;
+const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:port},stdio:['ignore','pipe','inherit']});
+let browser;
+try {
+  await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('exit',code=>reject(Error('Server exited: '+code)));});
+  browser=await chromium.launch({executablePath:process.env.CHROME_PATH||undefined,args:['--no-sandbox']});
+  const errors=[];
+  const context=await browser.newContext({viewport:{width:393,height:852},deviceScaleFactor:3,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+  const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
+  const layout=()=>page.evaluate(()=>{
+    const box=id=>{const e=document.querySelector(id),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,hidden:e.hidden};};
+    return {width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth,canvas:[game.width,game.height],hud:box('#hud'),touch:box('#touch-controls'),screen:document.body.dataset.screen};
+  });
+  const screenshot=async name=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png'});}};
+  await page.goto(base+'/?mode=local');
+  assert.equal((await layout()).overflow,false,'garage must fit phone width');
+  await page.locator('#start').click();
+  await page.waitForFunction(()=>document.body.dataset.screen==='race');
+  let state=await layout();assert.equal(state.touch.hidden,false);assert.ok(state.hud.w<=240);assert.ok(state.hud.h<=90);assert.ok(state.canvas[0]<=393*1.5+1);
+  await page.waitForFunction(()=>gameDebug.getState().count<=0);
+  const stat=await page.locator('.stat').elementHandle();
+  const session=await context.newCDPSession(page);
+  const gas=await page.locator('[data-control="gas"]').boundingBox();
+  const point={id:1,x:gas.x+gas.width/2,y:gas.y+gas.height/2};
+  const before=await page.evaluate(()=>gameDebug.getState().cars[0].x);
+  await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[point]});
+  await page.waitForTimeout(700);
+  assert.ok(await page.evaluate(x=>gameDebug.getState().cars[0].x>x+1,before),'held touch accelerates');
+  await session.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
+  assert.equal(await page.evaluate(()=>!!keys.TouchGas),false,'cancel releases throttle');
+  assert.equal(await stat.evaluate(e=>e===document.querySelector('.stat')),true,'HUD keeps its DOM nodes');
+  await screenshot('portrait-race');
+  await page.setViewportSize({width:320,height:640});
+  await page.waitForTimeout(150);assert.equal((await layout()).overflow,false,'small phone header must fit');
+  await page.setViewportSize({width:852,height:393});
+  await page.waitForTimeout(150);
+  state=await layout();assert.equal(state.overflow,false);assert.ok(state.hud.h<=82);assert.ok(state.touch.y+state.touch.h<=state.height);
+  await screenshot('landscape-race');
+  await page.locator('#menu').click();await page.waitForFunction(()=>document.body.dataset.screen==='lobby');assert.equal((await layout()).touch.hidden,true);
+  await page.setViewportSize({width:393,height:852});
+  await page.goto(base+'/?mode=online');
+  await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
+  await screenshot('portrait-room');
+  const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
+  await opponent.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
+  await page.bringToFront();await page.locator('#start').click();
+  await page.waitForFunction(()=>gameDebug.getState().mode==='race',{},{timeout:15000});
+  state=await layout();assert.equal(state.touch.hidden,false);assert.equal(await page.locator('.stat').count(),1,'phone shows only own HUD');
+  // Two deterministic packets must produce an intermediate pose, without extrapolation.
+  const sample=await page.evaluate(()=>{
+    const latest=structuredClone(roomState),left=structuredClone(latest),right=structuredClone(latest);
+    left.serverNow=1000;right.serverNow=1050;left.game.cars[0].x=100;right.game.cars[0].x=200;
+    snapshots=[left,right];roomState=right;snapshotReceived=performance.now()-75;update(1/120);
+    return cars[0].x;
+  });
+  assert.ok(sample>=149&&sample<=152,'render between server positions');
+  await opponent.close();
+  await page.waitForFunction(()=>gameDebug.getState().mode==='result');
+  await page.locator('#next-race').click();
+  await page.waitForFunction(()=>gameDebug.getState().mode==='lobby');
+  assert.equal((await layout()).hud.hidden,true,'next countdown hides previous race HUD');
+  assert.equal((await layout()).touch.hidden,true);
+  assert.equal((await layout()).overflow,false);
+  await screenshot('next-countdown');
+  assert.deepEqual(errors,[]);
+  await context.close();
+  const desktop=await browser.newContext({viewport:{width:1280,height:800},serviceWorkers:'block'});
+  const pc=await desktop.newPage();await pc.goto(base+'/?mode=local');await pc.locator('#start').click();
+  await pc.waitForFunction(()=>document.body.dataset.screen==='race');
+  assert.equal(await pc.locator('#touch-controls').isVisible(),false,'desktop retains keyboard controls');
+  await desktop.close();
+  console.log('PASS: portrait/landscape layout, bounded DPR, touch acceleration/cancel, stable HUD, online interpolation, next-round UI, desktop');
+} finally {await browser?.close();server.kill();}

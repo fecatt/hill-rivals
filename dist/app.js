@@ -42,3 +42,19 @@ if(location.protocol!=='file:'&&selectedMode!=='online'){
   }
   checkAppVersion();setInterval(checkAppVersion,5000);
 }
+
+// Local solo has the same multitouch controls as the online game.
+if(document.body.classList.contains('local')){
+  const controls=document.createElement('div');controls.id='touch-controls';controls.hidden=true;
+  controls.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">Способность</button><button data-control="gas">ГАЗ</button>';
+  document.body.append(controls);
+  for(const button of controls.querySelectorAll('button')){
+    const key=button.dataset.control==='gas'?'TouchGas':'TouchBrake';
+    button.addEventListener('pointerdown',event=>{
+      event.preventDefault();button.setPointerCapture(event.pointerId);
+      if(button.dataset.control==='ability')activateAbility(cars[0]);else keys[key]=true;
+    });
+    const release=()=>{if(button.dataset.control!=='ability')keys[key]=false;};
+    for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,release);
+  }
+}

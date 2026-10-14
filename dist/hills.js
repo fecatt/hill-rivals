@@ -17,11 +17,21 @@ hillArt.onload=()=>{
  }
 };
 hillArt.src='assets/hills-atlas.png';
+// Upload small, reusable textures instead of resampling multi-megapixel PNGs each frame.
+const hillTextureCache=new WeakMap();
+function hillTexture(im,crop,height){
+ let textures=hillTextureCache.get(im);if(!textures){textures=new Map();hillTextureCache.set(im,textures);}
+ const key=crop.join(',')+':'+height;if(textures.has(key))return textures.get(key);
+ const [x,y,w,h]=crop,texture=document.createElement('canvas');
+ texture.height=Math.min(h,height);texture.width=Math.max(1,Math.round(w*texture.height/h));
+ const paint=texture.getContext('2d');paint.drawImage(im,x,y,w,h,0,0,texture.width,texture.height);
+ textures.set(key,texture);return texture;
+}
 function hillSprite(index,x,y,height,angle=0,flip=false){
  const isCloud=index===4||index===5,im=index<4?hillTrees[index%2]:isCloud?hillCloud:hillArt,crop=index<4?hillTreeBounds[index%2]:isCloud?hillCloudBounds:hillSprites[index];if(!crop||!im.complete||!im.naturalWidth)return;
  const [sx,sy,sw,sh]=crop,width=height*sw/sh;
  ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(x,y);ctx.rotate(angle);if(flip!==Boolean(isCloud&&index===5))ctx.scale(-1,1);
- ctx.drawImage(im,sx,sy,sw,sh,-width/2,-height,width,height);ctx.restore();
+ ctx.drawImage(hillTexture(im,crop,isCloud?128:512),-width/2,-height,width,height);ctx.restore();
 }
 function drawHillSun(){
  const x=W*.82,y=Math.max(82,H*.17),radius=Math.max(34,Math.min(43,W*.036));
@@ -55,7 +65,7 @@ function drawHillBackground(){
   const tileWidth=Math.max(W,H*hillPanorama.naturalWidth/hillPanorama.naturalHeight),offset=cam*.085;
   for(let i=Math.floor(offset/tileWidth)-1;i<=Math.ceil((offset+W)/tileWidth);i++){
    ctx.save();ctx.translate(i*tileWidth-offset,0);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
-   ctx.drawImage(hillPanorama,0,-cameraY*scale()*.07,tileWidth,H);ctx.restore();
+   ctx.drawImage(hillTexture(hillPanorama,[0,0,hillPanorama.naturalWidth,hillPanorama.naturalHeight],1024),0,-cameraY*scale()*.07,tileWidth,H);ctx.restore();
   }
  }
  drawHillSun();
