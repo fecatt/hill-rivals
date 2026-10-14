@@ -30,7 +30,7 @@ try {
  await page.locator('[data-char-seat="0"][data-step="1"]').click();await page.waitForFunction(()=>roomState.players[0].character===onlineCharacters[0]);
  await page.locator('#player-name-0').fill('Фёдор');await page.locator('#player-name-0').press('Enter');await page.waitForFunction(()=>roomState.players[0].name==='Фёдор');
  await page.locator('#rename-room').click();await page.locator('#room-name').fill('FLIBS');await page.locator('#rename-form button').first().click();await page.waitForFunction(()=>roomState.room.name==='FLIBS');
- const shot=async(name,p=page)=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await p.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:!name.includes('landscape')});}};
+ const shot=async(name,p=page)=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await p.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:false});}};
  const checkLayout=async(p)=>{
   const result=await p.evaluate(()=>{const form=document.querySelector('#room-browser').getBoundingClientRect(),start=document.querySelector('#start').getBoundingClientRect();return {scroll:document.documentElement.scrollWidth,width:innerWidth,overlap:form.bottom>start.top+1,form:form.toJSON(),start:start.toJSON()}});
   assert.ok(result.scroll<=result.width+1,'no horizontal overflow: '+JSON.stringify(result));assert.equal(result.overlap,false,'code entry is not covered by ready: '+JSON.stringify(result));
@@ -59,7 +59,8 @@ try {
  const phone=await browser.newContext({viewport:{width:393,height:852},deviceScaleFactor:2,isMobile:true,hasTouch:true,serviceWorkers:'block'});
  const guest=await phone.newPage();guest.on('pageerror',e=>errors.push(e.message));await guest.goto('http://127.0.0.1:3138');await guest.waitForFunction(()=>roomState?.room&&assetsLoaded);
  assert.equal(await guest.locator('.empty-seat').count(),0);
- await guest.locator('#room-code').fill('ZZZZZ');await guest.waitForSelector('#room-code[aria-invalid="true"]');
+ await guest.locator('#room-code').fill('abcdefghij');assert.equal((await guest.locator('#room-code').inputValue()).length,5);
+ await guest.locator('#room-code').fill('ZZZZZ');await guest.waitForSelector('#room-code[aria-invalid="true"]');assert.ok((await guest.locator('#directory-notice').getAttribute('class')).includes('code-error'));
  await guest.locator('#room-code').fill(code);await guest.waitForFunction(expected=>roomState?.room.code===expected,code);await page.waitForFunction(()=>roomState.players.length===3);
  assert.equal(await guest.locator('#track').isDisabled(),true);
  await page.locator('#track + .choice-switch button').last().click();await guest.waitForFunction(()=>roomState.track===1);
@@ -72,9 +73,17 @@ try {
  await guest.locator('#start').tap();await guest.waitForFunction(()=>roomState.players.every(p=>playerOwner(p)!==roomState.you||!p.ready));
  await guest.evaluate(()=>scrollTo(0,0));await shot('menu-phone',guest);
  await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);assert.ok((await guest.locator('[data-online-seat="0"]').boundingBox()).height<=300,'landscape phone card stays bounded');
- await guest.locator('#room-chat-toggle').click();await guest.locator('#chat-text').fill('Привет из телефона');await guest.locator('#chat-form button').click();await page.waitForFunction(()=>document.querySelector('#chat-log').textContent.includes('Привет из телефона'));await guest.locator('#close-chat').click();
- await page.locator('#show-qr').click();assert.equal(await page.locator('#invite-qr svg').count(),1);await page.locator('#close-invite').click();
+ await guest.locator('#room-chat-toggle').click();
+ await guest.waitForSelector('#chat-dialog[open]');await guest.waitForTimeout(420);const emptyLog=await guest.locator('#chat-log').boundingBox();assert.ok(emptyLog&&emptyLog.height>60,'empty chat already has a message area');
+ const send=await guest.locator('#chat-form button').boundingBox(),input=await guest.locator('#chat-text').boundingBox();assert.equal(send.height,input.height);
+ const head=await guest.locator('#chat-dialog .drawer-head').boundingBox();assert.ok(head.y+head.height<=emptyLog.y,'heading never covers messages');await shot('drawer-chat-phone',guest);await guest.locator('#chat-text').fill('Привет из телефона');await guest.locator('#chat-form button').click();await page.waitForFunction(()=>document.querySelector('#chat-log').textContent.includes('Привет из телефона'));await guest.locator('#close-chat').click();
+ await page.locator('#show-qr').click();assert.equal(await page.locator('#invite-qr svg').count(),1);assert.equal(await page.locator('#invite-dialog input,#copy-invite-link').count(),0);await page.waitForTimeout(420);await shot('drawer-qr-desktop');await page.locator('#close-invite').click();
  await page.locator('#network-toggle').click();await page.waitForSelector('.network-room-card');await page.locator('#close-network').click();
+ await guest.locator('#room-chat-toggle').tap();await guest.waitForTimeout(420);
+ const session=await phone.newCDPSession(guest),rect=await guest.locator('#chat-dialog .drawer-head h2').boundingBox(),x=rect.x+10,y=rect.y+10;
+ await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
+ for(let i=1;i<=5;i++)await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:x+i*18,y}]});
+ await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await guest.waitForSelector('#chat-dialog',{state:'hidden'});
  await page.locator('#start').click();await guest.waitForFunction(()=>roomState.players.filter(p=>p.ready).length===2);await guest.locator('#start').tap();
  await page.waitForFunction(()=>mode==='race');await guest.waitForFunction(()=>mode==='race');
  assert.deepEqual(errors,[]);

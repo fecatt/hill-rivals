@@ -69,8 +69,8 @@ function drawVehicle(c){
 }
 const CRATE_COLORS=['#d65d46','#e8ad36','#4dafbc','#987044'];
 function drawGarageRoad(){
- const roadY=H*.89,t=+$('#track').value,model=+$('#vehicle').value,v=VEHICLES[model],size=Math.min(1.7,Math.max(.9,W/1000));
- const x=W*.13/size,ground=0;
+ const roadY=H*.89,t=+$('#track').value,model=+$('#vehicle').value,v=VEHICLES[model],size=Math.min(1.7,Math.max(.7,W/1000),W*.24/(v.wheels.at(-1)-v.wheels[0]+Math.max(...wheelSpecs(v).map(w=>w.r))*2+45));
+ const halfSpan=(v.wheels.at(-1)-v.wheels[0])/2+Math.max(...wheelSpecs(v).map(w=>w.r))+25;const x=Math.max(W*.15/size,halfSpan+12),ground=0;
  ctx.save();ctx.translate(0,roadY);ctx.scale(size,size);
  // A level garage road keeps the parked vehicle clear of the menu.
  const roadWidth=W/size,roadHeight=(H-roadY)/size;
