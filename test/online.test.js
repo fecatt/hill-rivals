@@ -32,7 +32,7 @@ function state(){
  const sim=createSimulation(profiles,3,0);for(let i=0;i<240;i++)sim.step();
  return {type:'state',you:'a',phase:'race',round:1,serverNow:1000,track:3,vehicle:0,online:2,inRace:2,players:profiles,racers:profiles,game:structuredClone(sim.state())};
 }
-test('our car responds before any server response, while outcomes remain authoritative',()=>{
+test('our car responds locally while server elimination still ends its participation',()=>{
  const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample)');
  const before=c.run('cars[0].vx');
  c.run('keys.KeyD=true;sendInput()');
@@ -42,6 +42,25 @@ test('our car responds before any server response, while outcomes remain authori
  c.context.sample.game.cars[0].alive=false;c.context.sample.game.cars[0].reason='Отключился';
  c.context.sample.serverNow+=100;c.run('installGame(sample);update(1/120)');
  assert.equal(c.run('cars[0].alive'),false);
+});
+
+test('local driving survives a 900 ms packet gap and incoming poses cannot move our car',()=>{
+ const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample);keys.TouchGas=true');
+ const before=c.run('localCar.x');
+ for(let i=0;i<108;i++){c.advance(1000/120);c.run('update(1/120)');}
+ const x=c.run('localCar.x'),y=c.run('localCar.y');
+ assert.ok(x>before+10);
+ c.context.sample=structuredClone(c.context.sample);c.context.sample.game.cars[0].x=25;c.context.sample.game.cars[0].y=y+60;
+ c.run('roomState=sample;installGame(sample)');
+ assert.equal(c.run('localCar.x'),x);assert.equal(c.run('localCar.y'),y);
+ c.run('globalThis.sent=[];send=msg=>sent.push(msg);sendPose(true)');
+ assert.equal(c.context.sent[0].type,'pose');assert.equal(c.context.sent[0].pose.x,x);
+});
+
+test('shared bonus rewards apply locally once without replacing the local pose',()=>{
+ const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample);localCar.fuel=30');
+ c.context.sample.game.rewards=[{id:7,i:0,type:0}];
+ c.run('installGame(sample);installGame(sample)');assert.equal(c.run('localCar.fuel'),70);
 });
 test('opponents interpolate and briefly coast, with bounded extrapolation during lost packets',()=>{
  const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample)');
@@ -53,7 +72,7 @@ test('opponents interpolate and briefly coast, with bounded extrapolation during
  c.advance(100);c.run('update(1/120)');assert.ok(c.run('cars[1].x')>200);
  c.advance(5000);c.run('update(1/120)');assert.equal(c.run('cars[1].x'),215);
 });
-test('prediction stays finite under repeated corrections for all seven vehicles',()=>{
+test('local physics stays finite under incoming snapshots for all seven vehicles',()=>{
  for(let model=0;model<7;model++){
   const c=client(),profiles=[{id:'a',character:0,ability:'turbo',color:'red',gas:true}];
   const sim=createSimulation(profiles,model,model),base=state();
@@ -76,7 +95,7 @@ test('crates and bridges interpolate without mutating server data or confusing r
  left.game.bonus=[{...crate,id:1,x:-100,y:-100},crate];right.game.bonus=[{...crate,x:120,y:140,a:.2,age:1.05}];
  left.game.bridges=[{a:100,b:200,q:[0,0],v:[0,0]}];right.game.bridges=[{a:100,b:200,q:[10,4],v:[0,0]}];
  left.game.time=2;right.game.time=2.05;time=2;
- snapshots=[left,right];roomState=right;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);`);
+ snapshots=[left,right];roomState=right;window.onlineIndex=-1;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);`);
  assert.equal(c.run('bonus.length'),1);
  assert.equal(c.run('bonus[0].id'),2);
  assert.equal(c.run('bonus[0].x'),110);

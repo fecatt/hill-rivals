@@ -76,3 +76,30 @@ test('empty room resets; forgotten controls expire; all models run finite physic
     room.leave(a);assert.equal(room.phase,'lobby');assert.equal(room.sim,null);
   }
 });
+
+test('client-owned poses are relayed without server integration; invalid and stale poses are rejected',()=>{
+ let now=1000;const room=new Room({now:()=>now,countdownMs:0});
+ const a=room.join(()=>{});room.message(a,{type:'settings',track:3});room.message(a,{type:'ready',ready:true});room.tick();
+ const car=structuredClone(room.sim.state().cars[0]),pose={...car,x:car.x+10,vx:100};
+ room.message(a,{type:'pose',round:room.round,seq:1,time:0,pose});room.tick();
+ assert.equal(room.sim.state().cars[0].x,pose.x);assert.equal(room.clients.get(a).localPhysics,true);
+ for(let i=0;i<120;i++)room.tick();assert.equal(room.sim.state().cars[0].x,pose.x);
+ room.message(a,{type:'pose',round:room.round,seq:1,time:0,pose:{...pose,x:pose.x+1}});room.tick();assert.equal(room.sim.state().cars[0].x,pose.x);
+ room.message(a,{type:'pose',round:room.round+1,seq:2,time:0,pose:{...pose,x:pose.x+1}});room.tick();assert.equal(room.sim.state().cars[0].x,pose.x);
+ for(const invalid of [{...pose,x:NaN},{...pose,x:1e7},{...pose,fuel:101},{...pose,vy:1e5}]){
+  room.message(a,{type:'pose',round:room.round,seq:2,time:0,pose:invalid});room.tick();assert.equal(room.sim.state().cars[0].x,pose.x);
+ }
+ const spectator=room.join(()=>{});room.message(spectator,{type:'pose',round:room.round,seq:2,time:0,pose});assert.equal(room.clients.get(spectator).localPhysics,undefined);
+ now+=5001;room.tick();assert.equal(room.sim.state().cars[0].alive,false);
+});
+
+test('server awards a shared crate once to a client-owned car',()=>{
+ const profiles=[{character:0,ability:'turbo',color:'red'}],sim=createSimulation(profiles,3,0);
+ const car=structuredClone(sim.state().cars[0]);car.fuel=30;
+ assert.equal(sim.pose(0,car,0),true);
+ sim.state().bonus.push({id:123,x:car.x,y:car.y,prevX:car.x,prevY:car.y,vx:0,vy:0,a:0,av:0,type:0,claimedBy:null,age:0,deployed:false,chuteFade:0,grounded:true});
+ sim.step();
+ assert.equal(sim.state().bonus.length,0);assert.equal(sim.state().cars[0].fuel,70);
+ assert.deepEqual(JSON.parse(JSON.stringify(sim.state().rewards)),[{id:123,i:0,type:0}]);
+ for(let i=0;i<10;i++)sim.step();assert.equal(sim.state().rewards.length,1);
+});

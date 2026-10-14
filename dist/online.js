@@ -3,8 +3,9 @@ document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
-let predictedCar=null,predictionControls=[false,false],inputHistory=[];
-let poseError={x:0,y:0,a:0,wheel:0},serverToLocal=null,bestRtt=Infinity;
+let localCar=null,localControls=[false,false];
+let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
+let serverToLocal=null,bestRtt=Infinity;
 let interpolationDelay=70,lastPacketAt=0,renderTarget=-Infinity;
 function renderWorld(left,right,mix,ahead){
  const a=left.game,b=right.game;
@@ -19,37 +20,46 @@ function renderWorld(left,right,mix,ahead){
   draw.age+=ahead;draw.chuteFade=Math.max(0,draw.chuteFade-ahead);
   return draw;
  });
+ if(window.onlineIndex<0){
  const previousBridges=new Map((a.bridges||[]).map(bridge=>[bridge.a,bridge]));
  hillBridgeStates.clear();
  for(const bridge of b.bridges||[]){
   const old=previousBridges.get(bridge.a)||bridge;
   hillBridgeStates.set(bridge.a,{...bridge,q:bridge.q.map((q,j)=>old.q[j]+(q-old.q[j])*mix+bridge.v[j]*ahead),v:[...bridge.v]});
  }
+ }
  // Packet installation must never rewind the render clock.
  time=Math.max(time,a.time+(b.time-a.time)*mix+ahead);
 }
-const predictAbility=activateAbility;
-// Use the shared wheel/suspension physics for local response. Race outcomes stay on the server.
-input=i=>i===window.onlineIndex?predictionControls:[false,false];
-function predictStep(c,dt,control){predictionControls=control;physics(c,dt,true);}
-function rebuildPrediction(state,received){
+const localAbilityAction=activateAbility;
+// The owning device runs continuous physics. Server packets never replace its pose.
+input=i=>i===window.onlineIndex?localControls:[false,false];
+function localPhysicsStep(c,dt,control){localControls=control;physics(c,dt);}
+function installLocalCar(state){
  const index=window.onlineIndex,authoritative=state.game.cars[index];
- if(!authoritative){predictedCar=null;return;}
- const previous=cars[index];
- predictedCar={...authoritative,contacts:authoritative.contacts.map(c=>({...c}))};
- const base=serverToLocal===null?received:Math.min(received,Math.max(received-250,state.serverNow+serverToLocal));
- let cursor=base,control=[false,false];
- for(const command of inputHistory){
-  if(command.at<=base){control=[command.gas,command.brake];continue;}
-  advance(command.at);
-  control=[command.gas,command.brake];
-  if(command.ability)predictAbility(predictedCar);
+ if(!authoritative){localCar=null;return;}
+ if(!localCar){
+  localCar={...authoritative,contacts:authoritative.contacts.map(c=>({...c}))};
+  localSimTime=state.game.time;
  }
- advance(received);
- function advance(until){for(;cursor<until;){const dt=Math.min(1/120,(until-cursor)/1000);predictStep(predictedCar,dt,control);cursor+=dt*1000;}}
- // Preserve the current displayed pose while small server corrections fade out.
- for(const field of Object.keys(poseError))poseError[field]=previous?previous[field]-predictedCar[field]:0;
- if(Math.hypot(poseError.x,poseError.y)>180||!authoritative.alive)for(const field of Object.keys(poseError))poseError[field]=0;
+ if(!authoritative.alive){localCar.alive=false;localCar.reason=authoritative.reason;}
+ for(const reward of state.game.rewards||[]){
+  if(reward.i!==index||seenRewards.has(reward.id))continue;
+  seenRewards.add(reward.id);
+  if(reward.type===0){localCar.fuel=Math.min(100,localCar.fuel+40);announce(localCar,'+40 ТОПЛИВА');}
+  if(reward.type===1){localCar.boost=5;announce(localCar,'ТУРБО · 5 СЕК');}
+  if(reward.type===2){localCar.shield=12;announce(localCar,'ЩИТ · 12 СЕК');}
+  if(reward.type===3){localCar.mud=6;announce(localCar,'КОЛЁСА В ГРЯЗИ · 6 СЕК');}
+ }
+}
+function sendPose(force=false){
+ const now=performance.now();
+ if(!localCar||roomState?.phase!=='race'||(!force&&now-lastPoseSent<1000/30))return;
+ lastPoseSent=now;
+ const pose={};
+ for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=localCar[field];
+ pose.alive=localCar.alive;pose.reason=localCar.reason;pose.rocketOn=localCar.rocketOn;
+ send({type:'pose',round:onlineRound,seq:++poseSequence,time:localSimTime,pose});
 }
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
@@ -89,11 +99,9 @@ garage=()=>{
 $('#menu').onclick=garage;
 function controls(){return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
 function sendInput(ability=false){
- const [gas,brake]=controls(),at=performance.now(),previous=inputHistory.at(-1);
- if(!previous||previous.gas!==gas||previous.brake!==brake||ability)inputHistory.push({at,gas,brake,ability});
- while(inputHistory.length>1&&inputHistory[1].at<at-2000)inputHistory.shift();
- if(ability&&predictedCar)predictAbility(predictedCar);
- send({type:'input',gas,brake,ability});
+ const [gas,brake]=controls();
+ if(ability&&localCar)localAbilityAction(localCar);
+ send({type:'input',gas,brake});
 }
 addEventListener('keydown',e=>{if(e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
 addEventListener('keyup',()=>sendInput());
@@ -106,7 +114,7 @@ for(const button of touch.querySelectorAll('button')){
   button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
 setInterval(()=>{if(roomState?.phase==='race')sendInput();},100);
-// Predict only our car; interpolate other racers and follow with a local camera.
+// Simulate our car locally; interpolate the remote cars and shared bonuses.
 update=dt=>{
   if(!roomState)return;
   if(roomState.phase==='countdown'){count=Math.max(0,(roomState.startAt-(Date.now()+clockOffset))/1000);return;}
@@ -119,10 +127,10 @@ update=dt=>{
     const mix=right.serverNow>left.serverNow?Math.max(0,Math.min(1,(target-left.serverNow)/(right.serverNow-left.serverNow))):0;
     cars=roomState.game.cars.map((latest,i)=>{
       const car=cars[i]||{},a=left.game.cars[i]||latest,b=right.game.cars[i]||a;
-      if(i===window.onlineIndex&&predictedCar){
-        if(elapsed<250&&latest.alive)predictStep(predictedCar,dt,controls());
-        Object.assign(car,predictedCar,{alive:latest.alive,reason:latest.reason});
-        for(const field of Object.keys(poseError)){poseError[field]*=Math.exp(-dt*14);car[field]=predictedCar[field]+poseError[field];}
+      if(i===window.onlineIndex&&localCar){
+        localCar.prevX=localCar.x;localCar.prevY=localCar.y;
+        updateHillBridges(dt);localPhysicsStep(localCar,dt,controls());localSimTime+=dt;
+        Object.assign(car,localCar);
       }else{
         Object.assign(car,latest);
         for(const field of ['x','y','a','wheel'])car[field]=a[field]+(b[field]-a[field])*mix;
@@ -133,6 +141,7 @@ update=dt=>{
       return car;
     });
     renderWorld(left,right,mix,Math.max(0,Math.min(.15,(target-right.serverNow)/1000)));
+    sendPose();
   }
   if(mode==='race'){
     const own=cars[roomState.racers.findIndex(p=>p.id===roomState.you)];
@@ -144,7 +153,7 @@ function installGame(state){
   if(!state.game)return;
   const g=state.game;
   const newRound=onlineRound!==state.round;
-  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;predictedCar=null;poseError={x:0,y:0,a:0,wheel:0};inputHistory=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
@@ -164,7 +173,7 @@ function installGame(state){
   }
   count=0;
   mode=state.phase==='result'?'result':'race';paused=false;
-  if(state.phase==='race')rebuildPrediction(state,received);
+  if(state.phase==='race')installLocalCar(state);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
   touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.id===state.you);
   if(state.phase==='race')$('#overlay').hidden=true;
@@ -218,7 +227,7 @@ function connect(){
     if(changed||seconds!==renderedCountdown)renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;predictedCar=null;snapshots=[];oldPhase='';reconnectTimer=setTimeout(connect,1500);};
+  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;localCar=null;snapshots=[];oldPhase='';reconnectTimer=setTimeout(connect,1500);};
   socket.onerror=()=>socket.close();
 }
 window.assetsReady.then(connect);

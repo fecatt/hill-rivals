@@ -29,9 +29,18 @@ export class Room {
 
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
+    if(msg.type==='pose'){
+      const index=this.racers.findIndex(r=>r.id===id);
+      if(this.phase!=='race'||index<0||msg.round!==this.round||!Number.isSafeInteger(msg.seq)||msg.seq<1||msg.seq<=(p.poseSeq||0))return;
+      if(!Number.isFinite(msg.time)||msg.time<(p.poseTime||0)||msg.time>(this.now()-this.raceStartedAt)/1000+.5)return;
+      if(this.sim.pose(index,msg.pose,Math.max(0,(this.now()-(p.lastPoseAt??this.raceStartedAt))/1000))){
+        p.poseSeq=msg.seq;p.poseTime=msg.time;p.lastPoseAt=this.now();p.localPhysics=true;
+      }
+      return;
+    }
     if(msg.type==='input') {
       p.gas=msg.gas===true;p.brake=msg.brake===true;p.lastInput=this.now();
-      if(msg.ability===true && this.phase==='race') {
+      if(msg.ability===true && this.phase==='race'&&!p.localPhysics) {
         const index=this.racers.findIndex(r=>r.id===id);if(index>=0)this.sim.ability(index);
       }
       return;
@@ -57,12 +66,16 @@ export class Room {
     this.considerStart();
     if(this.phase==='countdown' && this.now()>=this.startAt) {
       this.racers=[...this.clients.values()];
-      this.racers.forEach((p,i)=>{p.color=palette[i%palette.length];p.gas=false;p.brake=false;p.ready=false;});
+      this.raceStartedAt=this.now();
+      this.racers.forEach((p,i)=>{p.color=palette[i%palette.length];p.gas=false;p.brake=false;p.ready=false;p.localPhysics=false;p.poseSeq=0;p.poseTime=0;p.lastPoseAt=this.raceStartedAt;});
       this.sim=this.makeSimulation(this.racers,this.track,this.vehicle);
       this.phase='race';this.round++;this.startAt=null;
     }
     if(this.phase==='race') {
-      for(const p of this.racers)if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;}
+      for(const [index,p] of this.racers.entries()){
+        if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;}
+        if(p.localPhysics&&this.now()-p.lastPoseAt>5000)this.sim.disconnect(index);
+      }
       this.sim.step();
       if(this.sim.state().finished){this.phase='result';for(const p of this.clients.values())p.ready=false;}
     }
