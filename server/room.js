@@ -123,7 +123,7 @@ export class Room {
     }
     if(this.phase==='race') {
       for(const [index,p] of this.racers.entries()){
-        if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;for(const seat of p.seats)if(this.now()-seat.lastInput>1500){seat.gas=false;seat.brake=false;if(seat.slot===0){p.gas=false;p.brake=false;}}}
+        if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;const owner=this.clients.get(p.owner);if(p.slot===0&&owner){owner.gas=false;owner.brake=false;}}
         if(p.localPhysics&&p.disconnectedAt==null&&this.now()-p.lastPoseAt>30000)this.sim.disconnect(index);
       }
       this.sim.step();
