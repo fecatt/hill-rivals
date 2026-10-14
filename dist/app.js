@@ -1,9 +1,10 @@
 'use strict';
-const modeQuery=new URLSearchParams(location.search);
-// Open the shared garage by default. The room browser is an optional route from it.
-let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode')||(modeQuery.has('room')?'online':'local');
+// The online lobby is the single web entry point. Keep the local build for file:// previews.
+let selectedMode=location.protocol==='file:'?'local':'online';
+if(!$('#players').querySelector('option[value="4"]'))$('#players').add(new Option('4 игрока','4'));
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
 document.querySelector('nav').prepend(modeButton);
+modeButton.hidden=true;
 const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
 const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
 let currentMode=null;
@@ -23,11 +24,11 @@ function chooseMode(next,push=true){
   $('#start').onclick=next==='online'?hooks.start:start;$('#track').onchange=hooks.trackChange;$('#vehicle').onchange=()=>{hooks.vehicleChange();if(next==='local')vehicleModel=+$('#vehicle').value;};
   $('#menu').onclick=garage;$('#pause').onclick=togglePause;$('#pause').hidden=next!=='local';$('#menu').hidden=next!=='local';$('#menu').disabled=false;$('#menu').textContent='Гараж';
   $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;
-  $('#lobby').hidden=next==='online';$('#room-browser').hidden=next!=='online';$('#players').closest('label').hidden=next==='online'||mobileInput.matches;
+  $('#lobby').hidden=false;$('#room-browser').hidden=next!=='online';$('#players').closest('label').hidden=next==='online'||mobileInput.matches;
   document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':'ЕДИНЫЙ ГАРАЖ';
   modeButton.textContent=next==='online'?'Вернуться в гараж':'Играть онлайн';
   cardTools.hidden=false;
-  (next==='online'?$('#room-browser'):$('#lobby')).append(cardTools);
+  (next==='online'?$('#room-options'):$('#lobby')).append(cardTools);
   document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
   if(next==='local'){
    colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;
@@ -42,8 +43,8 @@ function chooseMode(next,push=true){
  };
  if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
 }
-modeButton.onclick=()=>chooseMode(currentMode==='online'?'local':'online');
-addEventListener('popstate',()=>{const params=new URLSearchParams(location.search);chooseMode(params.get('mode')||(params.has('room')?'online':'local'),false);});
+modeButton.onclick=()=>{};
+addEventListener('popstate',()=>{chooseMode(location.protocol==='file:'?'local':'online',false);});
 let installPrompt;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
 installButton.onclick=async()=>{
@@ -55,6 +56,6 @@ addEventListener('appinstalled',()=>{installButton.hidden=true;installPrompt=nul
 if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{});
 let appVersion;
 setInterval(async()=>{if(window.onlineActive||location.protocol==='file:')return;try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}appVersion=health.version;}catch{}},5000);
-currentMode=undefined;chooseMode(location.protocol==='file:'?'local':selectedMode,false);
+currentMode=undefined;chooseMode(selectedMode,false);
 window.gameDebug.start=()=>start();
 window.assetsReady.then(()=>{if(currentMode==='local')$('#start').disabled=false;});

@@ -25,7 +25,7 @@ function createPeerTransport(send,getRoom){
     if(msg.type==='echo'){sample(peer.direct,now-msg.at);peer.lastEcho=now;return;}
     const packet=msg.type==='pose'?{...msg,type:'poses',poses:[{slot:0,seq:msg.seq,pose:msg.pose}]}:msg;
     if(packet.type!=='poses'||packet.round!==getRoom()?.round||!Array.isArray(packet.poses))return;
-    for(const item of packet.poses.slice(0,3)){
+    for(const item of packet.poses.slice(0,4)){
      if(!Number.isInteger(item.slot)||!Number.isSafeInteger(item.seq)||!item.pose||!['x','y','vx','vy','a','av','wheel'].every(key=>Number.isFinite(item.pose[key])))continue;
      const frames=peer.frames.get(item.slot)||[];if(frames.length&&item.seq<=frames.at(-1).seq)continue;
      frames.push({at:now,seq:item.seq,pose:item.pose});if(frames.length>12)frames.shift();peer.frames.set(item.slot,frames);

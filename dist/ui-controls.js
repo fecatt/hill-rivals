@@ -42,7 +42,7 @@ function refreshChoices(){
  if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div>';}
  $('#world-description').textContent=MAPS[+$('#track').value].description;
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
- if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=false;if($('#menu').parentElement!==$('#room-sidebar'))$('#room-sidebar').append($('#menu'));if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
+ if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=true;if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
  else if(online&&mode==='race'){$('#menu').hidden=true;$('#pause').hidden=false;}
  else if(!online){if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));$('#menu').hidden=true;$('#pause').hidden=mode!=='race';}
 }

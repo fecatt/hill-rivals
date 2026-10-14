@@ -12,7 +12,7 @@ export class Room {
   seatId(id,slot){return slot===0?id:id+':'+slot;}
   seatCount(){return [...this.clients.values()].reduce((n,p)=>n+p.seats.length,0);}
   setSeats(p,profiles){
-    if(!Array.isArray(profiles)||profiles.length<1||profiles.length>3)return false;
+    if(!Array.isArray(profiles)||profiles.length<1||profiles.length>4)return false;
     const others=this.seatCount()-p.seats.length;if(others+profiles.length>8)return false;
     if(this.phase==='race'&&p.seats.length)return false;
     p.seats=profiles.map((profile,slot)=>{
@@ -82,7 +82,7 @@ export class Room {
     if(msg.type==='poses'){
       if(this.phase!=='race'||msg.round!==this.round||!Array.isArray(msg.poses))return;
       const now=this.now();
-      for(const item of msg.poses.slice(0,3)){
+      for(const item of msg.poses.slice(0,4)){
         const slot=Number.isInteger(item.slot)?item.slot:0,index=this.racerIndex(id,slot),seat=p.seats[slot];
         if(index<0||!seat||!Number.isSafeInteger(item.seq)||item.seq<1||item.seq<=(seat.poseSeq||0))continue;
         if(!Number.isFinite(item.time)||item.time<(seat.poseTime||0)||item.time>(now-this.raceStartedAt)/1000+.5)continue;
@@ -92,7 +92,7 @@ export class Room {
     }
     if(msg.type==='input') {
       const controls=Array.isArray(msg.seats)?msg.seats:[{slot:0,gas:msg.gas,brake:msg.brake,ability:msg.ability}];
-      for(const control of controls.slice(0,3)){const seat=p.seats[control.slot];if(!seat)continue;seat.gas=control.gas===true;seat.brake=control.brake===true;seat.lastInput=this.now();if(control.slot===0){p.gas=seat.gas;p.brake=seat.brake;p.lastInput=seat.lastInput;}if(control.ability===true&&this.phase==='race'&&!seat.localPhysics){const index=this.racerIndex(id,control.slot);if(index>=0)this.sim.ability(index);}}
+      for(const control of controls.slice(0,4)){const seat=p.seats[control.slot];if(!seat)continue;seat.gas=control.gas===true;seat.brake=control.brake===true;seat.lastInput=this.now();if(control.slot===0){p.gas=seat.gas;p.brake=seat.brake;p.lastInput=seat.lastInput;}if(control.ability===true&&this.phase==='race'&&!seat.localPhysics){const index=this.racerIndex(id,control.slot);if(index>=0)this.sim.ability(index);}}
       return;
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {

@@ -1,14 +1,14 @@
 'use strict';
 function createRoomsUI(){
- const browser=document.createElement('main');browser.id='room-browser';browser.hidden=true;
- browser.innerHTML=`<div class="eyebrow">ИГРА С ДРУЗЬЯМИ</div><h1>Онлайн-комнаты</h1><p class="intro">Создайте свою гонку или присоединитесь к друзьям.</p><div class="room-actions"><form id="join-code"><label for="room-code">Код комнаты</label><div><input id="room-code" maxlength="5" minlength="5" pattern="[A-Za-z]{5}" placeholder="ABCDE" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-label="Код из пяти латинских букв"></div></form><button id="create-room" class="primary">СОЗДАТЬ КОМНАТУ <span>+</span></button></div><p id="directory-notice" role="status"></p><div class="room-columns"><section class="room-group"><h2>В вашей сети <span id="local-count">0</span></h2><p>Комнаты игроков рядом с вами.</p><div id="local-rooms" class="room-cards"></div></section><section class="room-group"><h2>Все комнаты <span id="global-count">0</span></h2><p>Все открытые комнаты, включая вашу сеть.</p><div id="global-rooms" class="room-cards"></div></section></div>`;
- $('#lobby').before(browser);$('#create-room').onclick=()=>send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});
+ const browser=document.createElement('section');browser.id='room-browser';browser.className='room-connect';
+ browser.innerHTML=`<form id="join-code"><label for="room-code">Подключиться к онлайн-комнате</label><div><input id="room-code" maxlength="5" minlength="5" pattern="[A-Za-z]{5}" placeholder="КОД ИЗ 5 БУКВ" autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-label="Код комнаты из пяти латинских букв"><button type="submit" aria-label="Подключиться к комнате">Войти</button></div></form><p id="directory-notice" role="status">Вы в своей комнате. Введите код другой комнаты, чтобы присоединиться.</p>`;
  let attemptedCode='';
  const tryCode=()=>{const field=$('#room-code'),code=field.value;if(code.length===5&&code!==attemptedCode){attemptedCode=code;field.classList.remove('code-error');field.removeAttribute('aria-invalid');$('#directory-notice').textContent='';send({type:'join-room',code});}};
  $('#room-code').oninput=e=>{e.target.value=e.target.value.replace(/[^a-z]/gi,'').toUpperCase();if(e.target.value.length<5)attemptedCode='';e.target.classList.remove('code-error');e.target.removeAttribute('aria-invalid');$('#directory-notice').textContent='';tryCode();};
  $('#join-code').onsubmit=e=>{e.preventDefault();attemptedCode='';tryCode();};
  const panel=$('#room-panel');
  panel.innerHTML=`<div class="room-heading"><h2 id="room-title"></h2><button id="rename-room" class="icon-button" title="Изменить название комнаты" aria-label="Изменить название комнаты"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4-1 12-12a2.8 2.8 0 0 0-4-4L4 15Z"/></svg></button><button id="copy-code" title="Скопировать код комнаты"></button></div><form id="rename-form" hidden><input id="room-name" maxlength="36" aria-label="Название комнаты" required><button>Сохранить</button><button type="button" id="cancel-rename">Отмена</button></form><div class="room-invite"><button id="copy-link">Скопировать ссылку</button><button id="show-qr">QR-код</button><span id="invite-status" role="status"></span></div><p id="host-caption"></p><div class="room-list"></div><div class="room-party-controls"><button id="add-local-racer" type="button">＋ Добавить игрока на этом устройстве</button><button id="remove-local-racer" type="button" aria-label="Убрать последнего игрока">−</button></div><p id="room-status"></p><p id="connection-status"></p><div id="room-chat"><h3>Чат комнаты</h3><div id="chat-log" role="log" aria-live="polite" hidden></div><form id="chat-form"><input id="chat-text" maxlength="300" placeholder="Написать сообщение…" aria-label="Сообщение в чат" autocomplete="off"><button aria-label="Отправить сообщение"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 18-7-7 18-4-7Z"/><path d="m10 14 5-5"/></svg></button></form></div>`;
+ $('#room-title').textContent='Ваша комната';$('#room-status').textContent='Подключение…';
  $('#add-local-racer').onclick=()=>window.changeOnlineParty?.(1);$('#remove-local-racer').onclick=()=>window.changeOnlineParty?.(-1);
  $('#rename-room').onclick=()=>{$('#rename-form').hidden=false;$('#room-name').value=roomState.room.name;$('#room-name').focus();$('#room-name').select();};
  $('#cancel-rename').onclick=()=>$('#rename-form').hidden=true;
@@ -24,6 +24,7 @@ function createRoomsUI(){
  const closeChat=()=>chatDialog.close();
  $('#close-chat').onclick=closeChat;chatDialog.addEventListener('click',event=>{if(event.target===chatDialog)closeChat();});
  const sidebar=document.createElement('div');sidebar.id='room-sidebar';sidebar.append($('#copy-link'),$('#show-qr'),panel.querySelector('.room-party-controls'));panel.append(sidebar);$('#copy-link').textContent='Ссылка';
+ panel.append(browser);
  const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.textContent='Настройки';sidebar.append(settingsButton);
  const options=document.createElement('div');options.id='room-options';options.hidden=true;panel.append(options);settingsButton.onclick=()=>{options.hidden=!options.hidden;settingsButton.setAttribute('aria-expanded',String(!options.hidden));};
  const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.type='button';chatToggle.innerHTML='Чат<span id="chat-unread" class="chat-unread" hidden></span>';chatToggle.setAttribute('aria-label','Открыть чат');sidebar.append(chatToggle);chatToggle.onclick=()=>{if(chatDialog.open){chatDialog.close();return;}chatDialog.showModal();markChatRead();syncChatViewport();requestAnimationFrame(()=>chatInput.focus());};
@@ -44,14 +45,13 @@ function createRoomsUI(){
   browser,
   directory(state){
    roomState=null;mode='lobby';snapshots=[];onlineRound=-1;localCar=null;window.onlineIndex=undefined;window.racerNames=[];
-   $('#lobby').hidden=true;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)browser.append(window.cardTools);
-   const local=state.rooms.filter(room=>room.local);list($('#local-rooms'),local);list($('#global-rooms'),state.rooms);$('#local-count').textContent=local.length;$('#global-count').textContent=state.rooms.length;
-   onlineBar.textContent='На сайте: '+state.online+' · Комнат: '+state.rooms.length;if(!$('#room-code').hasAttribute('aria-invalid'))$('#directory-notice').textContent='';$('#menu').hidden=true;
+   $('#lobby').hidden=false;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
+   onlineBar.textContent='';if(!$('#room-code').hasAttribute('aria-invalid'))$('#directory-notice').textContent='Вы в своей комнате. Введите код другой комнаты, чтобы присоединиться.';$('#menu').hidden=true;
    messages=[];lastChatId=0;unreadCount=0;setUnread();$('#chat-log').replaceChildren();$('#chat-log').hidden=false;$('#rename-form').hidden=true;shareDialog.close();chatDialog.close();window.peerTransport?.reset();
   },
   state(state){
    if(activeRoomCode!==state.room.code){activeRoomCode=state.room.code;messages=[];lastChatId=0;unreadCount=0;$('#chat-log').replaceChildren();setUnread();}
-   browser.hidden=true;$('#menu').hidden=false;$('#menu').textContent='Выйти из комнаты';if(window.cardTools)$('#lobby').append(window.cardTools);
+   browser.hidden=false;$('#lobby').hidden=false;$('#menu').hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
    $('#room-title').textContent=state.room.name;$('#copy-code').textContent=state.room.code+' ⧉';$('#rename-room').hidden=state.room.host!==state.you;$('#rename-room').disabled=!['lobby','result'].includes(state.phase);if(state.room.host!==state.you)$('#rename-form').hidden=true;
    const me=state.players.find(p=>p.owner===state.you&&p.slot===0),field=$('#player-name-0');if(field&&document.activeElement!==field)field.value=me?.name||'';
    $('#host-caption').textContent=state.room.host===state.you?'Вы ведущий · выбирайте трассу и машину.':'Трассу и машину выбирает ведущий.';
