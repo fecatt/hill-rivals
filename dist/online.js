@@ -66,7 +66,7 @@ function sendPose(force=false){
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
-const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">СПОСОБНОСТЬ</button><button data-control="gas">ГАЗ</button>';document.body.append(touch);
+const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake" aria-label="Тормоз и задний ход"><span class="touch-hint">НАЗАД</span></button><button data-control="ability" aria-label="Способность"><span class="touch-hint">СПОСОБНОСТЬ</span></button><button data-control="gas" aria-label="Газ"><span class="touch-hint">ГАЗ</span></button>';document.body.append(touch);
 const roomUI=createRoomsUI();
 window.peerTransport=createPeerTransport(send,()=>roomState);
 document.title='Hill Rivals · Онлайн-гонка';
@@ -114,12 +114,31 @@ addEventListener('keydown',e=>{if(!window.onlineActive||e.target.matches('select
 addEventListener('keyup',()=>sendInput());
 addEventListener('blur',()=>sendInput());
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keysClear();sendInput();}});
+const touchPointers=new Map();
+function applyTouchInput(){keys.TouchGas=[...touchPointers.values()].includes('gas');keys.TouchBrake=[...touchPointers.values()].includes('brake');sendInput();}
+window.resetTouchInput=()=>{touchPointers.clear();};
 for(const button of touch.querySelectorAll('button')){
-  const key=button.dataset.control==='gas'?'TouchGas':'TouchBrake';
-  button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(button.dataset.control==='ability'){if(window.onlineActive)sendInput(true);else activateAbility(cars[0]);return;}keys[key]=true;sendInput();});
-  const release=()=>{if(button.dataset.control!=='ability'){keys[key]=false;sendInput();}};
+  const control=button.dataset.control;
+  button.addEventListener('pointerdown',e=>{
+    if(mode!=='race'||paused||!mobileInput.matches)return;
+    e.preventDefault();button.setPointerCapture(e.pointerId);touchPointers.set(e.pointerId,control);
+    if(control==='ability'){if(window.onlineActive)sendInput(true);else activateAbility(cars[0]);}
+    else applyTouchInput();
+  });
+  const release=e=>{if(!touchPointers.delete(e.pointerId))return;applyTouchInput();};
   button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
+let movementStarted=false,touchHintTime=0;
+window.resetTouchHints=()=>{movementStarted=false;touchHintTime=0;touch.classList.remove('hints-faded');};
+window.updateTouchHints=dt=>{
+ if(mode!=='race'){window.resetTouchHints();return;}
+ const own=cars[window.onlineIndex??0];
+ if(!paused&&count<=0&&own?.alive){
+  if(Math.abs(own.vx)>1)movementStarted=true;
+  if(movementStarted)touchHintTime+=dt;
+ }
+ touch.classList.toggle('hints-faded',touchHintTime>=5);
+};
 setInterval(()=>{if(roomState?.phase==='race')sendInput();},100);
 // Simulate our car locally; interpolate the remote cars and shared bonuses.
 update=dt=>{
@@ -162,7 +181,7 @@ function installGame(state){
   if(!state.game)return;
   const g=state.game;
   const newRound=onlineRound!==state.round;
-  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  if(newRound){window.resetTouchHints();onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();

@@ -192,6 +192,18 @@ body.online #room-panel>#room-chat[hidden]{display:none!important}
  body.online #room-panel{height:450px;padding:12px;grid-template-columns:minmax(0,1fr) 68px;grid-template-rows:34px 28px minmax(0,1fr) 31px 45px;gap:8px}.room-heading{gap:5px}.room-heading h2{font-size:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#copy-code{font-size:8px!important;padding:5px!important}.icon-button{width:26px;height:26px;padding:5px}#room-panel .room-list{padding:8px}#room-panel .room-list>div{font-size:11px}#room-sidebar{gap:8px}#room-sidebar button{font-size:10px;padding:6px 3px;min-height:34px}#room-panel #room-status{font-size:10px}#room-panel>#start{font-size:16px;padding:8px}#room-panel .room-invite{right:12px;bottom:78px;max-width:68px}#room-options{right:12px;top:78px;width:210px}
 }
 /* Fit the complete garage between the browser's visible top and bottom edges. */
+button,a{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}button:focus,button:focus-visible,a:focus,a:focus-visible{outline:none!important;outline-offset:0!important}button::-moz-focus-inner{border:0}
+body[data-screen="race"] #online-bar{display:none!important}
+#fullscreen-button{display:none;padding:6px;line-height:0}html:fullscreen,html:fullscreen body{width:100%;height:100%;margin:0}
+@media(pointer:coarse){
+ #fullscreen-button{display:grid;place-items:center;width:34px;height:34px;min-height:0;padding:6px}
+ body[data-screen="race"] header{z-index:6}
+ #touch-controls{position:fixed;inset:0;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:stretch;pointer-events:none;touch-action:none}
+ #touch-controls button,#touch-controls button[data-control="ability"]{position:relative;display:block;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;pointer-events:auto;touch-action:none}
+ #touch-controls button:active{background:transparent;border:0}
+ #touch-controls .touch-hint{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);display:grid;place-items:center;width:clamp(80px,26vw,145px);height:48px;padding:8px;border:2px solid #20382f40;border-radius:14px;background:#fff8e7e8;color:#20382f;font-size:13px;font-weight:bold;opacity:1;transition:opacity 700ms ease;pointer-events:none}
+ #touch-controls.hints-faded .touch-hint{opacity:0}
+}
 @media(orientation:landscape) and (max-height:600px) and (pointer:coarse){
  body.online[data-screen="lobby"] header{height:40px;padding:6px 12px;flex-wrap:nowrap}body.online[data-screen="lobby"] header b{font-size:18px}
  body.online #lobby{--garage-height:calc(100dvh - 54px - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:0 auto;padding:0;gap:8px;grid-template-columns:minmax(0,.85fr) minmax(0,1fr) minmax(0,1.35fr)}

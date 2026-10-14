@@ -10,6 +10,7 @@ function client(){
  const element=selector=>{
   if(!elements.has(selector))elements.set(selector,{
    value:'0',dataset:{},style:{},hidden:false,disabled:false,innerHTML:'',textContent:'',firstChild:{},
+   classList:{add(){},remove(){},toggle(){}},
    addEventListener(){},removeEventListener(){},focus(){},append(){},after(){},remove(){},setAttribute(){},
    closest:()=>element('label'),getContext:()=>({setTransform(){}}),
    querySelector:element,querySelectorAll:()=>[],

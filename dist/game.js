@@ -30,8 +30,8 @@ document.querySelector('#picks').addEventListener('change',e=>{if(e.target.datas
 function updateMapDescription(){$('#map-description').textContent=MAPS[+$('#track').value].description+' Бесконечная трасса. При каждом старте — новый вариант рельефа.'}$('#track').onchange=updateMapDescription;updateMapDescription();
 function newCar(i){const v=VEHICLES[vehicleModel],spawnX=Math.max(100,Math.max(...v.wheels.map(Math.abs))+Math.max(...wheelSpecs(v).map(w=>w.r))+25)+i*Math.max(110,v.wheels[v.wheels.length-1]-v.wheels[0]+2*Math.max(...wheelSpecs(v).map(w=>w.r))+18);return {i,model:vehicleModel,rocketOn:false,startX:spawnX,x:spawnX,y:terrain(spawnX)-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r))-3,vx:0,vy:0,a:0,av:0,fuel:100,cp:0,alive:true,reason:'',wheel:0,contacts:[],shield:0,boost:0,mud:0,coins:0,air:0,flip:0,notice:'',noticeTime:0,ability:abilities[i],cooldown:0,prevX:spawnX,prevY:-43}}
 $('#vehicle').onchange=describeVehicle;describeVehicle();
-function start(){vehicleModel=+$('#vehicle').value;newWorldSeed();track=+$('#track').value;snowStart=Infinity;snowEnd=0;nextSnow=6+Math.random()*6;resetHillBridges();cars=colors.slice(0,playerCount).map((_,i)=>newCar(i));cam=0;zoom=1;cameraY=0;time=0;count=3;nextDrop=5;bonus=[];particles=[];mode='race';paused=false;winner=null;$('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;$('#overlay').hidden=true;keysClear();canvas.focus()}
-$('#start').onclick=start;function keysClear(){Object.keys(keys).forEach(k=>keys[k]=false)}function garage(){mode='lobby';paused=false;$('#lobby').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;$('#foot').hidden=false;keysClear()}$('#menu').onclick=garage;
+function start(){window.resetTouchHints?.();vehicleModel=+$('#vehicle').value;newWorldSeed();track=+$('#track').value;snowStart=Infinity;snowEnd=0;nextSnow=6+Math.random()*6;resetHillBridges();cars=colors.slice(0,playerCount).map((_,i)=>newCar(i));cam=0;zoom=1;cameraY=0;time=0;count=3;nextDrop=5;bonus=[];particles=[];mode='race';paused=false;winner=null;$('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;$('#overlay').hidden=true;keysClear();canvas.focus()}
+$('#start').onclick=start;function keysClear(){Object.keys(keys).forEach(k=>keys[k]=false);window.resetTouchInput?.()}function garage(){mode='lobby';paused=false;$('#lobby').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;$('#foot').hidden=false;keysClear()}$('#menu').onclick=garage;
 function togglePause(){if(mode!=='race')return;paused=!paused;keysClear();$('#overlay').hidden=!paused;if(paused){$('#overlay').innerHTML='<h2>Пауза</h2><p>Переведи дыхание. Холмы подождут.</p><button id="resume">Продолжить</button>';$('#resume').onclick=togglePause}}$('#pause').onclick=togglePause;
 addEventListener('keydown',e=>{if(e.target?.matches?.('input,textarea,select,[contenteditable]'))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(!e.repeat){const i=['KeyE','ShiftRight','unused'].indexOf(e.code);if(i>=0)activateAbility(cars[i])}if(e.code==='Escape'&&!e.repeat)togglePause()});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('blur',()=>{keysClear();if(mode==='race'&&!paused)togglePause()});document.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('mousedown',e=>{keys['Mouse'+e.button]=true;if(e.button===1)activateAbility(cars[2]);e.preventDefault()});addEventListener('mouseup',e=>keys['Mouse'+e.button]=false);
 // Engine audio: combustion pulses, exhaust resonance and filtered intake air.
@@ -262,7 +262,7 @@ function renderHud(){
   stat.querySelector('.ability-status').textContent=status;
   if(c.i===(window.onlineIndex??0)){
    const button=$('[data-control="ability"]');
-   if(button){button.textContent=abilityNames[c.ability]+(c.cooldown>0?' · '+Math.ceil(c.cooldown)+' с':'');button.disabled=!c.alive||c.cooldown>0||count>0;}
+   if(button){button.querySelector('.touch-hint').textContent=abilityNames[c.ability]+(c.cooldown>0?' · '+Math.ceil(c.cooldown)+' с':'');button.setAttribute('aria-label',abilityNames[c.ability]);button.disabled=!c.alive||c.cooldown>0||count>0;}
   }
  });
 }
@@ -282,7 +282,7 @@ function frame(now){
  if(now-lastDraw<interval-.5)return;lastDraw=now;
  const dt=Math.min(.05,(now-last)/1000);last=now;
  acc+=dt;while(acc>=1/120){update(1/120);acc-=1/120}
- if(mode==='lobby')time+=dt;syncGameScreen();animateSuspension(dt);draw();window.refreshChoices?.();window.renderSettingPreviews?.();
+ if(mode==='lobby')time+=dt;syncGameScreen();window.updateTouchHints?.(dt);animateSuspension(dt);draw();window.refreshChoices?.();window.renderSettingPreviews?.();
  if(engineAudio){
   const ownIndex=window.onlineIndex??0,c=cars[ownIndex],controls=c?input(c.i):[false,false];
   engineAudio.updateEnvironment({enabled:sound&&!paused&&!document.hidden,active:mode==='race'&&!paused&&count<=0,car:c,mode,count});
