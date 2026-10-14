@@ -211,7 +211,7 @@ function renderRoom(state){
   if(state.phase==='result'&&oldPhase!=='result'){
     $('#overlay').hidden=false;
     const ranked=[...cars].sort((a,b)=>b.x-a.x);
-    $('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${state.game.winner===null?'Все выбыли':'Гонщик '+(state.game.winner+1)+' победил!'}</h2><p>${ranked.map(c=>`${names[chosen[c.i]]} · ${Math.max(0,Math.floor((c.x-c.startX)/10))} м`).join('<br>')}</p><button id="next-race">Следующая гонка</button>`;
+    $('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${state.game.winner===null?'Все выбыли':'Гонщик '+(state.game.winner+1)+' победил!'}</h2><p>${ranked.map(c=>`${names[chosen[c.i]]} · ${Math.floor(raceMetres(c))} м`).join('<br>')}</p><button id="next-race">Следующая гонка</button>`;
     $('#next-race').onclick=()=>{send({type:'ready',ready:true});};
   }
   oldPhase=state.phase;

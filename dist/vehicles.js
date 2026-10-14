@@ -8,10 +8,21 @@ const VEHICLES=[
  {name:'Хот-род',kind:'hotrod',lift:2,radius:19,wheelRadii:[24,15],wheels:[-38,38],mass:1050,engine:1400,maxSpeed:950,spring:145,damper:12,mount:18,travel:9,grip:1.75,rotation:1.15,drag:.25,bodyScale:1.18,description:'Большие задние колёса, маленькие передние. Очень быстрый, легко встаёт на дыбы.'},
  {name:'Турборакета',kind:'rocket',lift:0,radius:14,wheels:[-33,33],mass:980,engine:820,maxSpeed:1100,spring:115,damper:14,mount:16,travel:10,grip:1.7,rotation:.8,drag:.4,bodyScale:1.15,rocket:true,description:'Газ даёт реактивную тягу вперёд и вверх даже в воздухе. Тормоз управляет носом; расход топлива повышен.'}
 ];
+
+// Calibrate the shared world scale against the classic Jeep drawing.
+// Its bumper-to-bumper span is 112.592 world units (see race-art.js anchors).
+// Reference: a short Willys MB, about 3.33 m long; art is stylised, not a replica.
+const REFERENCE_JEEP_LENGTH_METRES=3.33;
+const REFERENCE_JEEP_WORLD_LENGTH=112.592;
+const WORLD_UNITS_PER_METRE=REFERENCE_JEEP_WORLD_LENGTH/REFERENCE_JEEP_LENGTH_METRES;
+function worldMetres(units){return units/WORLD_UNITS_PER_METRE}
+function speedKph(velocity){return Math.abs(worldMetres(velocity))*3.6}
+function raceMetres(c){return Math.max(0,worldMetres(c.x-c.startX))}
+
 function carSpec(c){return VEHICLES[c.model??vehicleModel]}
 function wheelSpecs(v){return v.wheels.map((x,i)=>({x,r:v.wheelRadii?.[i]??v.radius}))}
 function inertia(v){const span=v.wheels[v.wheels.length-1]-v.wheels[0];return 1120*(v.mass/900)*(span/62)**2}
-function describeVehicle(){const v=VEHICLES[+$('#vehicle').value],s=wheelSpecs(v);$('#vehicle-description').textContent=v.description;$('#vehicle-stats').textContent=`${v.mass} кг · ${s.length} оси (колёс: ${s.length*2}) · радиус колёс ${s.map(w=>w.r).join('/')} · до ${Math.round(v.maxSpeed*.36)} км/ч · ход ${v.travel} · жёсткость ${v.spring}`}
+function describeVehicle(){const v=VEHICLES[+$('#vehicle').value],s=wheelSpecs(v);$('#vehicle-description').textContent=v.description;$('#vehicle-stats').textContent=`${v.mass} кг · ${s.length} оси (колёс: ${s.length*2}) · радиус колёс ${s.map(w=>w.r).join('/')} · до ${Math.round(speedKph(v.maxSpeed))} км/ч · ход ${v.travel} · жёсткость ${v.spring}`}
 let vehicleModel=0;
 const suspensionVisuals=new WeakMap();
 function visualPose(c){let p=suspensionVisuals.get(c);if(!p){p={wheels:carSpec(c).wheels.map(()=>carSpec(c).mount),bob:0,lastVY:c.vy,lastVX:c.vx};suspensionVisuals.set(c,p)}return p}

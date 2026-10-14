@@ -169,7 +169,7 @@ class RacingEngineAudio {
  updateEnvironment(state,now=this.context.currentTime){
   const enabled=!!state.enabled,c=state.car,moving=enabled&&state.active&&c?.alive;
   // Wind depends on road speed, including coasting with the gas released.
-  const speed=Math.abs(c?.vx||0),amount=Math.max(0,Math.min(1,(speed-195)/650));
+  const speed=speedKph(c?.vx||0),amount=Math.max(0,Math.min(1,(speed-50)/60));
   const gust=.88+.12*Math.sin(now*2.1)+.05*Math.sin(now*5.3);
   if(enabled!==this.environmentEnabled){
    if(!enabled)this.silence();
@@ -223,7 +223,7 @@ c.rocketOn=!!(v.rocket&&gas&&!brake);if(c.rocketOn){const thrust=(c.boost>0?1.65
 // Head impact causes a crash, rather than an arbitrary angle threshold.
 let hx=c.x+Math.sin(c.a)*41,hy=c.y-Math.cos(c.a)*41;if(!predict&&hy+8>terrain(hx)&&Math.cos(c.a)<.5)kill(c,'Переворот');if(!predict&&c.y>terrain(c.x)+85)kill(c,'Авария');if(!predict&&c.fuel<=0&&Math.abs(c.vx)<5&&grounded)kill(c,'Нет топлива');let cp=Math.floor(c.x/checkpoint);if(cp>c.cp){c.cp=cp;if(!v.rocket||terrain(c.x)-c.y<120){c.fuel=100;announce(c,'ЗАПРАВКА · БАК ПОЛНЫЙ')}else announce(c,'ЗАПРАВКА ПРОЛЕТЕЛА ВНИЗУ')}
 }
-function endRace(){mode='result';keysClear();let ranked=[...cars].sort((a,b)=>b.x-a.x);$('#overlay').hidden=false;$('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${cars.length===1?'Заезд завершён':winner?'Игрок '+(winner.i+1)+' победил!':'Все выбыли'}</h2><p>${ranked.map(c=>`<span style="color:${colors[c.i]}">●</span> ${names[chosen[c.i]].replace('_',' ')} — ${Math.max(0,Math.floor((c.x-c.startX)/10))} м ${c.reason?'· '+c.reason:''}`).join('<br>')}</p><button id="again">Ещё гонка</button><button id="back">В гараж</button>`;$('#again').onclick=start;$('#back').onclick=garage}
+function endRace(){mode='result';keysClear();let ranked=[...cars].sort((a,b)=>b.x-a.x);$('#overlay').hidden=false;$('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${cars.length===1?'Заезд завершён':winner?'Игрок '+(winner.i+1)+' победил!':'Все выбыли'}</h2><p>${ranked.map(c=>`<span style="color:${colors[c.i]}">●</span> ${names[chosen[c.i]].replace('_',' ')} — ${Math.floor(raceMetres(c))} м ${c.reason?'· '+c.reason:''}`).join('<br>')}</p><button id="again">Ещё гонка</button><button id="back">В гараж</button>`;$('#again').onclick=start;$('#back').onclick=garage}
 // Swept contacts give each crate to the first car reaching it during this physics step.
 function contactTime(c,b){const ax=c.prevX-b.prevX,ay=c.prevY-b.prevY,dx=(c.x-c.prevX)-(b.x-b.prevX),dy=(c.y-c.prevY)-(b.y-b.prevY),radius=52;const C=ax*ax+ay*ay-radius*radius;if(C<=0)return 0;const A=dx*dx+dy*dy;if(A<1e-10)return null;const B=2*(ax*dx+ay*dy),disc=B*B-4*A*C;if(disc<0)return null;const t=(-B-Math.sqrt(disc))/(2*A);return t>=0&&t<=1?t:null}
 function collectBonuses(){for(const b of bonus){if(b.claimedBy!==null)continue;let first=null,firstTime=Infinity;for(const c of cars){if(!c.alive)continue;const t=contactTime(c,b);if(t!==null&&t<firstTime){first=c;firstTime=t}}if(first){b.claimedBy=first.i;if(b.type===0){first.fuel=Math.min(100,first.fuel+40);announce(first,'+40 ТОПЛИВА')}if(b.type===1){first.boost=5;announce(first,'ТУРБО · 5 СЕК')}if(b.type===2){first.shield=12;announce(first,'ЩИТ · 12 СЕК')}if(b.type===3){first.mud=6;announce(first,'КОЛЁСА В ГРЯЗИ · 6 СЕК')}}}}
@@ -234,7 +234,7 @@ function circle(x,y,r,fill,stroke){ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ct
 function tree(x,y,s=1){ctx.save();ctx.translate(x,y);ctx.scale(s,s);ctx.fillStyle='#786347';ctx.fillRect(-4,-40,8,40);circle(0,-52,23,'#56954b');circle(-16,-40,20,'#4b8840');circle(16,-42,19,'#69a751');ctx.restore()}
 function background(){mapBackground(mode==='lobby'?+$('#track').value:track,mode==='lobby'?0:cam+W/scale()*.5)}
 function carDraw(c){drawVehicle(c)}
-function world(){const s=scale(),base=H*.69-cameraY*s;ctx.save();ctx.translate(-cam*s,base);ctx.scale(s,s);let left=cam-100,right=cam+W/s+100;if(track===0)mapScenery(track,left,right);drawGround(track,left,right,Math.max(500,(H-base)/s+250));if(track!==0)mapScenery(track,left,right);for(let x=Math.max(checkpoint,Math.floor(left/checkpoint)*checkpoint);x<right;x+=checkpoint){let y=terrain(x);ctx.fillStyle='#f8edcb';ctx.fillRect(x-4,y-103,5,103);path([[x,y-100],[x+45,y-88],[x,y-76]],'#e64d36');ctx.fillStyle='#fff7df';ctx.font='bold 13px Arial';ctx.fillText(x/10+' м · ЗАПРАВКА',x-35,y-116);ctx.fillStyle='#e64d36';ctx.fillRect(x+12,y-35,21,26);ctx.strokeStyle='#3e4b30';ctx.lineWidth=3;ctx.strokeRect(x+12,y-35,21,26);ctx.strokeRect(x+17,y-41,10,7);ctx.fillStyle='#f5dfc1';ctx.fillRect(x+17,y-26,11,4)}
+function world(){const s=scale(),base=H*.69-cameraY*s;ctx.save();ctx.translate(-cam*s,base);ctx.scale(s,s);let left=cam-100,right=cam+W/s+100;if(track===0)mapScenery(track,left,right);drawGround(track,left,right,Math.max(500,(H-base)/s+250));if(track!==0)mapScenery(track,left,right);for(let x=Math.max(checkpoint,Math.floor(left/checkpoint)*checkpoint);x<right;x+=checkpoint){let y=terrain(x);ctx.fillStyle='#f8edcb';ctx.fillRect(x-4,y-103,5,103);path([[x,y-100],[x+45,y-88],[x,y-76]],'#e64d36');ctx.fillStyle='#fff7df';ctx.font='bold 13px Arial';ctx.fillText(Math.round(Math.max(0,worldMetres(x-(cars[window.onlineIndex??0]?.startX??0))))+' м · ЗАПРАВКА',x-35,y-116);ctx.fillStyle='#e64d36';ctx.fillRect(x+12,y-35,21,26);ctx.strokeStyle='#3e4b30';ctx.lineWidth=3;ctx.strokeRect(x+12,y-35,21,26);ctx.strokeRect(x+17,y-41,10,7);ctx.fillStyle='#f5dfc1';ctx.fillRect(x+17,y-26,11,4)}
 for(const b of bonus)if(b.claimedBy===null)drawCrate(b);
 cars.slice().sort((a,b)=>a.x-b.x).forEach(c=>carDraw(c));for(let p of particles)circle(p.x,p.y,4,p.color);ctx.restore()}
 let hudRoster='',hudNext=0;
@@ -253,9 +253,9 @@ function renderHud(){
  shown.forEach((c,j)=>{
   const stat=$('#hud').children[j];if(!stat)return;
   stat.style.opacity=c.alive?1:.6;
-  stat.querySelector('small').textContent=Math.max(0,Math.floor((c.x-c.startX)/10))+' м';
+  stat.querySelector('small').textContent=Math.floor(raceMetres(c))+' м';
   const fuel=stat.querySelector('.fuel i');fuel.style.width=c.fuel+'%';fuel.style.background=c.fuel<20?'#e64d36':'#65a53b';
-  stat.querySelector('.telemetry').textContent=c.alive?`${Math.round(c.fuel)}% · ${Math.round(Math.abs(c.vx)*.36)} км/ч${window.onlineIndex!==undefined?' · '+(c.i===window.onlineIndex?'Вы':'Соперник'):''}`:c.reason;
+  stat.querySelector('.telemetry').textContent=c.alive?`${Math.round(c.fuel)}% · ${Math.round(speedKph(c.vx))} км/ч${window.onlineIndex!==undefined?' · '+(c.i===window.onlineIndex?'Вы':'Соперник'):''}`:c.reason;
   const status=`${c.mud>0?'Грязь '+Math.ceil(c.mud)+' с · ':''}${abilityNames[c.ability]} · ${c.cooldown>0?Math.ceil(c.cooldown)+' с':'готово'}`;
   stat.querySelector('.ability-status').textContent=status;
   if(c.i===(window.onlineIndex??0)){
