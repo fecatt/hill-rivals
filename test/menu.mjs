@@ -73,6 +73,13 @@ try {
  await guest.locator('#start').tap();await guest.waitForFunction(()=>roomState.players.every(p=>playerOwner(p)!==roomState.you||!p.ready));
  await guest.evaluate(()=>scrollTo(0,0));await shot('menu-phone',guest);
  await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);assert.ok((await guest.locator('[data-online-seat="0"]').boundingBox()).height<=300,'landscape phone card stays bounded');
+ for(const height of [280,320,393,320]){
+  await guest.setViewportSize({width:852,height});
+  const bounds=await guest.evaluate(()=>{const panel=$('#room-panel').getBoundingClientRect();return [...document.querySelectorAll('#room-sidebar>button')].map(b=>({id:b.id,r:b.getBoundingClientRect().toJSON(),panel:panel.toJSON()}));});
+  for(const b of bounds){assert.ok(b.r.right<=b.panel.right&&b.r.left>=b.panel.left&&b.r.top>=b.panel.top&&b.r.bottom<=b.panel.bottom,'toolbar stays inside at '+height+': '+JSON.stringify(b));}
+  await guest.locator('#room-settings').tap();await guest.waitForSelector('#room-options[open]');await guest.waitForTimeout(420);await guest.evaluate(name=>send({type:'name',name}),'Телефон '+height);await guest.waitForFunction(name=>roomState.players.some(p=>playerOwner(p)===roomState.you&&p.name===name),'Телефон '+height);assert.ok(await guest.locator('#room-options .drawer-body #sound').isVisible());await guest.locator('#close-settings').tap();await guest.waitForSelector('#room-options',{state:'hidden'});
+ }
+ await guest.setViewportSize({width:852,height:393});
  await guest.locator('#room-chat-toggle').click();
  await guest.waitForSelector('#chat-dialog[open]');await guest.waitForTimeout(420);const emptyLog=await guest.locator('#chat-log').boundingBox();assert.ok(emptyLog&&emptyLog.height>60,'empty chat already has a message area');
  const send=await guest.locator('#chat-form button').boundingBox(),input=await guest.locator('#chat-text').boundingBox();assert.equal(send.height,input.height);

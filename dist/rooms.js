@@ -29,13 +29,13 @@ function createRoomsUI(){
  $('#show-qr').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>';$('#show-qr').title='Показать QR-код';$('#show-qr').setAttribute('aria-label','Показать QR-код');
  panel.append(browser);
  const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 1 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 1 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 1 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 1 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 1 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 1 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 1 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 1 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg>';settingsButton.title='Настройки';settingsButton.setAttribute('aria-label','Настройки');sidebar.append(settingsButton);
- const options=document.createElement('div');options.id='room-options';options.hidden=true;panel.append(options);settingsButton.onclick=()=>{options.hidden=!options.hidden;settingsButton.setAttribute('aria-expanded',String(!options.hidden));};
+ const options=document.createElement('dialog');options.id='room-options';options.innerHTML='<button id="close-settings" type="button" aria-label="Закрыть настройки">×</button>';document.body.append(options);setupGameDrawer(options,'Настройки',$('#close-settings'));settingsButton.onclick=()=>{if(options.open)options.close();else options.showModal();settingsButton.setAttribute('aria-expanded',String(options.open));};
  const networkToggle=document.createElement('button');networkToggle.id='network-toggle';networkToggle.type='button';networkToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"/></svg>';networkToggle.setAttribute('aria-label','Найти в сети');networkToggle.title='Найти в сети';browser.querySelector('#join-code>div').append(networkToggle);networkToggle.onclick=()=>{if(chatDialog.open)chatDialog.close();networkDialog.showModal();send({type:'directory'});};
  const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.type='button';chatToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-2 2v-7.5A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg><span id="chat-unread" class="chat-unread" hidden></span>';chatToggle.setAttribute('aria-label','Открыть чат');chatToggle.title='Открыть чат';sidebar.append(chatToggle);chatToggle.onclick=()=>{if(chatDialog.open){chatDialog.close();return;}if(networkDialog.open)networkDialog.close();chatDialog.showModal();markChatRead();syncChatViewport();requestAnimationFrame(()=>chatInput.focus());};
  for(const [id,icon] of Object.entries({'network-toggle':'globe','room-chat-toggle':'chat','room-settings':'settings','copy-link':'link','show-qr':'qr','rename-room':'pencil'})){const button=$('#'+id);if(id==='room-chat-toggle'){button.querySelector('svg').outerHTML=menuIcon(icon);}else button.innerHTML=menuIcon(icon);}
  sidebar.prepend(chatToggle);
  const invitation=()=>{const url=new URL(location.href);url.search='';url.searchParams.set('mode','online');url.searchParams.set('room',roomState.room.code);return url.href;};
- document.addEventListener('pointerdown',e=>{if(!options.hidden&&!options.contains(e.target)&&!settingsButton.contains(e.target)){options.hidden=true;settingsButton.setAttribute('aria-expanded','false');}});
+ document.addEventListener('pointerdown',e=>{if(options.open&&e.target.closest('#close-settings'))settingsButton.setAttribute('aria-expanded','false');});
  const shareDialog=document.createElement('dialog');shareDialog.id='invite-dialog';shareDialog.innerHTML='<button id="close-invite" type="button" aria-label="Закрыть QR-код">×</button><div id="invite-qr" role="img" aria-label="QR-код подключения к комнате"></div>';document.body.append(shareDialog);setupGameDrawer(shareDialog,'QR-код комнаты',$('#close-invite'));
  const copy=async(value,label)=>{try{await navigator.clipboard.writeText(value);$('#directory-notice').textContent=label;}catch{const field=document.createElement('textarea');field.value=value;field.style.cssText='position:fixed;left:-9999px';document.body.append(field);field.select();const copied=document.execCommand('copy');field.remove();$('#directory-notice').textContent=copied?label:'Не удалось скопировать. Разрешите доступ к буферу обмена.';}};
  $('#copy-code').onclick=()=>copy(roomState.room.code,'Код скопирован');$('#copy-link').onclick=()=>copy(invitation(),'Ссылка скопирована');
@@ -66,13 +66,13 @@ function createRoomsUI(){
   updateDirectory:renderNetworkDirectory,
   directory(state){
    roomState=null;mode='lobby';snapshots=[];onlineRound=-1;localCar=null;window.onlineIndex=undefined;window.racerNames=[];
-   $('#lobby').hidden=false;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
+   $('#lobby').hidden=false;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)($('#room-options .drawer-body')||$('#room-options')).append(window.cardTools);
    onlineBar.textContent='';if(!$('#room-code').hasAttribute('aria-invalid'))$('#directory-notice').textContent='Вы в своей комнате. Введите код другой комнаты, чтобы присоединиться.';$('#menu').hidden=true;
    messages=[];lastChatId=0;unreadCount=0;setUnread();$('#chat-log').replaceChildren();$('#chat-log').hidden=false;$('#rename-form').hidden=true;shareDialog.close();chatDialog.close();window.peerTransport?.reset();
   },
   state(state){
    if(activeRoomCode!==state.room.code){activeRoomCode=state.room.code;messages=[];lastChatId=0;unreadCount=0;$('#chat-log').replaceChildren();setUnread();}
-   browser.hidden=false;$('#lobby').hidden=false;$('#menu').hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
+   browser.hidden=false;$('#lobby').hidden=false;$('#menu').hidden=true;if(window.cardTools){const target=$('#room-options .drawer-body');if(window.cardTools.parentElement!==target)target.append(window.cardTools);}
    $('#room-title').textContent=state.room.name;$('#copy-code').textContent=state.room.code+' ⧉';$('#rename-room').hidden=state.room.host!==state.you;$('#rename-room').disabled=!['lobby','result'].includes(state.phase);if(state.room.host!==state.you)$('#rename-form').hidden=true;
    for(const player of state.players.filter(p=>playerOwner(p)===state.you)){const field=$('#player-name-'+(player.slot??0));if(field&&document.activeElement!==field)field.value=player.name||'';}
    $('#host-caption').textContent=state.room.host===state.you?'Вы ведущий · выбирайте трассу и машину.':'Трассу и машину выбирает ведущий.';
@@ -87,6 +87,6 @@ function createRoomsUI(){
    if(chatDialog.open)markChatRead();else setUnread();
   },
   notice(text){$('#directory-notice').textContent=text;$('#directory-notice').classList.remove('code-error');void $('#directory-notice').offsetWidth;$('#directory-notice').classList.add('code-error');const field=$('#room-code');field.classList.remove('code-error');void field.offsetWidth;field.classList.add('code-error');field.setAttribute('aria-invalid','true');},
-  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;chatDialog.close();networkDialog.close();unreadCount=0;lastChatId=0;activeRoomCode='';setUnread();},
+  hide(){browser.hidden=true;shareDialog.close();options.close();chatDialog.close();networkDialog.close();unreadCount=0;lastChatId=0;activeRoomCode='';setUnread();},
  };
 }

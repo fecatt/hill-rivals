@@ -28,7 +28,7 @@ function chooseMode(next,push=true){
   document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':'ЕДИНЫЙ ГАРАЖ';
   modeButton.textContent=next==='online'?'Вернуться в гараж':'Играть онлайн';
   cardTools.hidden=false;
-  (next==='online'?$('#room-options'):$('#lobby')).append(cardTools);
+  (next==='online'?($('#room-options .drawer-body')||$('#room-options')):$('#lobby')).append(cardTools);
   document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
   if(next==='local'){
    colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;

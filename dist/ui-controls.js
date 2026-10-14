@@ -64,7 +64,7 @@ function refreshChoices(){
   $('#track-specs').dataset.map=$('#track').value;$('#track-specs').innerHTML=presets[+$('#track').value].map(([icon,temp],i)=>'<div>'+menuIcon(icon)+'<dd>'+(temp>0?'+':'')+temp+'°</dd></div>').join('');
  }
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
- if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=true;if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
+ if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=true;const target=$('#room-options .drawer-body')||$('#room-options');if(window.cardTools.parentElement!==target)target.append(window.cardTools);}
  else if(online&&mode==='race'){$('#menu').hidden=true;$('#pause').hidden=false;}
  else if(!online){if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));$('#menu').hidden=true;$('#pause').hidden=mode!=='race';}
 }
