@@ -372,6 +372,8 @@ body.online #room-options .drawer-body { justify-content:flex-start;overflow-y:a
 body.online #room-options .card-tools { flex:0 0 auto;width:100%;display:flex;flex-direction:column;gap:12px; }
 body.online #room-options .card-tools button { min-height:44px;padding:10px 16px; }
 body.online #room-options .drawer-head button { width:36px;margin:0!important; }
+body.online #room-sidebar>button { position:relative;display:flex!important;align-items:center;justify-content:center;line-height:0; }
+body.online #room-sidebar>button>.menu-icon { position:static!important;inset:auto!important;display:block;flex:none;margin:0!important;transform:none!important; }
 @media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
  body.online #lobby { height:350px;min-height:350px;max-height:none; }
  body.online #room-panel { height:350px;min-height:350px;max-height:none;overflow:visible;grid-template-columns:minmax(0,1fr) 36px; }
