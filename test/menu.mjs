@@ -1,0 +1,56 @@
+import {chromium} from 'playwright';
+import {spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
+import {mkdir} from 'node:fs/promises';
+const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'3138'},stdio:['ignore','pipe','inherit']});
+let browser;
+const errors=[];
+try {
+ await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('exit',reject)});
+ browser=await chromium.launch();
+ const desktop=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
+ const page=await desktop.newPage();page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:3138');
+ await page.waitForFunction(()=>roomState?.room&&assetsLoaded);
+ assert.equal(await page.locator('.pick[data-online-seat]').count(),1);
+ assert.equal(await page.locator('.empty-seat').count(),3);
+ assert.equal(await page.locator('[data-ability-seat="0"] + .choice-tiles button').count(),3);
+ await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===2);
+ assert.equal(await page.locator('.pick[data-online-seat]').count(),2);
+ assert.equal(await page.locator('.empty-seat').count(),2);
+ await page.locator('[data-ability-seat="0"] + .choice-tiles [data-value="jump"]').click();await page.waitForFunction(()=>roomState.players[0].ability==='jump');
+ await page.locator('[data-char-seat="0"][data-step="1"]').click();await page.waitForFunction(()=>roomState.players[0].character===onlineCharacters[0]);
+ await page.locator('#player-name-0').fill('Фёдор');await page.locator('#player-name-0').press('Enter');await page.waitForFunction(()=>roomState.players[0].name==='Фёдор');
+ await page.locator('#rename-room').click();await page.locator('#room-name').fill('FLIBS');await page.locator('#rename-form button').first().click();await page.waitForFunction(()=>roomState.room.name==='FLIBS');
+ const shot=async(name,p=page)=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await p.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:true});}};
+ const checkLayout=async(p)=>{
+  const result=await p.evaluate(()=>{const form=document.querySelector('#room-browser').getBoundingClientRect(),start=document.querySelector('#start').getBoundingClientRect();return {scroll:document.documentElement.scrollWidth,width:innerWidth,overlap:form.bottom>start.top+1,form:form.toJSON(),start:start.toJSON()}});
+  assert.ok(result.scroll<=result.width+1,'no horizontal overflow: '+JSON.stringify(result));assert.equal(result.overlap,false,'code entry is not covered by ready: '+JSON.stringify(result));
+ };
+ await checkLayout(page);await shot('menu-desktop');
+ for(const viewport of [{width:1280,height:720},{width:1024,height:768}]){await page.setViewportSize(viewport);await checkLayout(page);await shot('menu-'+viewport.width);}
+ await page.setViewportSize({width:1440,height:900});
+ await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===3);
+ await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===4);
+ assert.equal(await page.locator('.empty-seat').count(),0);await checkLayout(page);
+ await page.locator('.remove-seat').click();await page.waitForFunction(()=>roomState.players.length===3);
+ await page.locator('.remove-seat').click();await page.waitForFunction(()=>roomState.players.length===2);
+ const code=await page.evaluate(()=>roomState.room.code);
+ const phone=await browser.newContext({viewport:{width:393,height:852},deviceScaleFactor:2,isMobile:true,hasTouch:true,serviceWorkers:'block'});
+ const guest=await phone.newPage();guest.on('pageerror',e=>errors.push(e.message));await guest.goto('http://127.0.0.1:3138');await guest.waitForFunction(()=>roomState?.room&&assetsLoaded);
+ assert.equal(await guest.locator('.empty-seat').count(),0);
+ await guest.locator('#room-code').fill('ZZZZZ');await guest.waitForSelector('#room-code[aria-invalid="true"]');
+ await guest.locator('#room-code').fill(code);await guest.waitForFunction(expected=>roomState?.room.code===expected,code);await page.waitForFunction(()=>roomState.players.length===3);
+ assert.equal(await guest.locator('#track').isDisabled(),true);
+ await page.locator('#track + .choice-switch button').last().click();await guest.waitForFunction(()=>roomState.track===1);
+ await page.locator('#vehicle + .choice-switch button').last().click();await guest.waitForFunction(()=>roomState.vehicle===1);
+ await checkLayout(guest);await shot('menu-phone',guest);
+ await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);
+ await guest.locator('#room-chat-toggle').click();await guest.locator('#chat-text').fill('Привет из телефона');await guest.locator('#chat-form button').click();await page.waitForFunction(()=>document.querySelector('#chat-log').textContent.includes('Привет из телефона'));await guest.locator('#close-chat').click();
+ await page.locator('#show-qr').click();assert.equal(await page.locator('#invite-qr svg').count(),1);await page.locator('#close-invite').click();
+ await page.locator('#network-toggle').click();await page.waitForSelector('.network-room-card');await page.locator('#close-network').click();
+ await page.locator('#start').click();await guest.waitForFunction(()=>roomState.players.filter(p=>p.ready).length===2);await guest.locator('#start').click();
+ await page.waitForFunction(()=>mode==='race');await guest.waitForFunction(()=>mode==='race');
+ assert.deepEqual(errors,[]);
+ console.log('PASS: startup, 2x2 seats, add/remove up to four racers, name/character/ability, room rename, join code, host settings, chat, QR, online directory, shared race start, desktop and mobile layouts.');
+} finally {await browser?.close();server.kill();}

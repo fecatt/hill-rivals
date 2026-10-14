@@ -84,14 +84,14 @@ if(!Number.isInteger(localCharacter)||localCharacter<0)localCharacter=0;
 let localAbility=localStorage.getItem('hill-ability')||'turbo';
 if(!abilityNames[localAbility])localAbility='turbo';
 // A fresh party starts with one racer. Add couch teammates explicitly from the room UI.
-let onlineSeatCount=touchDevice.matches?1:4;
+let onlineSeatCount=1;
 document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);
 const onlineCharacters=[...chosen],onlineAbilities=[...abilities];
 onlineCharacters[0]=localCharacter;onlineAbilities[0]=localAbility;
 function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>playerOwner(p)===roomState.you&&(p.slot??0)===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
 window.syncOnlineFromGarage=setup=>{
  if(!setup)return;
- onlineSeatCount=touchDevice.matches?1:4;$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);
+ onlineSeatCount=touchDevice.matches?1:onlineSeatCount;$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty?.('--online-seats',onlineSeatCount);
  for(let i=0;i<4;i++){if(Number.isInteger(setup.chosen?.[i]))onlineCharacters[i]=setup.chosen[i];if(setup.abilities?.[i])onlineAbilities[i]=setup.abilities[i];}
  if(Number.isInteger(setup.track))$('#track').value=String(setup.track);if(Number.isInteger(setup.vehicle))$('#vehicle').value=String(setup.vehicle);
  localCharacter=onlineCharacters[0]||0;localAbility=onlineAbilities[0]||'turbo';renderPick();
@@ -99,6 +99,14 @@ window.syncOnlineFromGarage=setup=>{
 function send(msg){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(msg));}
 function renderPick(){
   $('#picks').innerHTML=Array.from({length:onlineSeatCount},(_,slot)=>{const profile=profileForSeat(slot),bindings=['WASD · W/D газ · S/A тормоз','Стрелки · ↑/→ газ · ↓/← тормоз','Мышь · ПКМ газ · ЛКМ тормоз','IJKL · I/L газ · J/K тормоз'];return `<section class="pick" data-online-seat="${slot}" style="border-top:5px solid ${colors[slot]}"><h3>${slot===0?'ВАШ ГОНЩИК':'ИГРОК '+(slot+1)}</h3><label class="player-name-label" for="player-name-${slot}">Имя гонщика<input id="player-name-${slot}" data-name-seat="${slot}" maxlength="24" placeholder="Игрок ${slot+1}" autocomplete="nickname" value="${escapeLabel(profile.name)}" ${slot>0?'':'aria-label="Ваше имя"'}></label><img class="portrait" src="assets/${assetNames[profile.character]}.png"><div class="choose"><button data-char-seat="${slot}" data-step="-1" aria-label="Предыдущий персонаж">‹</button><b>${names[profile.character]}</b><button data-char-seat="${slot}" data-step="1" aria-label="Следующий персонаж">›</button></div><div class="keys">${bindings[slot]}</div><label class="ability-select">Способность · ${['E','правый Shift','СКМ','U'][slot]}<select data-ability-seat="${slot}">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===profile.ability?'selected':''}>${label}</option>`).join('')}</select></label></section>`;}).join('');
+  if(!touchDevice.matches){
+   for(let slot=onlineSeatCount;slot<4;slot++){
+    const empty=document.createElement('button');empty.type='button';empty.className='pick empty-seat';empty.dataset.addSeat=String(slot);empty.setAttribute('aria-label','Добавить гонщика на этом устройстве');empty.innerHTML='<span aria-hidden="true">+</span><small>Добавить игрока</small>';
+    empty.disabled=!!roomState&&roomState.phase!=='lobby'||(roomState?.players.length||0)>=8;
+    empty.onclick=()=>{if(roomState?.phase==='lobby')window.changeOnlineParty(1);};$('#picks').append(empty);
+   }
+   if(onlineSeatCount>1){const card=$('#picks').querySelector(`[data-online-seat="${onlineSeatCount-1}"]`),remove=document.createElement('button');remove.type='button';remove.className='remove-seat';remove.textContent='×';remove.setAttribute('aria-label','Убрать последнего гонщика');remove.disabled=!!roomState&&roomState.phase!=='lobby';remove.onclick=()=>window.changeOnlineParty(-1);card.append(remove);}
+  }
   $('#picks').querySelectorAll('[data-name-seat]').forEach(field=>{const slot=+field.dataset.nameSeat;const saveName=()=>{localStorage.setItem(slot===0?'hill-player-name':'hill-party-name-'+slot,field.value.trim().slice(0,24));sendProfile();};field.onchange=saveName;field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveName();field.blur();}};});
   $('#picks').querySelectorAll('[data-char-seat]').forEach(button=>button.onclick=()=>{if(!['lobby','countdown'].includes(roomState?.phase))return;const slot=+button.dataset.charSeat;onlineCharacters[slot]=(onlineCharacters[slot]+Number(button.dataset.step)+names.length)%names.length;if(slot===0){localCharacter=onlineCharacters[0];localStorage.setItem('hill-character',localCharacter);}renderPick();sendProfile();});
   $('#picks').querySelectorAll('[data-ability-seat]').forEach(select=>select.onchange=()=>{const slot=+select.dataset.abilitySeat;onlineAbilities[slot]=select.value;if(slot===0){localAbility=select.value;localStorage.setItem('hill-ability',localAbility);}sendProfile();});
@@ -243,6 +251,8 @@ function renderRoom(state){
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#picks').querySelectorAll('select,[data-char-seat]').forEach(control=>control.disabled=!['lobby','countdown'].includes(state.phase));
+  $('#picks').querySelectorAll('[data-add-seat]').forEach(control=>control.disabled=state.phase!=='lobby'||state.players.length>=8);
+  $('#picks').querySelectorAll('.remove-seat').forEach(control=>control.disabled=state.phase!=='lobby');
   updateMapDescription();describeVehicle();
   $('#start').disabled=state.phase==='race';
   const myReady=state.players.find(p=>playerOwner(p)===state.you)?.ready;

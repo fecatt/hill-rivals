@@ -5,7 +5,7 @@ function mountChoiceControls(){
  for(const select of document.querySelectorAll('#lobby select')){
   if(choiceControls.has(select))continue;
   select.classList.add('choice-model');select.tabIndex=-1;select.setAttribute('aria-hidden','true');
-  if(select.id==='my-ability'||select.dataset.ability!==undefined||select.id==='players'){
+  if(select.id==='my-ability'||select.dataset.ability!==undefined||select.dataset.abilitySeat!==undefined||select.id==='players'){
    const group=document.createElement('div');group.className='choice-tiles';group.setAttribute('role','group');
    const icons={turbo:'ϟ',jump:'↟',shield:'◇'};
    for(const option of select.options){const button=document.createElement('button');button.type='button';button.dataset.value=option.value;button.innerHTML=select.id==='players'?option.value:'<span aria-hidden="true">'+icons[option.value]+'</span><small>'+option.textContent+'</small>';button.setAttribute('aria-label',option.textContent);button.onclick=()=>{if(select.disabled)return;select.value=option.value;select.dispatchEvent(new Event('change',{bubbles:true}));refreshChoices();};group.append(button);}
@@ -39,8 +39,13 @@ function refreshChoices(){
  const online=!!window.onlineActive;
  $('#ability-panel').replaceChildren();
  const v=VEHICLES[+$('#vehicle').value];
- if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div>';}
+ if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div><div><dt>Тяга</dt><dd>'+v.engine+'</dd></div><div><dt>Ход подвески</dt><dd>'+v.travel+'</dd></div><div><dt>Сцепление</dt><dd>'+v.grip.toFixed(2)+'</dd></div>';}
  $('#world-description').textContent=MAPS[+$('#track').value].description;
+ const map=MAPS[+$('#track').value];
+ if($('#track-specs').dataset.map!==$('#track').value){
+  const weather=['Ясно','Ясно','Без атмосферы','Ясно','Ясно','Переменный снег','Меняется'][+$('#track').value],surface=['Трава','Камни','Кратеры','Асфальт','Асфальт','Снег','Меняется'][+$('#track').value];
+  $('#track-specs').dataset.map=$('#track').value;$('#track-specs').innerHTML='<div><dt>Погода</dt><dd>'+weather+'</dd></div><div><dt>Покрытие</dt><dd>'+surface+'</dd></div><div><dt>Гравитация</dt><dd>'+(map.gravity/420).toFixed(map.gravity===420?0:2)+'×</dd></div>';
+ }
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
  if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=true;if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
  else if(online&&mode==='race'){$('#menu').hidden=true;$('#pause').hidden=false;}
@@ -48,11 +53,12 @@ function refreshChoices(){
 }
 const settings=$('.bottom'),worldLabel=$('#track').closest('label'),vehicleLabel=$('#vehicle').closest('label');
 worldLabel.classList.add('setting-card','world-setting');vehicleLabel.classList.add('setting-card','vehicle-setting');
-worldLabel.firstChild.textContent='МИР';vehicleLabel.firstChild.textContent='МАШИНА';
+worldLabel.firstChild.textContent='';vehicleLabel.firstChild.textContent='';worldLabel.setAttribute('aria-label','Выбор трассы');vehicleLabel.setAttribute('aria-label','Выбор машины');
 const worldPreview=document.createElement('canvas');worldPreview.id='world-preview';worldPreview.width=640;worldPreview.height=220;worldLabel.insertBefore(worldPreview,$('#track'));
 const vehiclePreview=document.createElement('canvas');vehiclePreview.id='vehicle-preview';vehiclePreview.width=640;vehiclePreview.height=220;vehicleLabel.insertBefore(vehiclePreview,$('#vehicle'));vehicleLabel.append($('#vehicle-description'));$('#map-description').hidden=true;
 const racerColumn=document.createElement('section');racerColumn.id='racer-column';$('#picks').before(racerColumn);racerColumn.append($('#picks'));const abilityPanel=document.createElement('section');abilityPanel.id='ability-panel';racerColumn.append(abilityPanel);
  const worldDescription=document.createElement('p');worldDescription.id='world-description';worldLabel.append(worldDescription);
+ const trackSpecs=document.createElement('dl');trackSpecs.id='track-specs';worldLabel.append(trackSpecs);
  const specs=document.createElement('dl');specs.id='car-specs';vehicleLabel.append(specs);
  let lastVehiclePreview='';
 function renderSettingPreviews(){

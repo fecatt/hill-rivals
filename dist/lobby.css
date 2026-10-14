@@ -1,0 +1,126 @@
+/* Reference lobby: track and car at left, four seats in the middle, room at right. */
+body.online:not([data-screen="race"]) header { padding:18px 28px; min-height:64px; }
+body.online:not([data-screen="race"]) header > b { display:block!important; }
+body.online:not([data-screen="race"]) header > div { display:none!important; }
+body.online #lobby {
+ width:min(1600px,calc(100% - 48px)); max-width:1600px; max-height:none;
+ margin:14px auto 150px; padding:0; background:none; border:0; box-shadow:none;
+ grid-template-columns:minmax(230px,.85fr) minmax(340px,1.25fr) minmax(310px,1fr);
+ grid-template-areas:"settings racer room"; gap:18px; align-items:stretch; overflow:visible;
+}
+body.online #lobby > .eyebrow,body.online #lobby > h1,body.online #lobby > .intro { display:none; }
+body.online #lobby .bottom { height:auto; grid-template-columns:1fr; grid-template-rows:1fr 1.25fr; gap:16px; }
+body.online .setting-card { padding:18px; gap:12px!important; border-radius:22px; }
+body.online .setting-card > .choice-switch { order:-1; min-height:50px; }
+body.online .choice-value { font-size:17px; }
+body.online .world-setting #world-preview { width:100%; height:90px; object-fit:cover; margin:0; }
+body.online .world-setting #world-description { margin:0; font-size:12px; line-height:1.5; letter-spacing:0; font-weight:normal; }
+body.online .vehicle-setting #vehicle-preview { height:105px; }
+body.online .vehicle-setting #vehicle-description { min-height:0!important; font-size:12px!important; line-height:1.5; }
+body.online #car-specs { margin:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-radius:12px; }
+body.online #car-specs > div { padding:10px 4px; }
+body.online #car-specs dt { font-size:10px; }
+body.online #car-specs dd { font-size:12px; margin:5px 0 0; }
+body.online #racer-column { height:auto; display:flex; }
+body.online #racer-column #picks { float:none; width:100%; height:100%; grid-template-columns:repeat(2,minmax(0,1fr))!important; grid-auto-rows:minmax(255px,1fr); gap:16px; }
+body.online #racer-column .pick { min-height:255px; padding:14px; grid-template-rows:auto auto minmax(85px,1fr) auto auto auto; border-radius:22px; }
+body.online #racer-column .pick h3 { font-size:11px; }
+body.online #racer-column .pick .portrait { height:115px; }
+body.online #racer-column .player-name-label { font-size:10px; }
+body.online #racer-column .player-name-label input { height:34px; font-size:13px; }
+body.online #racer-column .pick .choose { gap:5px; }
+body.online #racer-column .pick .choose b { font-size:14px; }
+body.online #racer-column .pick .choose button { width:32px; height:32px; flex-basis:32px; }
+body.online #racer-column .pick .ability-select { display:block!important; margin:4px 0 0; font-size:10px; }
+body.online #racer-column .pick .choice-tiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:6px; }
+body.online #racer-column .pick .choice-tiles button { min-height:47px; padding:4px; border-radius:9px; }
+body.online #racer-column .pick .choice-tiles button span { font-size:22px; }
+body.online #racer-column .pick .choice-tiles button small { font-size:9px; }
+body.online #racer-column .empty-seat { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; color:#70816e; background:#fff8e7df; border:2px dashed #d0dac3; box-shadow:0 6px 0 #21362c17; transition:background .15s,border-color .15s; }
+body.online #racer-column .empty-seat > span { display:grid; place-items:center; width:80px; height:80px; border:2px solid #c1cfb6; border-radius:50%; font-size:58px; line-height:1; font-weight:normal; }
+body.online #racer-column .empty-seat small { font-size:13px; }
+body.online #racer-column .empty-seat:hover:not(:disabled) { background:#fff8e7; border-color:#52724f; color:#365b48; }
+.remove-seat { position:absolute; top:7px; right:7px; width:28px; height:28px; border:0; border-radius:50%; background:#e9e4d8; color:#365b48; font-size:20px; }
+body.online #room-panel { align-self:stretch; min-height:0; height:auto; padding:18px; border-radius:24px; grid-template-columns:minmax(0,1fr) 46px; grid-template-rows:auto auto minmax(150px,1fr) auto auto; gap:12px; }
+body.online #room-panel .room-heading { flex-wrap:wrap; }
+body.online #room-panel .room-heading h2 { flex-basis:calc(100% - 45px); font-size:21px!important; }
+body.online #room-panel #copy-code { font-size:12px; padding:8px 10px; }
+body.online #room-panel #room-status { font-size:12px; line-height:1.5; }
+body.online #room-panel .room-list { min-height:150px; padding:14px; }
+body.online #room-panel .room-list > div { align-items:flex-start; font-size:13px; line-height:1.5; }
+body.online #room-panel .room-list > div b { flex-shrink:0; padding-top:2px; }
+body.online #room-sidebar { gap:10px; }
+body.online #room-sidebar > button { width:44px; height:44px; min-width:44px; min-height:44px; padding:10px; border-radius:12px; }
+body.online #room-panel #room-browser { min-height:0; height:auto; padding:12px; overflow:visible; }
+body.online #join-code label { font-size:11px; }
+body.online #room-code { width:0; height:44px; font-size:16px; letter-spacing:3px; }
+body.online #room-code::placeholder { font-size:11px; letter-spacing:1px; }
+body.online #directory-notice { font-size:11px; line-height:1.45; }
+body.online #room-panel > #start { min-height:62px; font-size:22px; border-radius:14px; }
+body.online #room-panel #rename-form { grid-column:1/-1; grid-row:1; z-index:3; align-self:start; background:#fff8e7; padding:5px; border-radius:12px; }
+body.online #room-options { z-index:5; top:58px; right:18px; }
+@media (max-width:1100px) and (pointer:fine) {
+ body.online #lobby { grid-template-columns:minmax(220px,.75fr) minmax(350px,1.25fr); grid-template-areas:"settings racer" "room room"; }
+ body.online #room-panel { min-height:350px; }
+}
+@media (min-width:1101px) and (max-height:800px) and (pointer:fine) {
+ body.online #lobby { margin-top:6px; gap:12px; }
+ body.online #racer-column #picks { grid-auto-rows:minmax(215px,1fr); gap:12px; }
+ body.online #racer-column .pick { min-height:215px; padding:10px; gap:3px; }
+ body.online #racer-column .pick .portrait { height:72px; }
+ body.online .setting-card { padding:12px; gap:8px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:70px; }
+ body.online .world-setting #world-preview { height:65px; }
+}
+@media (max-width:750px),(pointer:coarse) {
+ body.online:not([data-screen="race"]) header { padding:12px 16px; min-height:50px; }
+ body.online #lobby { width:calc(100% - 24px); margin:8px auto 120px; grid-template-columns:minmax(0,1fr); grid-template-areas:"settings" "racer" "room"; gap:16px; }
+ body.online #lobby .bottom { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:1fr; gap:10px; }
+ body.online .setting-card { padding:10px; gap:8px!important; }
+ body.online .setting-card > .choice-switch { min-height:44px; }
+ body.online .choice-value { font-size:12px; }
+ body.online .world-setting #world-preview { height:62px; }
+ body.online .world-setting #world-description,body.online .vehicle-setting #vehicle-description { font-size:11px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:65px; }
+ body.online #car-specs > div { padding:6px 2px; }
+ body.online #car-specs dt { font-size:8px; }
+ body.online #car-specs dd { font-size:10px; }
+ body.online #racer-column #picks { grid-template-columns:1fr!important; grid-auto-rows:auto; }
+ body.online #racer-column .pick { min-height:0; grid-template-columns:74px minmax(0,1fr); grid-template-rows:auto auto auto auto; grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability"; padding:12px; }
+ body.online #racer-column .pick .portrait { height:100px; }
+ body.online #racer-column .pick .ability-select { grid-area:ability; }
+ body.online #racer-column .pick .choice-tiles { margin-top:6px; }
+ body.online #racer-column .pick .choice-tiles button { min-height:48px; }
+ body.online #racer-column .pick .keys { display:none; }
+ body.online #room-panel { min-height:380px; padding:14px; }
+}
+@media (pointer:coarse) and (orientation:landscape) and (min-width:700px) {
+ body.online #lobby { grid-template-columns:minmax(160px,.8fr) minmax(180px,.9fr) minmax(250px,1.2fr); grid-template-areas:"settings racer room"; gap:10px; }
+ body.online #lobby .bottom { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+ body.online #racer-column .pick { display:flex; flex-direction:column; gap:8px; }
+ body.online #racer-column .pick .portrait { height:90px; }
+ body.online #room-panel { max-height:none; }
+}
+@media (min-width:1101px) and (pointer:fine) {
+ body.online #lobby { height:clamp(530px,calc(100dvh - 290px),650px); }
+ body.online #lobby .bottom { grid-template-rows:minmax(0,.9fr) minmax(0,1.1fr); }
+ body.online .setting-card { padding:14px; gap:8px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:75px; }
+ body.online #car-specs > div { padding:7px 3px; }
+ body.online #racer-column #picks { grid-auto-rows:minmax(0,1fr); }
+ body.online #racer-column .pick { min-height:0; grid-template-rows:auto auto minmax(0,1fr) auto auto auto; gap:4px; }
+ body.online #racer-column .pick .portrait { height:85px; }
+}
+#track-specs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0; margin-top:auto; border:1px solid #d8decd; border-radius:12px; overflow:hidden; background:#fffdf570; letter-spacing:0; }
+#track-specs > div { padding:10px 4px; text-align:center; border-right:1px solid #d8decd; }
+#track-specs > div:last-child { border:0; }
+#track-specs dt { font-size:10px; font-weight:normal; }
+#track-specs dd { margin:5px 0 0; font-size:12px; color:#365b48; }
+body.online .world-setting #world-preview { order:0; }
+body.online .world-setting #world-description { order:1; }
+body.online #track-specs { order:2; }
+@media(max-width:750px),(pointer:coarse) { #track-specs > div { padding:7px 2px; } #track-specs dt { font-size:8px; } #track-specs dd { font-size:10px; } }
+body.online #car-specs > div { display:block; min-width:0; border-right:1px solid #d8dfce; }
+body.online #car-specs > div:nth-child(3n) { border-right:0; }
+body.online #car-specs dd { overflow-wrap:anywhere; }
+@media(max-width:750px),(pointer:coarse) { body.online #car-specs { grid-template-columns:repeat(2,minmax(0,1fr)); } body.online #car-specs > div:nth-child(3n) { border-right:1px solid #d8dfce; } body.online #car-specs > div:nth-child(2n) { border-right:0; } }
