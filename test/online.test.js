@@ -130,3 +130,32 @@ test('synchronised render timeline does not rewind when packet delay increases',
  c.run('interpolationDelay=100;update(1/120)');assert.equal(c.run('cars[1].x'),110);
  c.advance(50);c.run('update(1/120)');assert.equal(c.run('cars[1].x'),150);
 });
+
+test('duplicate server snapshots do not insert frozen opponent samples',()=>{
+ const c=client();c.context.sample=state();
+ c.context.sample.carPoses=[{seq:1,at:1000},{seq:1,at:1000}];
+ c.context.sample.game.cars[1].x=100;c.context.sample.game.cars[1].vx=100;
+ c.run('roomState=sample;installGame(sample)');
+ c.context.sample.serverNow=1030;c.run('installGame(sample)');
+ assert.equal(c.run('remoteFrames.get(1).length'),1);
+ c.context.sample.serverNow=1080;c.context.sample.carPoses[1]={seq:2,at:1050};c.context.sample.game.cars[1].x=105;
+ c.run('installGame(sample)');
+ assert.equal(c.run('remotePose(1,1025,{}).x'),102.5);
+ assert.equal(c.run('remotePose(1,1100,{}).x'),110);
+ assert.equal(c.run('remotePose(1,5000,{}).x'),120);
+ assert.equal(c.context.sample.game.cars[1].x,105);
+});
+
+test('240 Hz callbacks draw every frame and interpolate the 120 Hz physics',()=>{
+ const c=client();
+ c.run(`mode='race';cars=[{x:0,y:0,a:0,wheel:0}];last=1000;lastDraw=1000;acc=0;
+ globalThis.positions=[];globalThis.steps=0;
+ update=dt=>{cars[0].x+=120*dt;steps++};
+ draw=()=>positions.push(cars[0].x);animateSuspension=()=>{};syncGameScreen=()=>{};`);
+ for(let i=1;i<=240;i++){c.advance(1000/240);c.run('frame(performance.now())');}
+ assert.equal(c.context.positions.length,240);
+ assert.ok(c.context.steps>=119&&c.context.steps<=120);
+ for(let i=3;i<c.context.positions.length;i++)assert.ok(Math.abs(c.context.positions[i]-c.context.positions[i-1]-.5)<1e-6,'half-pixel motion each frame');
+ assert.ok(Math.abs(c.run('cars[0].x')-c.context.steps)<1e-6,'drawing restores simulation positions');
+ assert.ok(Math.abs(c.run('window.gameDebug.getPerformance().fps')-240)<1e-6);
+});

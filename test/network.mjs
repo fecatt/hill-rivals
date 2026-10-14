@@ -21,9 +21,9 @@ try{
    });
   });
   await page.goto('http://127.0.0.1:3111/?mode=online');
-  await page.waitForFunction(()=>socket?.readyState===1);
+  await page.waitForFunction(()=>roomState?.room&&assetsLoaded);
  }
- await pages[0].locator('#create-room').click();await pages[0].waitForFunction(()=>roomState?.room);
+
  const code=await pages[0].evaluate(()=>roomState.room.code);await pages[1].locator('#room-code').fill(code);await pages[1].waitForFunction(()=>roomState?.room);
  for(let i=0;i<3;i++)await pages[0].locator('#track + .choice-switch button').last().click();
  await pages[1].waitForFunction(()=>roomState.track===3);

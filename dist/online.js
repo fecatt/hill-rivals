@@ -11,6 +11,18 @@ let localCar=null,localCars=new Map(),localControls=[false,false];
 let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
 let serverToLocal=null,bestRtt=Infinity;
 let interpolationDelay=70,lastPacketAt=0,renderTarget=-Infinity;
+const remoteFrames=new Map();
+function remotePose(index,target,fallback){
+ const frames=remoteFrames.get(index);if(!frames?.length)return fallback;
+ let a=frames[0],b=a;
+ for(const frame of frames){if(frame.at<=target)a=frame;else{b=frame;break;}b=a;}
+ const mix=b.at>a.at?Math.max(0,Math.min(1,(target-a.at)/(b.at-a.at))):0;
+ const pose={...b.pose};
+ for(const key of ['x','y','a','wheel'])pose[key]=a.pose[key]+(b.pose[key]-a.pose[key])*mix;
+ const ahead=Math.max(0,Math.min(.15,(target-b.at)/1000));
+ if(b.pose.alive){pose.x+=b.pose.vx*ahead;pose.y+=b.pose.vy*ahead;pose.a+=b.pose.av*ahead;pose.wheel+=b.pose.vx*ahead/17;}
+ return pose;
+}
 function renderWorld(left,right,mix,ahead){
  const a=left.game,b=right.game;
  // IDs survive collection/removal: array indices do not identify the same crate.
@@ -191,6 +203,8 @@ update=dt=>{
         // A short missing packet should not freeze a moving opponent; bound drift.
         const ahead=Math.max(0,Math.min(.15,(target-right.serverNow)/1000));
         if(b.alive){car.x+=b.vx*ahead;car.y+=b.vy*ahead;car.a+=b.av*ahead;car.wheel+=b.vx*ahead/17;}
+        // A server snapshot can repeat an old pose. Interpolate only fresh owner samples.
+        Object.assign(car,remotePose(i,target-40,car),{alive:latest.alive,reason:latest.reason});
         const racer=roomState.racers[i],direct=window.peerTransport.pose(racer?.owner,racer?.slot||0);
         if(direct&&latest.alive)Object.assign(car,direct,{alive:latest.alive,reason:latest.reason});
       }
@@ -213,6 +227,14 @@ function installGame(state){
   const newRound=onlineRound!==state.round;
   if(newRound){window.resetTouchHints();onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;localCars.clear();poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
+  if(newRound){remoteFrames.clear();lastPacketAt=0;interpolationDelay=70;}
+  for(let i=0;i<g.cars.length;i++){
+   const sample=state.carPoses?.[i];if(!sample?.seq||!Number.isFinite(sample.at))continue;
+   const frames=remoteFrames.get(i)||[];
+   if(frames.length&&sample.seq<=frames.at(-1).seq)continue;
+   frames.push({seq:sample.seq,at:sample.at,pose:{...g.cars[i]}});
+   if(frames.length>24)frames.shift();remoteFrames.set(i,frames);
+  }
   poseSequence=Math.max(poseSequence,...(state.poseSequences||[state.poseSequence||0]));
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();

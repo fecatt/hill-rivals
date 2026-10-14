@@ -5,7 +5,7 @@ const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,POR
 let browser;
 try{
  await new Promise(r=>server.stdout.once('data',r));browser=await chromium.launch();const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://127.0.0.1:3120/?mode=online');await page.waitForFunction(()=>assetsLoaded&&socket?.readyState===1);await page.locator('#create-room').click();await page.waitForFunction(()=>roomState?.room);await page.locator('#start').click();await page.waitForFunction(()=>mode==='race');
+ await page.goto('http://127.0.0.1:3120/?mode=online');await page.waitForFunction(()=>assetsLoaded&&roomState?.room);await page.locator('#start').click();await page.waitForFunction(()=>mode==='race');
  const result=await page.evaluate(()=>{
   const failures=[];let states=0;
   for(let t=0;t<7;t++)for(let m=0;m<7;m++)for(let character=0;character<7;character++){

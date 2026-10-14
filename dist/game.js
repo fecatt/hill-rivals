@@ -10,7 +10,8 @@ const mobileInput=matchMedia('(pointer: coarse), (max-width: 750px)');
 let renderRatio=1;
 function resize(){
  W=innerWidth;H=innerHeight;
- renderRatio=Math.min(devicePixelRatio||1,mobileInput.matches?1.5:2,Math.sqrt(2400000/(W*H)));
+ const pixelBudget=mobileInput.matches?2400000:Math.max(W*H,8300000);
+ renderRatio=Math.min(devicePixelRatio||1,mobileInput.matches?1.5:2,Math.sqrt(pixelBudget/(W*H)));
  canvas.width=Math.round(W*renderRatio);canvas.height=Math.round(H*renderRatio);
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
@@ -281,16 +282,40 @@ function resetDrawingSurface(){
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
 function draw(){resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
-let last=performance.now(),lastDraw=0,acc=0;
+let last=performance.now(),lastDraw=0,acc=0,previousCamera=null;
+const previousPoses=new WeakMap(),renderFields=['x','y','a','wheel'];
+const frameTimes=[];
+function drawInterpolated(alpha){
+ const camera=[cam,cameraY,zoom],saved=[];
+ if(previousCamera&&mode==='race'&&!paused){
+  [cam,cameraY,zoom]=camera.map((value,i)=>previousCamera[i]+(value-previousCamera[i])*alpha);
+  for(const car of cars){
+   const previous=previousPoses.get(car);if(!previous)continue;
+   const current=renderFields.map(key=>car[key]);saved.push([car,current]);
+   renderFields.forEach((key,i)=>car[key]=previous[i]+(current[i]-previous[i])*alpha);
+  }
+ }
+ try{draw();}finally{
+  [cam,cameraY,zoom]=camera;
+  for(const [car,current] of saved)renderFields.forEach((key,i)=>car[key]=current[i]);
+ }
+}
 function frame(now){
  requestAnimationFrame(frame);
  if(document.hidden){last=now;acc=0;return;}
  // Avoid rendering a static lobby at 120 Hz on high-refresh phones.
- const interval=mode==='lobby'||paused?1000/15:1000/60;
- if(now-lastDraw<interval-.5)return;lastDraw=now;
+ const interval=mode==='lobby'||paused?1000/15:0;
+ if(now-lastDraw<interval-.5)return;
+ if(mode==='race'&&lastDraw){frameTimes.push(now-lastDraw);if(frameTimes.length>240)frameTimes.shift();}
+ lastDraw=now;
  const dt=Math.min(.05,(now-last)/1000);last=now;
- acc+=dt;while(acc>=1/120){update(1/120);acc-=1/120}
- if(mode==='lobby')time+=dt;syncGameScreen();window.updateTouchHints?.(dt);animateSuspension(dt);draw();window.refreshChoices?.();window.renderSettingPreviews?.();
+ acc+=dt;while(acc>=1/120){
+  previousCamera=[cam,cameraY,zoom];
+  for(const car of cars)previousPoses.set(car,renderFields.map(key=>car[key]));
+  update(1/120);acc-=1/120;
+ }
+ if(mode==='lobby')time+=dt;syncGameScreen();window.updateTouchHints?.(dt);animateSuspension(dt);drawInterpolated(acc*120);
+ if(mode==='lobby'){window.refreshChoices?.();window.renderSettingPreviews?.();}
  if(engineAudio){
   const ownIndex=window.onlineIndex??0,c=cars[ownIndex],controls=c?input(c.i):[false,false];
   engineAudio.updateEnvironment({enabled:sound&&!paused&&!document.hidden,active:mode==='race'&&!paused&&count<=0,car:c,mode,count});
@@ -299,7 +324,7 @@ function frame(now){
 }
 requestAnimationFrame(frame);
 document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;if(document.hidden)engineAudio?.silence();});
-window.gameDebug={getState:()=>({mode,playerCount,count,cam,zoom,time,renderRatio,cars:cars.map(c=>({...c})),bonus:bonus.length,seed:worldSeed,vehicle:VEHICLES[vehicleModel].name,track,biome:mapBiome(track,cam+W/scale()*.5),snowing:snowing()}),activateAbility,start,step:n=>{for(let j=0;j<n;j++)update(1/120)},setInput:(i,g,b)=>{const k=[['KeyD','KeyA'],['ArrowRight','ArrowLeft'],['Mouse2','Mouse0']][i];keys[k[0]]=g;keys[k[1]]=b}};
+window.gameDebug={getPerformance:()=>{const sorted=[...frameTimes].sort((a,b)=>a-b);return {fps:frameTimes.length?1000/(frameTimes.reduce((a,b)=>a+b,0)/frameTimes.length):0,p95FrameMs:sorted[Math.floor(sorted.length*.95)]||0,renderRatio,canvasWidth:canvas.width,canvasHeight:canvas.height,physicsHz:120,frameCap:null};},getState:()=>({mode,playerCount,count,cam,zoom,time,renderRatio,cars:cars.map(c=>({...c})),bonus:bonus.length,seed:worldSeed,vehicle:VEHICLES[vehicleModel].name,track,biome:mapBiome(track,cam+W/scale()*.5),snowing:snowing()}),activateAbility,start,step:n=>{for(let j=0;j<n;j++)update(1/120)},setInput:(i,g,b)=>{const k=[['KeyD','KeyA'],['ArrowRight','ArrowLeft'],['Mouse2','Mouse0']][i];keys[k[0]]=g;keys[k[1]]=b}};
 
 
 
