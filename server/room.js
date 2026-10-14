@@ -9,15 +9,29 @@ export class Room {
     this.track=0; this.vehicle=0; this.racers=[]; this.round=0; this.sim=null;
     this.code=code;this.name=name;this.host=null;this.chat=[];this.chatSerial=0;this.playerSerial=0;
   }
+  seatId(id,slot){return slot===0?id:id+':'+slot;}
+  seatCount(){return [...this.clients.values()].reduce((n,p)=>n+p.seats.length,0);}
+  setSeats(p,profiles){
+    if(!Array.isArray(profiles)||profiles.length<1||profiles.length>3)return false;
+    const others=this.seatCount()-p.seats.length;if(others+profiles.length>8)return false;
+    if(this.phase==='race')return false;
+    p.seats=profiles.map((profile,slot)=>{
+      const old=p.seats[slot]||{};
+      const number=old.number||(slot===0?p.number:++this.playerSerial);
+      return {id:this.seatId(p.id,slot),owner:p.id,slot,number,name:typeof profile?.name==='string'?profile.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24)||'Игрок '+number:old.name||'Игрок '+number,character:Number.isInteger(profile?.character)&&profile.character>=0&&profile.character<7?profile.character:old.character||0,ability:['turbo','jump','shield'].includes(profile?.ability)?profile.ability:old.ability||'turbo',ready:false,gas:false,brake:false,lastInput:0};
+    });
+    p.name=p.seats[0].name;return true;
+  }
+  racerIndex(owner,slot){return this.racers.findIndex(r=>r.owner===owner&&r.slot===slot);}
   join(send,id=randomUUID(),name='') {
     const number=++this.playerSerial;
-    this.clients.set(id,{id,send,number,name:name||'Игрок '+number,character:0,ability:'turbo',ready:false,gas:false,brake:false,lastInput:0});
+    const party={id,send,number,name:name||'Игрок '+number,ready:false,inGarage:false,seats:[],directPeers:new Set()};
+    this.clients.set(id,party);this.setSeats(party,[{name:party.name}]);
     if(!this.host)this.host=id;
     this.considerStart(); this.broadcast(); return id;
   }
   leave(id) {
-    const index=this.racers.findIndex(p=>p.id===id);
-    if(this.phase==='race' && index>=0) this.sim.disconnect(index);
+    if(this.phase==='race')for(const [index,racer] of this.racers.entries())if(racer.owner===id)this.sim.disconnect(index);
     this.clients.delete(id);
     if(this.host===id)this.host=this.clients.keys().next().value||null;
     if(!this.clients.size) {this.phase='lobby';this.sim=null;this.startAt=null;this.racers=[];}
@@ -33,13 +47,12 @@ export class Room {
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
     if(msg.type==='return-garage'){
-      const index=this.racers.findIndex(r=>r.id===id);
-      if(this.phase==='race'&&index>=0)this.sim.disconnect(index);
-      p.inGarage=true;p.ready=false;p.gas=false;p.brake=false;this.broadcast();return;
+      if(this.phase==='race')for(const [index,racer] of this.racers.entries())if(racer.owner===id)this.sim.disconnect(index);
+      p.inGarage=true;p.ready=false;for(const seat of p.seats){seat.gas=false;seat.brake=false;}this.broadcast();return;
     }
     if(msg.type==='name'){
       if(typeof msg.name!=='string')return;
-      p.name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24)||'Игрок '+p.number;
+      p.name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24)||'Игрок '+p.number;p.seats[0].name=p.name;
       this.broadcast();return;
     }
     if(msg.type==='rename-room'){
@@ -53,7 +66,7 @@ export class Room {
     if(msg.type==='chat'){
       if(typeof msg.text!=='string'||this.now()-(p.lastChatAt??-Infinity)<500)return;
       const text=msg.text.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300);if(!text)return;
-      p.lastChatAt=this.now();this.chat.push({id:++this.chatSerial,from:id,name:p.name,character:p.character,text,at:this.now()});
+      p.lastChatAt=this.now();this.chat.push({id:++this.chatSerial,from:id,name:p.seats[0]?.name||p.name,character:p.seats[0]?.character||0,text,at:this.now()});
       if(this.chat.length>80)this.chat.shift();
       for(const c of this.clients.values())c.send({type:'chat',messages:this.chat});
       return;
@@ -64,19 +77,22 @@ export class Room {
       target.send({type:msg.type,from:id,data:msg.data});return;
     }
     if(msg.type==='pose'){
-      const index=this.racers.findIndex(r=>r.id===id);
-      if(this.phase!=='race'||index<0||msg.round!==this.round||!Number.isSafeInteger(msg.seq)||msg.seq<1||msg.seq<=(p.poseSeq||0))return;
-      if(!Number.isFinite(msg.time)||msg.time<(p.poseTime||0)||msg.time>(this.now()-this.raceStartedAt)/1000+.5)return;
-      if(this.sim.pose(index,msg.pose,Math.max(0,(this.now()-(p.lastPoseAt??this.raceStartedAt))/1000))){
-        p.poseSeq=msg.seq;p.poseTime=msg.time;p.lastPoseAt=this.now();p.localPhysics=true;
+      msg={...msg,type:'poses',poses:[{slot:0,seq:msg.seq,time:msg.time,pose:msg.pose}]};
+    }
+    if(msg.type==='poses'){
+      if(this.phase!=='race'||msg.round!==this.round||!Array.isArray(msg.poses))return;
+      const now=this.now();
+      for(const item of msg.poses.slice(0,3)){
+        const slot=Number.isInteger(item.slot)?item.slot:0,index=this.racerIndex(id,slot),seat=p.seats[slot];
+        if(index<0||!seat||!Number.isSafeInteger(item.seq)||item.seq<1||item.seq<=(seat.poseSeq||0))continue;
+        if(!Number.isFinite(item.time)||item.time<(seat.poseTime||0)||item.time>(now-this.raceStartedAt)/1000+.5)continue;
+        if(this.sim.pose(index,item.pose,Math.max(0,(now-(seat.lastPoseAt??this.raceStartedAt))/1000))){seat.poseSeq=item.seq;seat.poseTime=item.time;seat.lastPoseAt=now;seat.localPhysics=true;}
       }
       return;
     }
     if(msg.type==='input') {
-      p.gas=msg.gas===true;p.brake=msg.brake===true;p.lastInput=this.now();
-      if(msg.ability===true && this.phase==='race'&&!p.localPhysics) {
-        const index=this.racers.findIndex(r=>r.id===id);if(index>=0)this.sim.ability(index);
-      }
+      const controls=Array.isArray(msg.seats)?msg.seats:[{slot:0,gas:msg.gas,brake:msg.brake,ability:msg.ability}];
+      for(const control of controls.slice(0,3)){const seat=p.seats[control.slot];if(!seat)continue;seat.gas=control.gas===true;seat.brake=control.brake===true;seat.lastInput=this.now();if(control.ability===true&&this.phase==='race'&&!seat.localPhysics){const index=this.racerIndex(id,control.slot);if(index>=0)this.sim.ability(index);}}
       return;
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {
@@ -85,8 +101,8 @@ export class Room {
       this.considerStart();
     }
     if(msg.type==='profile' && ['lobby','countdown'].includes(this.phase)) {
-      if(Number.isInteger(msg.character)&&msg.character>=0&&msg.character<7)p.character=msg.character;
-      if(['turbo','jump','shield'].includes(msg.ability))p.ability=msg.ability;
+      if(msg.seats){if(!this.setSeats(p,msg.seats)){p.send({type:'notice',text:'В комнате может быть не больше 8 гонщиков.'});return;}}
+      else {const first=p.seats[0];if(Number.isInteger(msg.character)&&msg.character>=0&&msg.character<7)first.character=msg.character;if(['turbo','jump','shield'].includes(msg.ability))first.ability=msg.ability;}
       p.ready=false;
     }
     if(msg.type==='settings' && this.phase==='lobby' && id===this.host) {
@@ -99,7 +115,7 @@ export class Room {
   tick() {
     this.considerStart();
     if(this.phase==='countdown' && this.now()>=this.startAt) {
-      this.racers=[...this.clients.values()];
+      this.racers=[...this.clients.values()].flatMap(p=>p.seats);
       this.raceStartedAt=this.now();
       this.racers.forEach((p,i)=>{p.color=palette[i%palette.length];p.gas=false;p.brake=false;p.ready=false;p.localPhysics=false;p.poseSeq=0;p.poseTime=0;p.lastPoseAt=this.raceStartedAt;});
       this.sim=this.makeSimulation(this.racers,this.track,this.vehicle);
@@ -115,13 +131,13 @@ export class Room {
     }
   }
   snapshot(id, state=this.sim?.state()) {
-    const inGarage=this.clients.get(id)?.inGarage;
-    return {type:'state',you:id,poseSequence:this.clients.get(id)?.poseSeq||0,phase:inGarage?'lobby':this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
+    const inGarage=this.clients.get(id)?.inGarage,party=this.clients.get(id);
+    return {type:'state',you:id,poseSequence:party?.seats[0]?.poseSeq||0,poseSequences:party?.seats.map(seat=>seat.poseSeq||0)||[],phase:inGarage?'lobby':this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
       room:{code:this.code,name:this.name,host:this.host},
       track:this.track,vehicle:this.vehicle,
-      online:this.clients.size,inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.id)).length:0,
-      players:[...this.clients.values()].map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,ready:p.ready})),
-      racers:this.racers.map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,color:p.color})),
+      online:this.seatCount(),inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.owner)).length:0,
+      players:[...this.clients.values()].flatMap(p=>p.seats.map(seat=>({id:seat.id,owner:p.id,slot:seat.slot,name:seat.name,character:seat.character,ability:seat.ability,ready:p.ready}))),
+      racers:this.racers.map(p=>({id:p.id,owner:p.owner,slot:p.slot,name:p.name,character:p.character,ability:p.ability,color:p.color})),
       game:inGarage?null:state};
   }
   broadcast(force=true) {

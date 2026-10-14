@@ -30,7 +30,7 @@ export class Lobby {
   const previous=session&&this.sessions.get(session);
   if(previous){
    previous.send=send;previous.disconnectedAt=null;this.clients.set(previous.id,previous);
-   if(previous.room?.clients.has(previous.id)){previous.room.clients.get(previous.id).send=send;previous.room.clients.get(previous.id).disconnectedAt=null;previous.room.clients.get(previous.id).lastPoseAt=(this.options.now||Date.now)();previous.room.broadcast();send({type:'chat',messages:previous.room.chat});}
+   if(previous.room?.clients.has(previous.id)){const party=previous.room.clients.get(previous.id),now=(this.options.now||Date.now)();party.send=send;party.disconnectedAt=null;for(const seat of party.seats){seat.disconnectedAt=null;seat.lastPoseAt=now;}previous.room.broadcast();send({type:'chat',messages:previous.room.chat});}
    else this.directory(previous.id);
    return previous.id;
   }
@@ -40,7 +40,7 @@ export class Lobby {
  directory(id){
   const client=this.clients.get(id);if(!client||client.room)return;
   client.send({type:'directory',you:id,online:this.clients.size,rooms:[...this.rooms.values()].map(room=>({
-   code:room.code,name:room.name,phase:room.phase,count:room.clients.size,capacity:8,track:room.track,vehicle:room.vehicle,
+   code:room.code,name:room.name,phase:room.phase,count:room.seatCount(),capacity:8,track:room.track,vehicle:room.vehicle,
    local:[...room.clients.keys()].some(key=>this.clients.get(key)?.network===client.network),
   }))});
  }
@@ -51,7 +51,7 @@ export class Lobby {
  }
  disconnect(id,expectedSend){
   const client=this.clients.get(id);if(!client||expectedSend&&client.send!==expectedSend)return;
-  if([...this.sessions.values()].includes(client)){client.disconnectedAt=(this.options.now||Date.now)();client.send=()=>{};const player=client.room?.clients.get(id);if(player){player.send=()=>{};player.disconnectedAt=client.disconnectedAt;player.gas=false;player.brake=false;}}
+  if([...this.sessions.values()].includes(client)){client.disconnectedAt=(this.options.now||Date.now)();client.send=()=>{};const party=client.room?.clients.get(id);if(party){party.send=()=>{};party.disconnectedAt=client.disconnectedAt;for(const seat of party.seats){seat.disconnectedAt=client.disconnectedAt;seat.gas=false;seat.brake=false;}}}
   else this.removeFromRoom(client);
   this.clients.delete(id);this.broadcastDirectory();
  }
@@ -66,7 +66,7 @@ export class Lobby {
    if(client.room)return;
    let code;do{code=Array.from({length:5},()=>String.fromCharCode(65+randomInt(26))).join('');}while(this.rooms.has(code));
    const name=typeof msg.name==='string'?msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,36):'';
-   const room=new Room({...this.options,code,name:name||'Гонка '+code});this.rooms.set(code,room);client.room=room;
+   const room=new Room({...this.options,code,name:name||'Гонка '+code});if(Number.isInteger(msg.track)&&msg.track>=0&&msg.track<7)room.track=msg.track;if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<7)room.vehicle=msg.vehicle;this.rooms.set(code,room);client.room=room;
    room.join(client.send,id,client.name);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='join-room'){
@@ -75,12 +75,12 @@ export class Lobby {
    const room=this.rooms.get(code);
    if(!room){client.send({type:'notice',text:'Комната не найдена. Проверьте код.'});return;}
    if(client.room===room)return;
-   if(room.clients.size>=8){client.send({type:'notice',text:'Комната заполнена: максимум 8 игроков.'});return;}
+   if(room.seatCount()>=8){client.send({type:'notice',text:'Комната заполнена: максимум 8 гонщиков.'});return;}
    this.removeFromRoom(client);client.room=room;room.join(client.send,id,client.name);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='leave-room'){this.removeFromRoom(client);this.directory(id);this.broadcastDirectory();return;}
   if(msg.type==='directory'){this.directory(id);return;}
-  client.room?.message(id,msg);if(['rename-room','settings'].includes(msg.type))this.persistRooms();
+  client.room?.message(id,msg);if(['rename-room','settings','profile'].includes(msg.type))this.persistRooms();if(msg.type==='profile')this.broadcastDirectory();
  }
  tick(){
   const now=(this.options.now||Date.now)();for(const [token,client] of this.sessions)if(client.disconnectedAt!==null&&client.disconnectedAt!==undefined&&now-client.disconnectedAt>30000){this.removeFromRoom(client);client.disconnectedAt=null;this.sessions.delete(token);}

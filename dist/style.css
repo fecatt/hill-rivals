@@ -215,3 +215,77 @@ body[data-screen="race"] #online-bar{display:none!important}
 }
 header>b{display:none!important}body[data-screen="race"] #menu{display:none!important}.card-tools #fullscreen-button{width:auto;height:auto;line-height:1.3;padding:9px 12px}#overlay #pause-settings{padding:12px;border:1px solid #cfd9c2;border-radius:12px;background:#eef0df}
 .card-tools{position:relative}#local-options{position:absolute;bottom:48px;right:0;z-index:10;display:flex;flex-direction:column;gap:8px;width:220px;padding:14px;background:#fff8e7;border:2px solid white;border-radius:14px;box-shadow:0 10px 35px #20382f40}#local-options button{width:100%;margin:0}
+/* Shared online parties: racers at one keyboard count as separate race entries. */
+body.online #players{display:none}body.online #lobby[data-party="2"] #racer-column,body.online #lobby[data-party="3"] #racer-column{min-width:0}
+.room-party-controls{display:flex;flex-direction:column;gap:6px;align-items:stretch;margin:4px 0}.room-party-controls button{width:100%;min-height:38px;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;padding:8px 7px;font-weight:bold;font-size:11px}.room-party-controls #add-local-racer{flex:initial}.room-party-controls #remove-local-racer{width:100%;font-size:12px;padding:7px}
+#room-sidebar .room-party-controls:has(#add-local-racer[hidden]):has(#remove-local-racer[hidden]){display:none}
+body.online #racer-column #picks{display:grid;grid-template-columns:repeat(var(--online-seats,1),minmax(0,1fr));gap:8px;min-width:0}
+body.online #racer-column .pick{min-width:0;padding:12px 10px}
+body.online #racer-column .pick h3{font-size:11px}
+body.online #racer-column .pick .portrait{width:100%;height:clamp(75px,17vh,150px);max-height:150px}
+body.online #racer-column .player-name-label{font-size:10px}
+body.online #racer-column .player-name-label input{min-width:0;width:100%;height:34px;font-size:12px;padding:6px}
+body.online #racer-column .pick .choose{gap:3px}
+body.online #racer-column .pick .choose button{flex:0 0 28px;width:28px;height:28px}
+body.online #racer-column .pick .choose b{font-size:11px;line-height:1.2;text-align:center}
+body.online #racer-column .ability-select{font-size:10px;letter-spacing:0}
+body.online #racer-column .ability-select .choice-switch{min-height:36px}
+body.online #racer-column .ability-select .choice-arrow{width:24px;height:24px;flex-basis:24px}
+@media(min-width:1151px) and (pointer:fine){body.online #lobby:has(#add-local-racer:not([hidden])){grid-template-columns:minmax(390px,1.25fr) 320px minmax(360px,1.1fr);max-width:1420px}body.online #racer-column{grid-template-rows:minmax(0,1fr) 142px}body.online #racer-column .pick{padding:10px 8px}.room-list{height:110px;max-height:110px!important}}
+/* The phone UI behaves like a small app: safe areas, scrollable screens, and bottom-sheet dialogs. */
+@media(max-width:750px),(pointer:coarse){
+ body:not([data-screen="race"]){min-height:100dvh;overflow-x:hidden;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+ body:not([data-screen="race"]) header{padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));min-height:54px;flex-wrap:nowrap}
+ body:not([data-screen="race"]) nav{gap:6px;flex-wrap:nowrap}
+ body:not([data-screen="race"]) main{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+ #mode-picker{min-height:calc(100dvh - 70px);margin:8px auto 16px!important;padding:20px 16px!important}
+ #mode-picker h1{font-size:clamp(28px,8vw,38px);letter-spacing:-1.2px}
+ .mode-options{grid-template-columns:1fr;gap:12px;margin-top:18px}
+ .mode-card{padding:18px;border-radius:16px;min-height:0}
+ .mode-card>span{font-size:28px}.mode-card h2{font-size:22px;margin:8px 0}.mode-card p{font-size:13px;line-height:1.45;margin:8px 0}.mode-card b{margin-top:10px}
+ body.online #room-browser{min-height:calc(100dvh - 66px);width:calc(100% - 16px);margin:6px auto 12px;padding:18px 14px;border-radius:18px;overflow:visible}
+ #room-browser h1{font-size:28px}
+ #room-browser .room-actions{gap:10px;margin:12px 0;padding:12px 0;align-items:stretch}
+ #join-code label{margin-bottom:5px}#room-code{height:48px;font-size:21px;letter-spacing:7px}
+ #room-browser .room-columns{grid-template-columns:1fr;gap:10px}
+ #room-browser .room-group{padding:12px;border-radius:13px}
+ #room-browser .room-cards{max-height:min(24dvh,190px);overflow:auto}
+ #room-browser .room-card{padding:12px;min-height:62px}
+ body.online #lobby{width:calc(100% - 16px);margin:6px auto 14px;padding:0;gap:10px;grid-template-areas:"racer" "settings" "room";}
+ body.online #racer-column{height:auto;grid-template-rows:auto auto;gap:9px}
+ body.online #racer-column #picks{grid-template-columns:1fr!important}
+ body.online #racer-column .pick{display:grid;grid-template-columns:72px minmax(0,1fr);grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability";align-items:center;column-gap:10px;padding:12px;min-height:0}
+ body.online #racer-column .pick h3{grid-area:title;margin:0 0 6px}
+ body.online #racer-column .player-name-label{grid-area:name;margin:0;min-width:0}
+ body.online #racer-column .pick .portrait{grid-area:portrait;width:72px;height:96px;max-height:96px;margin:0 auto}
+ body.online #racer-column .pick .choose{grid-area:choose}
+ body.online #racer-column .ability-select{grid-area:ability;margin-top:8px}
+ body.online #ability-panel{padding:10px}
+ body.online #lobby .bottom{height:auto;grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:9px}
+ body.online .setting-card{min-height:0;height:auto;padding:11px;gap:7px!important}
+ body.online .world-setting #world-preview{height:62px}
+ body.online .vehicle-setting #vehicle-preview{height:65px}
+ body.online #lobby .vehicle-setting #vehicle-description{min-height:0!important;font-size:10px!important;line-height:1.35}
+ body.online #room-panel{display:flex;flex-direction:column;gap:8px;height:auto;min-height:0;padding:13px;border-radius:16px;overflow:visible}
+ body.online #room-panel .room-heading{min-width:0}
+ body.online #room-panel .room-heading h2{font-size:18px!important}
+ body.online #room-panel .room-invite{display:flex;flex-wrap:wrap;position:static;margin:0;gap:6px}
+ body.online #room-panel #host-caption{margin:0!important;font-size:12px}
+ body.online #room-panel .room-list{height:auto;max-height:150px!important;min-height:40px;overflow:auto;padding:8px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:10px}
+ body.online #room-panel .room-list>div{font-size:12px;padding:5px 2px!important}
+ body.online #room-panel .room-party-controls{margin:0}
+ body.online #room-panel .room-party-controls button{min-height:44px}
+ body.online #room-panel #room-status{margin:0;min-height:0;font-size:12px}
+ body.online #room-panel #room-chat{display:grid!important;position:static;height:auto;min-height:0;grid-template-rows:18px auto 42px;gap:7px;padding:10px;margin:0;border:1px solid #d8dfce;border-radius:12px;background:#f4f1e5}
+ body.online #room-panel #chat-log{height:auto;min-height:0;max-height:25dvh;overflow:auto}
+ body.online #room-panel>#start{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:4;min-height:52px;margin:0;box-shadow:0 4px 0 #a43a28}
+ #invite-dialog,#chat-dialog,#create-dialog,#install-help{width:min(480px,calc(100vw - 20px));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;margin:auto;padding:18px;border-radius:20px}
+ #invite-qr{width:min(240px,65vw)}#invite-dialog h2{font-size:20px}#invite-url{font-size:11px}
+ #overlay{width:min(440px,calc(100vw - 24px));min-width:0;max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;padding:22px 16px;border-radius:18px}
+ #overlay h2{font-size:28px}
+ body.local #players option:not(:first-child){display:none}
+ body.local .bottom>label:has(#players) .choice-tiles button:not([data-value="1"]){display:none}
+ body.local[data-players="1"] #lobby>.hint:not(#vehicle-description):not(#vehicle-stats):not(#map-description){display:none}
+}
+@media(max-width:750px) and (orientation:landscape){body.online #lobby{grid-template-columns:minmax(120px,.9fr) minmax(150px,1fr) minmax(200px,1.3fr);grid-template-areas:"racer settings room";gap:7px;margin:4px auto 10px}body.online #racer-column{height:calc(100dvh - 64px);grid-template-rows:minmax(0,1fr) 64px;gap:6px}body.online #racer-column #picks{height:100%}body.online #racer-column .pick{padding:7px}body.online #racer-column .player-name-label{display:none}body.online #racer-column .pick .portrait{height:clamp(35px,17dvh,76px)}body.online #racer-column .ability-select{margin-top:4px;font-size:9px}body.online #racer-column .ability-select .choice-switch{min-height:28px}body.online #lobby .bottom{height:calc(100dvh - 64px);grid-template-columns:1fr;grid-template-rows:1fr 1.3fr;gap:6px}body.online .setting-card{padding:7px;gap:4px!important}body.online .world-setting #world-preview{display:none}body.online .vehicle-setting #vehicle-preview{height:34px}body.online #room-panel{height:calc(100dvh - 64px);overflow:auto;padding:8px;gap:5px}body.online #room-panel #room-chat{grid-template-rows:14px minmax(30px,1fr) 30px;padding:5px}body.online #room-panel #chat-log{max-height:none}body.online #room-panel .room-party-controls button{min-height:30px;font-size:10px;padding:4px}body.online #room-panel>#start{min-height:38px;padding:6px;font-size:14px}}
+@media(prefers-reduced-motion:reduce){.mode-card,.room-card,button{scroll-behavior:auto!important}}

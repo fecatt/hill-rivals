@@ -6,7 +6,7 @@ document.querySelector('nav').prepend(modeButton);
 const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
 const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
 const chooser=document.createElement('main');chooser.id='mode-picker';chooser.hidden=true;
-chooser.innerHTML='<div class="eyebrow">MIREA RACING</div><h1>Выберите режим</h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>Создавайте комнаты, находите друзей в своей сети или присоединяйтесь по коду.</p><b>Найти гонку →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Соло или до трёх игроков на одном устройстве. Доступна без интернета после первой загрузки.</p><b>В гараж →</b></a></div>';
+chooser.innerHTML='<div class="eyebrow">ОДИН ГАРАЖ · ДВА СПОСОБА ИГРАТЬ</div><h1>Как будем гоняться?</h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн-комната</h2><p>Создайте комнату или введите код. На компьютере можно добавить ещё двух гонщиков за одной клавиатурой; друзья подключатся с телефонов и компьютеров.</p><b>Играть онлайн →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Один экран</h2><p>Соло или гонка до трёх игроков за одним компьютером. На телефоне доступен одиночный заезд.</p><b>Играть на одном устройстве →</b></a></div>';
 document.body.append(chooser);
 let currentMode=null;
 let savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
@@ -38,7 +38,7 @@ function chooseMode(next,push=true){
    $('#lobby .intro').textContent='Выберите машину, трассу и персонажа.';$('#start').textContent='НА СТАРТ →';$('#start').disabled=!assetsLoaded;
    $('#track').disabled=$('#vehicle').disabled=false;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;updateMapDescription();describeVehicle();
   }
-  if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.onlineSession.enter();}
+  if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.syncOnlineFromGarage?.(savedLocal);window.onlineSession.enter();}
   window.refreshChoices?.();syncGameScreen();window.scrollTo(0,0);
   if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next!=='online')url.searchParams.delete('room');if(next)url.searchParams.set('mode',next);else url.searchParams.delete('mode');history.pushState({},'',url);}
  };

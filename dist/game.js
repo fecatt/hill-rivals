@@ -19,13 +19,15 @@ function syncGameScreen(){
  const screen=mode==='lobby'?'lobby':'race';
  if(document.body.dataset.screen!==screen){document.body.dataset.screen=screen;if(screen==='race')window.scrollTo(0,0);}
  const controls=$('#touch-controls');
- if(controls)controls.hidden=mode!=='race'||paused||(window.onlineIndex!==undefined? !cars[window.onlineIndex]?.alive:false);
+ if(controls)controls.hidden=mode!=='race'||paused||(window.onlineIndices?.length? !window.onlineIndices.some(i=>cars[i]?.alive):window.onlineIndex!==undefined? !cars[window.onlineIndex]?.alive:false);
 }
 
 function terrain(x){return groundHeight(track,x)}
 function slope(x){return (terrain(x+1)-terrain(x-1))/2}
 function picks(){ $('#picks').innerHTML=chosen.slice(0,playerCount).map((n,i)=>`<section class="pick" style="border-top:5px solid ${colors[i]}"><h3>ИГРОК 0${i+1} <span style="float:right;color:${colors[i]}">●</span></h3><img class="portrait" style="transform:scaleX(${[0,5].includes(n)?-1:1})" src="assets/${assetNames[n]}.png"><div class="choose"><button data-i="${i}" data-d="-1" aria-label="Предыдущий персонаж">‹</button><b>${names[n].replace('_',' ')}</b><button data-i="${i}" data-d="1" aria-label="Следующий персонаж">›</button></div><div class="keys">${['WASD · W/D газ · S/A назад','СТРЕЛКИ · ↑/→ газ · ↓/← назад','МЫШЬ · ПКМ газ · ЛКМ назад'][i]}</div><label class="ability-select">Способность · ${abilityKeys[i]}<select data-ability="${i}">${Object.keys(abilityNames).map(a=>`<option value="${a}" ${abilities[i]===a?'selected':''}>${abilityNames[a]}</option>`).join('')}</select></label></section>`).join('');document.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>{chosen[b.dataset.i]=(chosen[b.dataset.i]+Number(b.dataset.d)+names.length)%names.length;picks()})}picks();
-$('#players').onchange=()=>{playerCount=+$('#players').value;document.body.dataset.players=playerCount;picks()};document.body.dataset.players=playerCount;
+$('#players').onchange=()=>{playerCount=+$('#players').value;document.body.dataset.players=playerCount;if(window.onlineActive){window.onlineSeatCountChanged?.(playerCount);return}picks()};document.body.dataset.players=playerCount;
+function enforceComputerLocalMultiplayer(){for(const option of $('#players').options)if(option.value!=='1')option.disabled=mobileInput.matches;if(mobileInput.matches&&playerCount>1){playerCount=1;$('#players').value='1';document.body.dataset.players='1';picks();}}
+enforceComputerLocalMultiplayer();mobileInput.addEventListener('change',enforceComputerLocalMultiplayer);
 document.querySelector('#picks').addEventListener('change',e=>{if(e.target.dataset.ability!==undefined)abilities[+e.target.dataset.ability]=e.target.value});
 function updateMapDescription(){$('#map-description').textContent=MAPS[+$('#track').value].description+' Бесконечная трасса. При каждом старте — новый вариант рельефа.'}$('#track').onchange=updateMapDescription;updateMapDescription();
 function newCar(i){const v=VEHICLES[vehicleModel],spawnX=Math.max(100,Math.max(...v.wheels.map(Math.abs))+Math.max(...wheelSpecs(v).map(w=>w.r))+25)+i*Math.max(110,v.wheels[v.wheels.length-1]-v.wheels[0]+2*Math.max(...wheelSpecs(v).map(w=>w.r))+18);return {i,model:vehicleModel,rocketOn:false,startX:spawnX,x:spawnX,y:terrain(spawnX)-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r))-3,vx:0,vy:0,a:0,av:0,fuel:100,cp:0,alive:true,reason:'',wheel:0,contacts:[],shield:0,boost:0,mud:0,coins:0,air:0,flip:0,notice:'',noticeTime:0,ability:abilities[i],cooldown:0,prevX:spawnX,prevY:-43}}
@@ -206,7 +208,7 @@ function input(i){return i===0?[keys.KeyW||keys.KeyD||keys.TouchGas,keys.KeyS||k
 function activateAbility(c){if(mode!=='race'||paused||count>0||!c?.alive||c.cooldown>0)return;if(c.ability==='turbo'){c.boost=Math.max(c.boost,2.8);c.cooldown=11;announce(c,'ТУРБО АКТИВИРОВАНО')}if(c.ability==='jump'){c.vy=Math.min(c.vy,-250);c.cooldown=8;announce(c,'ПРЫЖОК')}if(c.ability==='shield'){c.shield=Math.max(c.shield,4);c.cooldown=14;announce(c,'ЩИТ АКТИВИРОВАН')}}
 function raceSound(c,kind,strength=1){
  if(!sound||!engineAudio||paused||document.hidden||mode!=='race'||count>0)return;
- if(c&&window.onlineIndex!==undefined&&c.i!==window.onlineIndex)return;
+ if(c&&window.onlineIndex!==undefined&&!(window.onlineIndices||[window.onlineIndex]).includes(c.i))return;
  const pan=c&&window.onlineIndex===undefined?Math.max(-.7,Math.min(.7,((c.x-cam)*scale()/W-.5)*1.4)):0;
  engineAudio.play(kind,strength,pan,kind+':'+(c?.i??'all'));
 }
@@ -250,8 +252,8 @@ function renderHud(){
  const now=performance.now();if(now<hudNext)return;hudNext=now+100;
  let shown=cars;
  if(window.onlineIndex!==undefined){
-  const own=cars[window.onlineIndex],leader=cars.filter(c=>c.alive).reduce((a,b)=>!a||b.x>a.x?b:a,null);
-  shown=mobileInput.matches&&own?[own]:cars.filter(c=>c===own||c===leader);
+  const own=(window.onlineIndices||[window.onlineIndex]).map(i=>cars[i]).filter(Boolean),leader=cars.filter(c=>c.alive).reduce((a,b)=>!a||b.x>a.x?b:a,null);
+  shown=mobileInput.matches&&own.length?[own[0]]:[...own,...(leader&&!own.includes(leader)?[leader]:[])];
  }
  const roster=shown.map(c=>c.i+':'+chosen[c.i]+':'+colors[c.i]+':'+racerName(c)).join('|');
  if(roster!==hudRoster){
@@ -263,7 +265,7 @@ function renderHud(){
   stat.style.opacity=c.alive?1:.6;
   stat.querySelector('small').textContent=Math.floor(raceMetres(c))+' м';
   const fuel=stat.querySelector('.fuel i');fuel.style.width=c.fuel+'%';fuel.style.background=c.fuel<20?'#e64d36':'#65a53b';
-  stat.querySelector('.telemetry').textContent=c.alive?`${Math.round(c.fuel)}% · ${Math.round(speedKph(c.vx))} км/ч${window.onlineIndex!==undefined?' · '+(c.i===window.onlineIndex?'Вы':'Соперник'):''}`:c.reason;
+  stat.querySelector('.telemetry').textContent=c.alive?`${Math.round(c.fuel)}% · ${Math.round(speedKph(c.vx))} км/ч${window.onlineIndex!==undefined?' · '+((window.onlineIndices||[window.onlineIndex]).includes(c.i)?'Вы':'Соперник'):''}`:c.reason;
   const status=`${c.mud>0?'Грязь '+Math.ceil(c.mud)+' с · ':''}${abilityNames[c.ability]} · ${c.cooldown>0?Math.ceil(c.cooldown)+' с':'готово'}`;
   stat.querySelector('.ability-status').textContent=status;
   if(c.i===(window.onlineIndex??0)){

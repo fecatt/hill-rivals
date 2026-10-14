@@ -31,14 +31,13 @@ function refreshChoices(){
  mountChoiceControls();
  for(const [select,control] of choiceControls){
   if(!select.isConnected){choiceControls.delete(select);continue;}
-  if(control.tiles){for(const b of control.buttons){b.disabled=select.disabled;b.classList.toggle('selected',b.dataset.value===select.value);b.setAttribute('aria-pressed',String(b.dataset.value===select.value));}continue;}
+   if(control.tiles){for(const [index,b] of [...control.buttons].entries()){const option=Array.from(select.options).find(o=>o.value===b.dataset.value);b.disabled=select.disabled||!!option?.disabled;b.classList.toggle('selected',b.dataset.value===select.value);b.setAttribute('aria-pressed',String(b.dataset.value===select.value));}continue;}
   const option=select.selectedOptions[0],label=select.id==='track'?MAPS[+select.value].name:option?.textContent.split(' · ')[0]||'';
   if(control.last!==label){control.value.textContent=label;control.last=label;}
   for(const button of control.buttons)button.disabled=select.disabled;control.group.classList.toggle('locked',select.disabled);
  }
  const online=!!window.onlineActive;
- if(online){const ability=$('#picks .ability-select');if(ability&&ability.parentElement!==$('#ability-panel'))$('#ability-panel').replaceChildren(ability);}
- else $('#ability-panel').replaceChildren();
+ $('#ability-panel').replaceChildren();
  const v=VEHICLES[+$('#vehicle').value];
  if($('#car-specs').dataset.model!==String($('#vehicle').value)){$('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML='<div><dt>Скорость</dt><dd>'+Math.round(speedKph(v.maxSpeed))+' км/ч</dd></div><div><dt>Масса</dt><dd>'+v.mass+' кг</dd></div><div><dt>Колёса</dt><dd>'+v.wheels.length*2+'</dd></div>';}
  $('#world-description').textContent=MAPS[+$('#track').value].description;

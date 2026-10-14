@@ -5,7 +5,7 @@ $('#players').closest('label').hidden=true;
 const connectionSession=sessionStorage.getItem('hill-session')||crypto.randomUUID();sessionStorage.setItem('hill-session',connectionSession);
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
-let localCar=null,localControls=[false,false];
+let localCar=null,localCars=new Map(),localControls=[false,false];
 let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
 let serverToLocal=null,bestRtt=Infinity;
 let interpolationDelay=70,lastPacketAt=0,renderTarget=-Infinity;
@@ -35,40 +35,35 @@ function renderWorld(left,right,mix,ahead){
 }
 const localAbilityAction=activateAbility;
 // The owning device runs continuous physics. Server packets never replace its pose.
-input=i=>i===window.onlineIndex?localControls:[false,false];
+function controlsForSeat(slot){
+ if(paused)return [false,false];
+ if(slot===0)return [!!(keys.KeyD||keys.KeyW||keys.TouchGas),!!(keys.KeyA||keys.KeyS||keys.TouchBrake)];
+ if(slot===1)return [!!(keys.ArrowUp||keys.ArrowRight),!!(keys.ArrowDown||keys.ArrowLeft)];
+ return [!!keys.Mouse2,!!keys.Mouse0];
+}
+input=i=>{const slot=(window.onlineIndices||[]).indexOf(i);return slot<0?[false,false]:controlsForSeat(slot)};
 function localPhysicsStep(c,dt,control){localControls=control;physics(c,dt);}
 function installLocalCar(state){
- const index=window.onlineIndex,authoritative=state.game.cars[index];
- if(!authoritative){localCar=null;return;}
- if(!localCar){
-  localCar={...authoritative,contacts:authoritative.contacts.map(c=>({...c}))};
-  localSimTime=state.game.time;
+ for(const index of window.onlineIndices||[]){
+  const authoritative=state.game.cars[index];if(!authoritative)continue;
+  let car=localCars.get(index);if(!car){car={...authoritative,contacts:authoritative.contacts.map(c=>({...c}))};localCars.set(index,car);localSimTime=state.game.time;}
+  if(!authoritative.alive){car.alive=false;car.reason=authoritative.reason;}
+  for(const reward of state.game.rewards||[]){if(reward.i!==index||seenRewards.has(reward.id))continue;seenRewards.add(reward.id);if(reward.type===0){car.fuel=Math.min(100,car.fuel+40);announce(car,'+40 ТОПЛИВА');}if(reward.type===1){car.boost=5;announce(car,'ТУРБО · 5 СЕК');}if(reward.type===2){car.shield=12;announce(car,'ЩИТ · 12 СЕК');}if(reward.type===3){car.mud=6;announce(car,'КОЛЁСА В ГРЯЗИ · 6 СЕК');}}
  }
- if(!authoritative.alive){localCar.alive=false;localCar.reason=authoritative.reason;}
- for(const reward of state.game.rewards||[]){
-  if(reward.i!==index||seenRewards.has(reward.id))continue;
-  seenRewards.add(reward.id);
-  if(reward.type===0){localCar.fuel=Math.min(100,localCar.fuel+40);announce(localCar,'+40 ТОПЛИВА');}
-  if(reward.type===1){localCar.boost=5;announce(localCar,'ТУРБО · 5 СЕК');}
-  if(reward.type===2){localCar.shield=12;announce(localCar,'ЩИТ · 12 СЕК');}
-  if(reward.type===3){localCar.mud=6;announce(localCar,'КОЛЁСА В ГРЯЗИ · 6 СЕК');}
- }
+ localCar=localCars.get(window.onlineIndices?.[0])||null;
 }
 function sendPose(force=false){
  const now=performance.now();
- if(!localCar||roomState?.phase!=='race'||(!force&&now-lastPoseSent<1000/30))return;
+ if(!localCars.size||roomState?.phase!=='race'||(!force&&now-lastPoseSent<1000/30))return;
  lastPoseSent=now;
- const pose={};
- for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=localCar[field];
-  if(paused){pose.vx=0;pose.vy=0;pose.av=0;}
- pose.alive=localCar.alive;pose.reason=localCar.reason;pose.rocketOn=localCar.rocketOn;
- const packet={type:'pose',round:onlineRound,seq:++poseSequence,time:localSimTime,pose};
+ const poses=(window.onlineIndices||[]).map((index,slot)=>{const car=localCars.get(index);if(!car)return null;const pose={};for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=car[field];if(paused){pose.vx=0;pose.vy=0;pose.av=0;}pose.alive=car.alive;pose.reason=car.reason;pose.rocketOn=car.rocketOn;return {slot,seq:++poseSequence,time:localSimTime,pose};}).filter(Boolean);
+ const packet={type:'poses',round:onlineRound,poses};
  send(packet);window.peerTransport?.broadcast(packet);
 }
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
-const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake" aria-label="Тормоз и задний ход"><span class="touch-hint">НАЗАД</span></button><button data-control="ability" aria-label="Способность"><span class="touch-hint">СПОСОБНОСТЬ</span></button><button data-control="gas" aria-label="Газ"><span class="touch-hint">ГАЗ</span></button>';document.body.append(touch);
+const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake" aria-label="Тормоз и задний ход"><span class="touch-hint">НАЗАД</span></button><button data-control="ability" aria-label="Способность"><span class="touch-hint">ЩИТ / СПОСОБНОСТЬ</span></button><button data-control="gas" aria-label="Газ"><span class="touch-hint">ГАЗ</span></button>';document.body.append(touch);
 const roomUI=createRoomsUI();
 window.peerTransport=createPeerTransport(send,()=>roomState);
 document.title='Hill Rivals · Онлайн-гонка';
@@ -84,36 +79,50 @@ let localCharacter=Number(localStorage.getItem('hill-character')||0)%7;
 if(!Number.isInteger(localCharacter)||localCharacter<0)localCharacter=0;
 let localAbility=localStorage.getItem('hill-ability')||'turbo';
 if(!abilityNames[localAbility])localAbility='turbo';
+// A fresh party starts with one racer. Add couch teammates explicitly from the room UI.
+let onlineSeatCount=1;
+document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);
+const onlineCharacters=[...chosen],onlineAbilities=[...abilities];
+onlineCharacters[0]=localCharacter;onlineAbilities[0]=localAbility;
+function profileForSeat(slot){const nameKey=slot===0?'hill-player-name':'hill-party-name-'+slot;return {name:localStorage.getItem(nameKey)||roomState?.players.find(p=>p.owner===roomState.you&&p.slot===slot)?.name||'',character:onlineCharacters[slot]??slot%7,ability:onlineAbilities[slot]||'turbo'};}
+window.syncOnlineFromGarage=setup=>{
+ if(!setup)return;
+ for(let i=0;i<3;i++){if(Number.isInteger(setup.chosen?.[i]))onlineCharacters[i]=setup.chosen[i];if(setup.abilities?.[i])onlineAbilities[i]=setup.abilities[i];}
+ if(Number.isInteger(setup.track))$('#track').value=String(setup.track);if(Number.isInteger(setup.vehicle))$('#vehicle').value=String(setup.vehicle);
+ localCharacter=onlineCharacters[0]||0;localAbility=onlineAbilities[0]||'turbo';renderPick();
+};
 function send(msg){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(msg));}
 function renderPick(){
-  $('#picks').innerHTML=`<section class="pick"><h3>ВАШ ГОНЩИК</h3><label class="player-name-label" for="player-name">Ваше имя<input id="player-name" maxlength="24" placeholder="Игрок 1" autocomplete="nickname"></label><img class="portrait" src="assets/${assetNames[localCharacter]}.png"><div class="choose"><button id="prev-char" aria-label="Предыдущий персонаж">‹</button><b>${names[localCharacter]}</b><button id="next-char" aria-label="Следующий персонаж">›</button></div><label class="ability-select">Способность<select id="my-ability">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===localAbility?'selected':''}>${label}</option>`).join('')}</select></label></section>`;
-  const field=$('#player-name');field.value=localStorage.getItem('hill-player-name')||roomState?.players.find(p=>p.id===roomState.you)?.name||'';
-  const saveName=()=>{const name=field.value.trim().slice(0,24);localStorage.setItem('hill-player-name',name);send({type:'name',name});};
-  field.onchange=saveName;field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveName();field.blur();}};
-  const change=d=>{if(!['lobby','countdown'].includes(roomState?.phase))return;localCharacter=(localCharacter+d+7)%7;localStorage.setItem('hill-character',localCharacter);renderPick();sendProfile();};
-  $('#prev-char').onclick=()=>change(-1);$('#next-char').onclick=()=>change(1);
-  $('#my-ability').onchange=e=>{localAbility=e.target.value;localStorage.setItem('hill-ability',localAbility);sendProfile();};
+  $('#picks').innerHTML=Array.from({length:onlineSeatCount},(_,slot)=>{const profile=profileForSeat(slot),bindings=['WASD · E: способность','Стрелки · правый Shift: способность','ПКМ/ЛКМ · колёсико: способность'];return `<section class="pick" data-online-seat="${slot}" style="border-top:5px solid ${colors[slot]}"><h3>${slot===0?'ВАШ ГОНЩИК':'ИГРОК '+(slot+1)}</h3><label class="player-name-label" for="player-name-${slot}">Имя гонщика<input id="player-name-${slot}" data-name-seat="${slot}" maxlength="24" placeholder="Игрок ${slot+1}" autocomplete="nickname" value="${escapeLabel(profile.name)}" ${slot>0?'':'aria-label="Ваше имя"'}></label><img class="portrait" src="assets/${assetNames[profile.character]}.png"><div class="choose"><button data-char-seat="${slot}" data-step="-1" aria-label="Предыдущий персонаж">‹</button><b>${names[profile.character]}</b><button data-char-seat="${slot}" data-step="1" aria-label="Следующий персонаж">›</button></div><div class="keys">${bindings[slot]}</div><label class="ability-select">Способность<select data-ability-seat="${slot}">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===profile.ability?'selected':''}>${label}</option>`).join('')}</select></label></section>`;}).join('');
+  $('#picks').querySelectorAll('[data-name-seat]').forEach(field=>{const slot=+field.dataset.nameSeat;const saveName=()=>{localStorage.setItem(slot===0?'hill-player-name':'hill-party-name-'+slot,field.value.trim().slice(0,24));sendProfile();};field.onchange=saveName;field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveName();field.blur();}};});
+  $('#picks').querySelectorAll('[data-char-seat]').forEach(button=>button.onclick=()=>{if(!['lobby','countdown'].includes(roomState?.phase))return;const slot=+button.dataset.charSeat;onlineCharacters[slot]=(onlineCharacters[slot]+Number(button.dataset.step)+names.length)%names.length;if(slot===0){localCharacter=onlineCharacters[0];localStorage.setItem('hill-character',localCharacter);}renderPick();sendProfile();});
+  $('#picks').querySelectorAll('[data-ability-seat]').forEach(select=>select.onchange=()=>{const slot=+select.dataset.abilitySeat;onlineAbilities[slot]=select.value;if(slot===0){localAbility=select.value;localStorage.setItem('hill-ability',localAbility);}sendProfile();});
 }
-function sendProfile(){send({type:'name',name:localStorage.getItem('hill-player-name')||''});send({type:'profile',character:localCharacter,ability:localAbility});}
+function sendProfile(){const seats=Array.from({length:onlineSeatCount},(_,slot)=>profileForSeat(slot));send({type:'profile',seats});}
 renderPick();
-$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.id===roomState.you)?.ready});};
+function setOnlineSeatCount(count){if(matchMedia('(pointer:coarse)').matches)count=1;onlineSeatCount=Math.max(1,Math.min(3,count));$('#players').value=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#lobby').dataset.party=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);renderPick();sendProfile();}
+window.onlineSeatCountChanged=setOnlineSeatCount;
+window.changeOnlineParty=delta=>{
+ const max=Math.min(3,8-(roomState?.players.length-onlineSeatCount||0));
+ setOnlineSeatCount(Math.max(1,Math.min(max,onlineSeatCount+delta)));
+};
+$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.owner===roomState.you)?.ready});};
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 togglePause=()=>{if(mode!=='race')return;paused=!paused;keysClear();sendInput();$('#overlay').hidden=!paused;if(paused)showPauseMenu();};
-activateAbility=()=>sendInput(true);
+activateAbility=car=>{const slot=(window.onlineIndices||[]).indexOf(car?.i);if(slot>=0)sendInput(slot);};
 garage=()=>{
   if(mode==='race'||mode==='result'){keysClear();paused=false;$('#overlay').hidden=true;send({type:'return-garage'});return;}
   const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);send({type:'leave-room'});
 };
 $('#menu').onclick=garage;
 function controls(){if(paused)return [false,false];return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
-function sendInput(ability=false){
+function sendInput(abilitySlot=-1){
  if(!window.onlineActive)return;
- const [gas,brake]=controls();
- if(ability&&localCar&&!paused)localAbilityAction(localCar);
- send({type:'input',gas,brake});
+ const seats=(window.onlineIndices||[]).map((index,slot)=>{const [gas,brake]=controlsForSeat(slot),car=localCars.get(index);if(abilitySlot===slot&&car&&!paused)localAbilityAction(car);return {slot,gas,brake,ability:abilitySlot===slot&&!paused};});
+ send({type:'input',seats});
 }
-addEventListener('keydown',e=>{if(!window.onlineActive||e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
+addEventListener('keydown',e=>{if(!window.onlineActive||e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(0);sendInput();});
 addEventListener('keyup',()=>sendInput());
 addEventListener('blur',()=>sendInput());
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keysClear();sendInput();}});
@@ -125,7 +134,7 @@ for(const button of touch.querySelectorAll('button')){
   button.addEventListener('pointerdown',e=>{
     if(mode!=='race'||paused||!mobileInput.matches)return;
     e.preventDefault();button.setPointerCapture(e.pointerId);touchPointers.set(e.pointerId,control);
-    if(control==='ability'){if(window.onlineActive)sendInput(true);else activateAbility(cars[0]);}
+    if(control==='ability'){if(window.onlineActive)sendInput(0);else activateAbility(cars[0]);}
     else applyTouchInput();
   });
   const release=e=>{if(!touchPointers.delete(e.pointerId))return;applyTouchInput();};
@@ -135,9 +144,9 @@ let movementStarted=false,touchHintTime=0;
 window.resetTouchHints=()=>{movementStarted=false;touchHintTime=0;touch.classList.remove('hints-faded');};
 window.updateTouchHints=dt=>{
  if(mode!=='race'){window.resetTouchHints();return;}
- const own=cars[window.onlineIndex??0];
+ const own=cars[(window.onlineIndices||[])[0]??window.onlineIndex??0];
  if(!paused&&count<=0&&own?.alive){
-  if(Math.abs(own.vx)>1)movementStarted=true;
+    if(Math.abs(own.vx)>1)movementStarted=true;
   if(movementStarted)touchHintTime+=dt;
  }
  touch.classList.toggle('hints-faded',touchHintTime>=5);
@@ -157,27 +166,29 @@ update=dt=>{
     const mix=right.serverNow>left.serverNow?Math.max(0,Math.min(1,(target-left.serverNow)/(right.serverNow-left.serverNow))):0;
     cars=roomState.game.cars.map((latest,i)=>{
       const car=cars[i]||{},a=left.game.cars[i]||latest,b=right.game.cars[i]||a;
-      if(i===window.onlineIndex&&localCar){
-        localCar.prevX=localCar.x;localCar.prevY=localCar.y;
-        updateHillBridges(dt);localPhysicsStep(localCar,dt,controls());localSimTime+=dt;
-        Object.assign(car,localCar);
+      const owned=localCars.get(i);
+      if(owned){
+        owned.prevX=owned.x;owned.prevY=owned.y;
+        localPhysicsStep(owned,dt,controlsForSeat((window.onlineIndices||[]).indexOf(i)));Object.assign(car,owned);
       }else{
         Object.assign(car,latest);
         for(const field of ['x','y','a','wheel'])car[field]=a[field]+(b[field]-a[field])*mix;
         // A short missing packet should not freeze a moving opponent; bound drift.
         const ahead=Math.max(0,Math.min(.15,(target-right.serverNow)/1000));
         if(b.alive){car.x+=b.vx*ahead;car.y+=b.vy*ahead;car.a+=b.av*ahead;car.wheel+=b.vx*ahead/17;}
-        const direct=window.peerTransport.pose(roomState.racers[i]?.id);
+        const racer=roomState.racers[i],direct=window.peerTransport.pose(racer?.owner,racer?.slot||0);
         if(direct&&latest.alive)Object.assign(car,direct,{alive:latest.alive,reason:latest.reason});
       }
       return car;
     });
+    if((window.onlineIndices||[]).length)updateHillBridges(dt);
+    localSimTime+=dt;localCar=localCars.get(window.onlineIndices?.[0])||null;
     renderWorld(left,right,mix,Math.max(0,Math.min(.15,(target-right.serverNow)/1000)));
     sendPose();
   }
   if(mode==='race'){
-    const own=cars[roomState.racers.findIndex(p=>p.id===roomState.you)];
-    const active=own?.alive?[own]:cars.filter(c=>c.alive);
+    const own=(window.onlineIndices||[]).map(i=>cars[i]).filter(c=>c?.alive);
+    const active=own.length?own:cars.filter(c=>c.alive);
     if(active.length)updateCamera(active,dt);
   }
 };
@@ -185,9 +196,9 @@ function installGame(state){
   if(!state.game)return;
   const g=state.game;
   const newRound=onlineRound!==state.round;
-  if(newRound){window.resetTouchHints();onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  if(newRound){window.resetTouchHints();onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;localCars.clear();poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
-  poseSequence=Math.max(poseSequence,state.poseSequence||0);
+  poseSequence=Math.max(poseSequence,...(state.poseSequences||[state.poseSequence||0]));
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
   window.racerNames=state.racers.map((p,i)=>p.name||'Игрок '+(i+1));
@@ -195,11 +206,12 @@ function installGame(state){
   chosen.splice(0,chosen.length,...state.racers.map(p=>p.character));
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
   state.racers.forEach((_,i)=>abilityKeys[i]='E / пробел');
-  window.onlineIndex=state.racers.findIndex(p=>p.id===state.you);
+  window.onlineIndices=state.racers.map((p,i)=>p.owner===state.you?i:-1).filter(i=>i>=0);window.onlineIndex=window.onlineIndices[0]??-1;
   track=g.track;vehicleModel=g.vehicle;snowStart=g.snowStart;snowEnd=g.snowEnd;
   if(newRound)time=g.time;
   // Keep object identities so suspension smoothing survives incoming packets.
   if(newRound||state.phase==='result'){
+   if(state.phase==='result')localCars.clear();
    cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));
    bonus=g.bonus.map(crate=>({...crate}));hillBridgeStates.clear();
    for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,{...bridge,q:[...bridge.q],v:[...bridge.v]});
@@ -209,27 +221,30 @@ function installGame(state){
   mode=state.phase==='result'?'result':'race';if(newRound||state.phase==='result')paused=false;
   if(state.phase==='race')installLocalCar(state);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
-  touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.id===state.you);
+  touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.owner===state.you);
   if(state.phase==='race'&&!paused)$('#overlay').hidden=true;
 }
 function renderRoom(state){
   roomUI.state(state);
   track=state.track;vehicleModel=state.vehicle;
+  const owned=state.players.filter(p=>p.owner===state.you).sort((a,b)=>a.slot-b.slot);
+  if(owned.length&&owned.length!==onlineSeatCount){onlineSeatCount=owned.length;$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);$('#players').value=String(onlineSeatCount);$('#picks').style.setProperty('--online-seats',onlineSeatCount);renderPick();}
+  $('#add-local-racer').hidden=matchMedia('(pointer:coarse)').matches||state.phase==='race'||onlineSeatCount>=3||state.players.length>=8;
+  $('#remove-local-racer').hidden=matchMedia('(pointer:coarse)').matches||state.phase==='race'||onlineSeatCount<=1;
   const ready=state.players.filter(p=>p.ready).length;
-  const spectator=state.phase==='race'&&!state.racers.some(p=>p.id===state.you);
+  const spectator=state.phase==='race'&&!state.racers.some(p=>p.owner===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.id===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${p.id===state.you?' · Вы':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
+  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.owner===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${p.owner===state.you?' · На этом устройстве':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
-  $('#my-ability').disabled=!['lobby','countdown'].includes(state.phase);
-  $('#prev-char').disabled=$('#next-char').disabled=!['lobby','countdown'].includes(state.phase);
+  $('#picks').querySelectorAll('select,[data-char-seat]').forEach(control=>control.disabled=!['lobby','countdown'].includes(state.phase));
   updateMapDescription();describeVehicle();
   $('#start').disabled=state.phase==='race';
-  const myReady=state.players.find(p=>p.id===state.you)?.ready;
+  const myReady=state.players.find(p=>p.owner===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
   if(state.phase==='lobby'){
-    onlineRound=-1;localCar=null;
+    onlineRound=-1;localCar=null;localCars.clear();
     mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
     $('#room-status').textContent='Готовы '+ready+' из '+state.players.length+'. Старт — после готовности всех игроков.';
   }
