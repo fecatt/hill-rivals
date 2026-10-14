@@ -37,10 +37,11 @@ export class Lobby {
   const id=randomUUID(),network=createHmac('sha256',this.salt).update(networkAddress(address)).digest('hex');
   const client={id,send,network,room:null,name:''};this.clients.set(id,client);if(session)this.sessions.set(session,client);this.directory(id);return id;
  }
- directory(id){
-  const client=this.clients.get(id);if(!client||client.room)return;
+ directory(id,includeRoom=false){
+  const client=this.clients.get(id);if(!client||client.room&&!includeRoom)return;
   client.send({type:'directory',you:id,online:this.clients.size,rooms:[...this.rooms.values()].map(room=>({
    code:room.code,name:room.name,phase:room.phase,count:room.seatCount(),capacity:8,track:room.track,vehicle:room.vehicle,
+   players:[...room.clients.values()].filter(p=>p.disconnectedAt==null).flatMap(p=>p.seats.map(seat=>seat.name)),
    local:[...room.clients.keys()].some(key=>this.clients.get(key)?.network===client.network),
   }))});
  }
@@ -79,7 +80,7 @@ export class Lobby {
    this.removeFromRoom(client);client.room=room;room.join(client.send,id,client.name);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='leave-room'){this.removeFromRoom(client);this.directory(id);this.broadcastDirectory();return;}
-  if(msg.type==='directory'){this.directory(id);return;}
+  if(msg.type==='directory'){this.directory(id,true);return;}
   client.room?.message(id,msg);if(['rename-room','settings','profile'].includes(msg.type))this.persistRooms();if(msg.type==='profile')this.broadcastDirectory();
  }
  tick(){

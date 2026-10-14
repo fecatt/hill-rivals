@@ -301,12 +301,23 @@ body.online #racer-column .ability-select .choice-arrow{width:24px;height:24px;f
 .chat-unread{position:absolute;top:-7px;right:-7px;display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border:2px solid #fff8e7;border-radius:999px;background:#d84e37;color:#fff;font-size:10px;font-weight:800;line-height:1}
 .chat-unread[hidden]{display:none!important}
 @media(max-width:750px),(pointer:coarse){#chat-dialog[open]{width:min(420px,100vw);padding-inline:12px}#chat-dialog #chat-log{padding:10px}#chat-dialog #chat-form{padding-bottom:max(8px,env(safe-area-inset-bottom))}}
+#network-toggle{position:relative}
+#network-dialog[open]{position:fixed;inset:0 0 0 auto;width:min(410px,92vw);height:100dvh;max-height:100dvh;box-sizing:border-box;margin:0;display:flex;flex-direction:column;gap:10px;overflow:hidden;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));border:1px solid #d8dfce;border-radius:18px 0 0 18px;background:#fff8e7;color:#20382f;box-shadow:-12px 0 40px #20382f28}
+#network-dialog::backdrop{background:#15251f66;backdrop-filter:blur(2px)}
+#network-dialog #close-network{flex:0 0 38px;align-self:flex-end;width:38px;height:38px;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;font-size:24px;line-height:1;padding:0}
+#network-dialog h2{margin:0;font-size:22px}#network-summary{margin:0;color:#687b6b;font-size:12px}
+#network-room-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:2px}
+.network-room-card{padding:12px;border:1px solid #d8dfce;border-radius:13px;background:#f4f1e5}
+.network-room-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.network-room-heading b{font-size:14px}.network-room-heading span{padding:4px 7px;border-radius:7px;background:#e6eadb;color:#365b48;font-size:11px;font-weight:800;letter-spacing:1px}
+.network-room-players,.network-room-meta{margin:7px 0 0;color:#687b6b;font-size:11px;line-height:1.4}.network-room-players{color:#365b48;font-weight:600}
+.network-room-card button{width:100%;min-height:38px;margin-top:10px;border:2px solid #fff;border-radius:10px;background:#365b48;color:white;font-weight:700}.network-room-card button:disabled{background:#e5e4d8;color:#687b6b;opacity:1}
+@media(max-width:750px),(pointer:coarse){#network-dialog[open]{width:min(420px,100vw);padding-inline:12px;border-radius:16px 0 0 16px}}
 
 /* Single online garage: four local racers in a balanced 2×2 grid. */
 body.online header>div{display:block!important;font-size:11px;letter-spacing:2px}
 body.online header nav #menu,body.online header nav #pause{display:none!important}
 body.online #online-bar{display:none!important}
-body.online #lobby{width:calc(100% - 48px);max-width:1640px;margin:12px auto 24px;padding:20px 22px;display:grid;grid-template-columns:minmax(430px,1.15fr) minmax(260px,.78fr) minmax(430px,1.15fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "racer settings room";gap:10px 18px;align-items:stretch;max-height:calc(100dvh - 76px);overflow:auto;background:#fff8e7ed;border:2px solid #fff;border-radius:24px;box-shadow:0 12px 35px #20382f20}
+body.online #lobby{width:calc(100% - 48px);max-width:1640px;margin:12px auto 24px;padding:20px 22px;display:grid;grid-template-columns:minmax(270px,.75fr) minmax(500px,1.35fr) minmax(410px,1.1fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "settings racer room";gap:10px 18px;align-items:stretch;max-height:calc(100dvh - 76px);overflow:auto;background:#fff8e7ed;border:2px solid #fff;border-radius:24px;box-shadow:0 12px 35px #20382f20}
 body.online #lobby>.eyebrow{grid-area:eyebrow;margin:0;color:#526957}
 body.online #lobby>h1{grid-area:title;margin:0;font-size:clamp(28px,3vw,42px);letter-spacing:-1.5px}
 body.online #lobby>.intro{grid-area:intro;margin:0 0 4px;font-size:13px}
@@ -333,34 +344,35 @@ body.online .vehicle-setting #vehicle-description{min-height:0!important;font-si
 body.online #car-specs>div{padding:4px 2px}
 body.online #car-specs dt{font-size:8px}body.online #car-specs dd{font-size:9px}
 body.online #lobby .bottom>#start{grid-column:auto;grid-row:3;width:100%;min-height:54px;margin:0;padding:9px;font-size:16px}
-body.online #room-panel{grid-area:room;position:relative;display:flex;flex-direction:column;gap:10px;height:auto;min-height:0;max-height:none;margin:0;padding:16px;overflow:visible;border:2px solid #fff;border-radius:18px;background:#fff8e7f7;box-shadow:0 7px 0 #20382f12}
-body.online #room-panel .room-heading{order:0;display:flex;align-items:center;gap:8px;min-width:0}
+body.online #room-panel{grid-area:room;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 50px;grid-template-rows:auto auto minmax(190px,1fr) auto auto;gap:10px;height:auto;min-height:0;max-height:none;margin:0;padding:16px;overflow:visible;border:2px solid #fff;border-radius:18px;background:#fff8e7f7;box-shadow:0 7px 0 #20382f12}
+body.online #room-panel .room-heading{grid-column:1;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0}
 body.online #room-panel .room-heading h2{flex:1;min-width:0;margin:0;font-size:20px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body.online #room-panel .room-heading .icon-button,body.online #room-panel #copy-code{flex:0 0 auto}
-body.online #room-panel #room-status{order:1;min-height:0;margin:0;font-size:11px;line-height:1.4}
+body.online #room-panel #room-status{grid-column:1;grid-row:2;min-height:0;margin:0;font-size:11px;line-height:1.4}
 body.online #room-panel #host-caption,body.online #room-panel #connection-status,body.online #room-panel .room-invite{display:none!important}
-body.online #room-panel .room-list{order:2;flex:1;min-height:190px;height:auto;max-height:none!important;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px;overflow:auto}
+body.online #room-panel .room-list{grid-column:1;grid-row:3;min-height:190px;height:auto;max-height:none!important;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px;overflow:auto}
 body.online #room-panel .room-list:before{margin-bottom:10px}
 body.online #room-panel .room-list>div{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;padding:7px 2px;font-size:11px}
-body.online #room-sidebar{order:3;display:flex;flex-direction:row;align-items:center;gap:7px;min-height:36px}
-body.online #room-sidebar>button{width:auto;min-width:68px;min-height:36px;padding:7px 10px;font-size:11px}
+body.online #room-sidebar{grid-column:2;grid-row:1/4;display:flex;flex-direction:column;align-items:stretch;gap:8px;min-height:0}
+body.online #room-sidebar>button{display:grid;place-items:center;width:48px;min-width:48px;height:48px;min-height:48px;padding:9px;border:2px solid #fff;border-radius:11px;background:#eef0df;color:#365b48;box-shadow:0 3px 0 #20382f12}
+body.online #room-sidebar>button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 body.online #room-sidebar .room-party-controls{display:none!important}
-body.online #room-sidebar #room-settings{margin-left:auto}
+body.online #room-sidebar #room-settings{margin-top:auto}
 body.online #room-panel #room-chat-toggle{grid-column:auto;grid-row:auto}
-body.online #room-panel #room-browser{order:4;width:100%;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px}
+body.online #room-panel #room-browser{grid-column:1/-1;grid-row:4;width:100%;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px}
 body.online #join-code label{display:block;margin:0 0 7px;font-size:11px;font-weight:bold;letter-spacing:.3px}
 body.online #join-code>div{display:flex;gap:7px;min-width:0}
 body.online #room-code{flex:1;width:0;min-width:0;height:42px;padding:8px 11px;border:1px solid #d8dfce;border-radius:9px;background:#fffdf5;font-size:16px;letter-spacing:3px;text-transform:uppercase}
 body.online #join-code button{min-width:78px;border:1px solid #315b47;border-radius:9px;background:#365b48;color:white;font-weight:bold}
 body.online #directory-notice{min-height:15px;margin:6px 0 0;color:#687b6b;font-size:10px;line-height:1.35}
 body.online #directory-notice:empty{display:none}
-body.online #room-panel>#start{order:5;position:static;width:100%;min-height:54px;margin:0;padding:9px;font-size:16px;box-shadow:0 4px 0 #a43a28}
+body.online #room-panel>#start{grid-column:1/-1;grid-row:5;position:static;width:100%;min-height:54px;margin:0;padding:9px;font-size:16px;box-shadow:0 4px 0 #a43a28}
 body.online #room-options{top:58px;right:16px}
 body.online #lobby>.hint{display:none!important}
 body.online #lobby>.card-tools{display:none!important}
 body.online #lobby:has(#add-local-racer:not([hidden])){max-width:1640px}
 body.online #room-panel #menu{display:none!important}
-@media(max-width:1250px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(360px,1.1fr) minmax(240px,.8fr) minmax(360px,1.1fr);gap:10px 12px;padding:16px}body.online #racer-column #picks{gap:8px}body.online #racer-column .pick{padding:9px;min-height:205px}}
-@media(max-width:900px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"eyebrow eyebrow" "title title" "intro intro" "racer settings" "room room";max-height:none}body.online #racer-column #picks{grid-auto-rows:minmax(220px,1fr)}body.online #room-panel{min-height:440px}}
+@media(max-width:1250px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(250px,.75fr) minmax(420px,1.25fr) minmax(330px,1fr);gap:10px 12px;padding:16px}body.online #racer-column #picks{gap:8px}body.online #racer-column .pick{padding:9px;min-height:205px}}
+@media(max-width:900px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"eyebrow eyebrow" "title title" "intro intro" "settings racer" "room room";max-height:none}body.online #racer-column #picks{grid-auto-rows:minmax(220px,1fr)}body.online #room-panel{min-height:440px}}
 @media(max-width:750px),(pointer:coarse){body.online{overflow-x:hidden;overflow-y:auto}body.online header{min-height:42px;padding:calc(7px + env(safe-area-inset-top)) 12px 6px}body.online header>div{font-size:9px}body.online #lobby{width:calc(100% - 20px);max-width:none;max-height:none;margin:6px auto 14px;padding:12px;grid-template-columns:minmax(0,1fr);grid-template-areas:"eyebrow" "title" "intro" "racer" "settings" "room";gap:10px;border-radius:18px}body.online #lobby>h1{font-size:28px}body.online #lobby>.intro{font-size:12px}body.online #racer-column #picks{grid-template-columns:1fr!important;grid-auto-rows:auto;gap:8px}body.online #racer-column .pick{min-height:0;grid-template-columns:74px minmax(0,1fr);grid-template-rows:auto auto auto auto;grid-template-areas:"title title" "portrait name" "portrait choose" "keys ability";align-items:center;column-gap:10px;padding:10px}body.online #racer-column .pick h3{grid-area:title}body.online #racer-column .player-name-label{grid-area:name}body.online #racer-column .pick .portrait{grid-area:portrait;width:72px;height:88px}body.online #racer-column .pick .choose{grid-area:choose}body.online #racer-column .pick .keys{grid-area:keys}body.online #racer-column .pick .ability-select{grid-area:ability}body.online #lobby .bottom{grid-template-columns:1fr 1fr;grid-template-rows:minmax(150px,auto) minmax(190px,auto);gap:8px}body.online .setting-card{padding:9px}body.online .world-setting #world-preview{height:52px}body.online .vehicle-setting #vehicle-preview{height:56px}body.online #room-panel{gap:8px;padding:12px}body.online #room-panel .room-list{min-height:145px}body.online #room-sidebar{flex-wrap:wrap}body.online #room-sidebar>button{min-height:34px;padding:6px 8px;font-size:10px}body.online #room-panel #start{min-height:48px}body.online #room-options{top:auto;right:10px;bottom:58px}}
 @media(max-width:750px) and (orientation:landscape) and (pointer:coarse){body.online #lobby{grid-template-columns:minmax(145px,.9fr) minmax(150px,1fr) minmax(210px,1.2fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "racer settings room";gap:6px;padding:9px;margin:4px auto 8px}body.online #lobby>h1{font-size:22px}body.online #lobby>.intro{font-size:10px}body.online #racer-column #picks{grid-template-columns:1fr!important}body.online #racer-column .pick{grid-template-columns:54px minmax(0,1fr);padding:6px;column-gap:6px}body.online #racer-column .pick .portrait{width:52px;height:58px}body.online #racer-column .player-name-label{font-size:8px}body.online #racer-column .player-name-label input{height:25px;font-size:10px}body.online #racer-column .pick .keys{font-size:7px}body.online #racer-column .pick .ability-select{font-size:8px}body.online #racer-column .pick .ability-select select{height:25px;font-size:9px}body.online #lobby .bottom{grid-template-columns:1fr;grid-template-rows:minmax(112px,.8fr) minmax(142px,1fr);gap:5px}body.online .setting-card{padding:6px;gap:3px!important}body.online .world-setting #world-preview{display:none}body.online .vehicle-setting #vehicle-preview{height:28px}body.online #room-panel{gap:5px;padding:7px;max-height:calc(100dvh - 76px);overflow:auto}body.online #room-panel .room-heading h2{font-size:14px!important}body.online #room-panel .room-list{min-height:75px;padding:6px}body.online #room-sidebar{gap:4px}body.online #room-sidebar>button{min-width:0;min-height:27px;padding:4px 6px;font-size:8px}body.online #room-panel #room-browser{padding:6px}body.online #join-code label{font-size:8px}body.online #room-code{height:30px;font-size:12px}body.online #join-code button{min-width:52px;font-size:9px}body.online #directory-notice{font-size:8px}body.online #room-panel #start{min-height:34px;font-size:12px}}

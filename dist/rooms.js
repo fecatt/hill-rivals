@@ -15,6 +15,7 @@ function createRoomsUI(){
  $('#rename-form').onsubmit=e=>{e.preventDefault();const name=$('#room-name').value.trim();if(name){send({type:'rename-room',name});$('#rename-form').hidden=true;}};
  $('#chat-form').onsubmit=e=>{e.preventDefault();const text=$('#chat-text').value.trim();if(text){send({type:'chat',text});$('#chat-text').value='';$('#chat-text').focus();}};
  const chatDialog=document.createElement('dialog');chatDialog.id='chat-dialog';chatDialog.innerHTML='<button id="close-chat" type="button" aria-label="Закрыть чат">×</button>';document.body.append(chatDialog);chatDialog.append($('#room-chat'));
+ const networkDialog=document.createElement('dialog');networkDialog.id='network-dialog';networkDialog.innerHTML='<button id="close-network" type="button" aria-label="Закрыть список игроков">×</button><h2>Игроки в сети</h2><p id="network-summary">Ищем игроков…</p><div id="network-room-list" role="list"></div>';document.body.append(networkDialog);
  const chatLog=$('#chat-log'),chatInput=$('#chat-text');chatInput.setAttribute('enterkeyhint','send');
  const syncChatViewport=()=>{const viewport=window.visualViewport;if(viewport){chatDialog.style.setProperty('--chat-viewport-top',viewport.offsetTop+'px');chatDialog.style.setProperty('--chat-viewport-height',viewport.height+'px');}};
  syncChatViewport();window.visualViewport?.addEventListener('resize',syncChatViewport);window.visualViewport?.addEventListener('scroll',syncChatViewport);
@@ -23,11 +24,14 @@ function createRoomsUI(){
  const markChatRead=()=>{unreadCount=0;lastChatId=Math.max(lastChatId,...messages.map(message=>message.id||0));setUnread();};
  const closeChat=()=>chatDialog.close();
  $('#close-chat').onclick=closeChat;chatDialog.addEventListener('click',event=>{if(event.target===chatDialog)closeChat();});
- const sidebar=document.createElement('div');sidebar.id='room-sidebar';sidebar.append($('#copy-link'),$('#show-qr'),panel.querySelector('.room-party-controls'));panel.append(sidebar);$('#copy-link').textContent='Ссылка';
+ const closeNetwork=()=>networkDialog.close();$('#close-network').onclick=closeNetwork;networkDialog.addEventListener('click',event=>{if(event.target===networkDialog)closeNetwork();});
+ const sidebar=document.createElement('div');sidebar.id='room-sidebar';sidebar.append($('#copy-link'),$('#show-qr'),panel.querySelector('.room-party-controls'));panel.append(sidebar);$('#copy-link').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l2.4-2.4a5 5 0 0 0-7.1-7.1l-1.4 1.4"/><path d="M14 11a5 5 0 0 0-7.1 0l-2.4 2.4a5 5 0 0 0 7.1 7.1l1.4-1.4"/></svg>';$('#copy-link').title='Скопировать ссылку';$('#copy-link').setAttribute('aria-label','Скопировать ссылку');
+ $('#show-qr').innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3z"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/></svg>';$('#show-qr').title='Показать QR-код';$('#show-qr').setAttribute('aria-label','Показать QR-код');
  panel.append(browser);
- const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.textContent='Настройки';sidebar.append(settingsButton);
+ const settingsButton=document.createElement('button');settingsButton.id='room-settings';settingsButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"/><path d="m19.4 15 .1.1a1.8 1.8 0 1 1-2.5 2.5l-.1-.1a1.8 1.8 0 0 0-3 .9v.2a1.8 1.8 0 1 1-3.6 0v-.2a1.8 1.8 0 0 0-3-.9l-.1.1a1.8 1.8 0 1 1-2.5-2.5l.1-.1a1.8 1.8 0 0 0-.9-3h-.2a1.8 1.8 0 1 1 0-3.6h.2a1.8 1.8 0 0 0 .9-3l-.1-.1a1.8 1.8 0 1 1 2.5-2.5l.1.1a1.8 1.8 0 0 0 3-.9v-.2a1.8 1.8 0 1 1 3.6 0v.2a1.8 1.8 0 0 0 3 .9l.1-.1a1.8 1.8 0 1 1 2.5 2.5l-.1.1a1.8 1.8 0 0 0 .9 3h.2a1.8 1.8 0 1 1 0 3.6h-.2a1.8 1.8 0 0 0-.9 3Z"/></svg>';settingsButton.title='Настройки';settingsButton.setAttribute('aria-label','Настройки');sidebar.append(settingsButton);
  const options=document.createElement('div');options.id='room-options';options.hidden=true;panel.append(options);settingsButton.onclick=()=>{options.hidden=!options.hidden;settingsButton.setAttribute('aria-expanded',String(!options.hidden));};
- const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.type='button';chatToggle.innerHTML='Чат<span id="chat-unread" class="chat-unread" hidden></span>';chatToggle.setAttribute('aria-label','Открыть чат');sidebar.append(chatToggle);chatToggle.onclick=()=>{if(chatDialog.open){chatDialog.close();return;}chatDialog.showModal();markChatRead();syncChatViewport();requestAnimationFrame(()=>chatInput.focus());};
+ const networkToggle=document.createElement('button');networkToggle.id='network-toggle';networkToggle.type='button';networkToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"/></svg>';networkToggle.setAttribute('aria-label','Найти в сети');networkToggle.title='Найти в сети';sidebar.append(networkToggle);networkToggle.onclick=()=>{if(chatDialog.open)chatDialog.close();networkDialog.showModal();send({type:'directory'});};
+ const chatToggle=document.createElement('button');chatToggle.id='room-chat-toggle';chatToggle.type='button';chatToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a7.5 7.5 0 0 1-7.5 7.5H5l-2 2v-7.5A7.5 7.5 0 1 1 20 11.5Z"/><path d="M8 11h.01M12 11h.01M16 11h.01"/></svg><span id="chat-unread" class="chat-unread" hidden></span>';chatToggle.setAttribute('aria-label','Открыть чат');chatToggle.title='Открыть чат';sidebar.append(chatToggle);chatToggle.onclick=()=>{if(chatDialog.open){chatDialog.close();return;}if(networkDialog.open)networkDialog.close();chatDialog.showModal();markChatRead();syncChatViewport();requestAnimationFrame(()=>chatInput.focus());};
  const invitation=()=>{const url=new URL(location.href);url.search='';url.searchParams.set('mode','online');url.searchParams.set('room',roomState.room.code);return url.href;};
  document.addEventListener('pointerdown',e=>{if(!options.hidden&&!options.contains(e.target)&&!settingsButton.contains(e.target)){options.hidden=true;settingsButton.setAttribute('aria-expanded','false');}});
  const shareDialog=document.createElement('dialog');shareDialog.id='invite-dialog';shareDialog.innerHTML='<button id="close-invite" class="dialog-close" aria-label="Закрыть приглашение">Закрыть ×</button><h2>Пригласить в комнату</h2><div id="invite-qr" role="img" aria-label="QR-код для подключения к комнате"></div><p>Откройте камеру телефона и наведите её на код.</p><input id="invite-url" readonly aria-label="Ссылка на комнату"><button id="copy-invite-link">Скопировать ссылку</button>';document.body.append(shareDialog);
@@ -36,6 +40,21 @@ function createRoomsUI(){
  $('#close-invite').onclick=()=>shareDialog.close();$('#copy-invite-link').onclick=()=>copy(invitation(),'Ссылка скопирована');
  $('#show-qr').onclick=()=>{const url=invitation(),qr=qrcode(0,'M');qr.addData(url);qr.make();$('#invite-qr').innerHTML=qr.createSvgTag({cellSize:6,margin:24,scalable:true});$('#invite-url').value=url;shareDialog.showModal();};
  let messages=[];
+ const renderNetworkDirectory=state=>{
+  const rooms=state.rooms||[],players=rooms.reduce((total,room)=>total+(room.count||0),0);
+  $('#network-summary').textContent=`${state.online||0} подключений · ${players} гонщиков в ${rooms.length} комнатах`;
+  const target=$('#network-room-list');target.replaceChildren();
+  if(!rooms.length){const empty=document.createElement('p');empty.className='empty-rooms';empty.textContent='Пока никто не создал комнату.';target.append(empty);return;}
+  for(const room of rooms){
+   const card=document.createElement('article');card.className='network-room-card';card.setAttribute('role','listitem');
+   const header=document.createElement('div');header.className='network-room-heading';const title=document.createElement('b');title.textContent=room.name||('Гонка '+room.code);const code=document.createElement('span');code.textContent=room.code;header.append(title,code);
+   const people=document.createElement('p');people.className='network-room-players';people.textContent=(room.players||[]).join(' · ')||'Гонщики подключаются';
+   const meta=document.createElement('p');meta.className='network-room-meta';meta.textContent=`${room.count||0}/${room.capacity||8} игроков · ${{lobby:'Ожидание',countdown:'Старт скоро',race:'Идёт гонка',result:'Результаты'}[room.phase]||'Ожидание'}${room.local?' · В вашей сети':''}`;
+   const action=document.createElement('button');action.type='button';action.textContent=room.code===roomState?.room?.code?'Вы здесь':'Подключиться';action.disabled=room.code===roomState?.room?.code||(room.count||0)>=(room.capacity||8);action.onclick=()=>{closeNetwork();send({type:'join-room',code:room.code});};
+   card.append(header,people,meta,action);target.append(card);
+  }
+ };
+ window.setInterval(()=>{if(networkDialog.open)send({type:'directory'});},5000);
  const list=(target,rooms)=>{
   target.replaceChildren();
   if(!rooms.length){const empty=document.createElement('p');empty.className='empty-rooms';empty.textContent=target.id==='local-rooms'?'Пока нет комнат в вашей сети. Создайте первую.':'Пока нет открытых комнат. Начните свою гонку.';target.append(empty);return;}
@@ -43,6 +62,7 @@ function createRoomsUI(){
  };
  return {
   browser,
+  updateDirectory:renderNetworkDirectory,
   directory(state){
    roomState=null;mode='lobby';snapshots=[];onlineRound=-1;localCar=null;window.onlineIndex=undefined;window.racerNames=[];
    $('#lobby').hidden=false;browser.hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;if(window.cardTools)$('#room-options').append(window.cardTools);
@@ -66,6 +86,6 @@ function createRoomsUI(){
    if(chatDialog.open)markChatRead();else setUnread();
   },
   notice(text){$('#directory-notice').textContent=text;const field=$('#room-code');field.classList.remove('code-error');void field.offsetWidth;field.classList.add('code-error');field.setAttribute('aria-invalid','true');},
-  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;chatDialog.close();unreadCount=0;lastChatId=0;activeRoomCode='';setUnread();},
+  hide(){browser.hidden=true;shareDialog.close();options.hidden=true;chatDialog.close();networkDialog.close();unreadCount=0;lastChatId=0;activeRoomCode='';setUnread();},
  };
 }

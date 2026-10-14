@@ -273,7 +273,7 @@ function connect(){
   socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
-  if(state.type==='directory'){roomUI.directory(state);const requested=new URL(location.href).searchParams.get('room');if(!requested&&!selfRoomRequested){selfRoomRequested=true;send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});sendProfile();}return;}
+  if(state.type==='directory'){if(roomState?.room){roomUI.updateDirectory(state);return;}roomUI.directory(state);const requested=new URL(location.href).searchParams.get('room');if(!requested&&!selfRoomRequested){selfRoomRequested=true;send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});sendProfile();}return;}
     if(state.type==='chat'){roomUI.chat(state.messages);return;}
     if(state.type==='notice'){roomUI.notice(state.text);return;}
     if(state.type==='signal'){window.peerTransport.signal(state);return;}
