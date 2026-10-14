@@ -67,3 +67,44 @@ test('prediction stays finite under repeated corrections for all seven vehicles'
   }
  }
 });
+
+test('crates and bridges interpolate without mutating server data or confusing removed crates',()=>{
+ const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample)');
+ c.run(`const left=structuredClone(sample),right=structuredClone(sample);
+ const crate={id:2,x:100,y:100,a:0,age:1,chuteFade:0,vx:60,vy:80,av:1,grounded:false,claimedBy:null,type:0};
+ left.serverNow=1000;right.serverNow=1050;
+ left.game.bonus=[{...crate,id:1,x:-100,y:-100},crate];right.game.bonus=[{...crate,x:120,y:140,a:.2,age:1.05}];
+ left.game.bridges=[{a:100,b:200,q:[0,0],v:[0,0]}];right.game.bridges=[{a:100,b:200,q:[10,4],v:[0,0]}];
+ left.game.time=2;right.game.time=2.05;time=2;
+ snapshots=[left,right];roomState=right;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);`);
+ assert.equal(c.run('bonus.length'),1);
+ assert.equal(c.run('bonus[0].id'),2);
+ assert.equal(c.run('bonus[0].x'),110);
+ assert.equal(c.run('bonus[0].y'),120);
+ assert.equal(c.run('hillBridgeStates.get(100).q[0]'),5);
+ assert.equal(c.run('right.game.bonus[0].x'),120);
+ c.advance(100);c.run('update(1/120)');assert.ok(c.run('bonus[0].x')>120);
+ c.advance(5000);c.run('update(1/120)');assert.equal(c.run('bonus[0].x'),129);
+ c.run('right.game.bonus[0].grounded=true;update(1/120)');assert.equal(c.run('bonus[0].x'),120);
+ c.run('right.game.bonus=[];update(1/120)');assert.equal(c.run('bonus.length'),0);
+});
+
+test('animation time never jumps on packet installation and advances during short packet gaps',()=>{
+ const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample);time=5');
+ c.context.sample=structuredClone(c.context.sample);c.context.sample.game.time=5.1;c.context.sample.serverNow=1050;
+ c.run('roomState=sample;installGame(sample)');assert.equal(c.run('time'),5);
+ c.advance(100);c.run('update(1/120)');const before=c.run('time');assert.ok(before>5.1);
+ c.context.sample.game.time=5.11;c.context.sample.serverNow=1060;
+ c.run('roomState=sample;installGame(sample);update(1/120)');assert.ok(c.run('time')>=before);
+});
+
+test('synchronised render timeline does not rewind when packet delay increases',()=>{
+ const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample)');
+ c.run(`const left=structuredClone(sample),right=structuredClone(sample);
+ left.serverNow=1000;right.serverNow=1050;
+ left.game.cars[1].x=100;right.game.cars[1].x=200;
+ snapshots=[left,right];roomState=right;serverToLocal=-75;interpolationDelay=70;update(1/120);`);
+ assert.equal(c.run('cars[1].x'),110);
+ c.run('interpolationDelay=100;update(1/120)');assert.equal(c.run('cars[1].x'),110);
+ c.advance(50);c.run('update(1/120)');assert.equal(c.run('cars[1].x'),150);
+});

@@ -58,7 +58,7 @@ try {
   const sample=await page.evaluate(()=>{
     const latest=structuredClone(roomState),left=structuredClone(latest),right=structuredClone(latest);
     left.serverNow=1000;right.serverNow=1050;const other=1-window.onlineIndex;left.game.cars[other].x=100;right.game.cars[other].x=200;
-    snapshots=[left,right];roomState=right;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);
+    snapshots=[left,right];roomState=right;serverToLocal=null;renderTarget=-Infinity;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);
     return cars[other].x;
   });
   assert.ok(sample>=149&&sample<=152,'render between server positions');

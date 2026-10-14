@@ -68,7 +68,8 @@ function drawVehicle(c){
  if(c.alive&&c.noticeTime>0){ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillStyle='#fff9df';ctx.strokeStyle='#2d4935';ctx.lineWidth=4;ctx.strokeText(c.notice,c.x,c.y-87);ctx.fillText(c.notice,c.x,c.y-87);ctx.textAlign='left'}
 }
 const CRATE_COLORS=['#d65d46','#e8ad36','#4dafbc','#987044'];
-function newCrate(x,type){const y=terrain(x)-330;return {x,y,prevX:x,prevY:y,vx:0,vy:50,a:0,av:0,type,claimedBy:null,age:0,deployed:true,chuteFade:0,grounded:false}}
+let crateSerial=0;
+function newCrate(x,type){const y=terrain(x)-330;return {id:++crateSerial,x,y,prevX:x,prevY:y,vx:0,vy:50,a:0,av:0,type,claimedBy:null,age:0,deployed:true,chuteFade:0,grounded:false}}
 function crateSupport(b){const cs=Math.cos(b.a),sn=Math.sin(b.a);let best={depth:-Infinity,x:b.x};for(const [x,y] of [[-16,-16],[16,-16],[-16,16],[16,16]]){const wx=b.x+x*cs-y*sn,wy=b.y+x*sn+y*cs,sl=slope(wx),len=Math.hypot(1,sl),depth=(wy-terrain(wx))/len;if(depth>best.depth)best={depth,x:wx,nx:sl/len,ny:-1/len}}return best}
 function updateCrate(b,dt){
  b.prevX=b.x;b.prevY=b.y;b.age+=dt;b.chuteFade=Math.max(0,b.chuteFade-dt);

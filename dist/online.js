@@ -5,7 +5,29 @@ let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTime
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 let predictedCar=null,predictionControls=[false,false],inputHistory=[];
 let poseError={x:0,y:0,a:0,wheel:0},serverToLocal=null,bestRtt=Infinity;
-let interpolationDelay=70,lastPacketAt=0;
+let interpolationDelay=70,lastPacketAt=0,renderTarget=-Infinity;
+function renderWorld(left,right,mix,ahead){
+ const a=left.game,b=right.game;
+ // IDs survive collection/removal: array indices do not identify the same crate.
+ const previous=new Map(a.bonus.map(crate=>[crate.id,crate]));
+ const live=new Set(roomState.game.bonus.map(crate=>crate.id));
+ bonus=b.bonus.filter(crate=>live.has(crate.id)&&crate.claimedBy===null).map(crate=>{
+  const old=previous.get(crate.id)||crate,draw={...crate};
+  for(const field of ['x','y','a','age','chuteFade'])draw[field]=old[field]+(crate[field]-old[field])*mix;
+  // Coast only airborne crates, for at most 150 ms; collisions remain server-owned.
+  if(!crate.grounded){draw.x+=crate.vx*ahead;draw.y+=crate.vy*ahead;draw.a+=crate.av*ahead;}
+  draw.age+=ahead;draw.chuteFade=Math.max(0,draw.chuteFade-ahead);
+  return draw;
+ });
+ const previousBridges=new Map((a.bridges||[]).map(bridge=>[bridge.a,bridge]));
+ hillBridgeStates.clear();
+ for(const bridge of b.bridges||[]){
+  const old=previousBridges.get(bridge.a)||bridge;
+  hillBridgeStates.set(bridge.a,{...bridge,q:bridge.q.map((q,j)=>old.q[j]+(q-old.q[j])*mix+bridge.v[j]*ahead),v:[...bridge.v]});
+ }
+ // Packet installation must never rewind the render clock.
+ time=Math.max(time,a.time+(b.time-a.time)*mix+ahead);
+}
 const predictAbility=activateAbility;
 // Use the shared wheel/suspension physics for local response. Race outcomes stay on the server.
 input=i=>i===window.onlineIndex?predictionControls:[false,false];
@@ -91,7 +113,7 @@ update=dt=>{
   count=0;
   if(mode==='race'&&snapshots.length){
     const now=performance.now(),elapsed=now-snapshotReceived;
-    const target=roomState.serverNow+elapsed-interpolationDelay;
+    const target=renderTarget=Math.max(renderTarget,(serverToLocal===null?roomState.serverNow+elapsed:now-serverToLocal)-interpolationDelay);
     let left=snapshots[0],right=left;
     for(const snapshot of snapshots){if(snapshot.serverNow<=target)left=snapshot;else{right=snapshot;break;}right=left;}
     const mix=right.serverNow>left.serverNow?Math.max(0,Math.min(1,(target-left.serverNow)/(right.serverNow-left.serverNow))):0;
@@ -110,7 +132,7 @@ update=dt=>{
       }
       return car;
     });
-    time=left.game.time+(right.game.time-left.game.time)*mix;
+    renderWorld(left,right,mix,Math.max(0,Math.min(.15,(target-right.serverNow)/1000)));
   }
   if(mode==='race'){
     const own=cars[roomState.racers.findIndex(p=>p.id===roomState.you)];
@@ -122,7 +144,7 @@ function installGame(state){
   if(!state.game)return;
   const g=state.game;
   const newRound=onlineRound!==state.round;
-  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];predictedCar=null;poseError={x:0,y:0,a:0,wheel:0};inputHistory=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;predictedCar=null;poseError={x:0,y:0,a:0,wheel:0};inputHistory=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
@@ -131,9 +153,16 @@ function installGame(state){
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
   state.racers.forEach((_,i)=>abilityKeys[i]='E / пробел');
   window.onlineIndex=state.racers.findIndex(p=>p.id===state.you);
-  track=g.track;vehicleModel=g.vehicle;time=g.time;snowStart=g.snowStart;snowEnd=g.snowEnd;
+  track=g.track;vehicleModel=g.vehicle;snowStart=g.snowStart;snowEnd=g.snowEnd;
+  if(newRound)time=g.time;
   // Keep object identities so suspension smoothing survives incoming packets.
-  if(newRound||state.phase==='result')cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));bonus=g.bonus;hillBridgeStates.clear();for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,bridge);count=0;
+  if(newRound||state.phase==='result'){
+   cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));
+   bonus=g.bonus.map(crate=>({...crate}));hillBridgeStates.clear();
+   for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,{...bridge,q:[...bridge.q],v:[...bridge.v]});
+   if(state.phase==='result')time=g.time;
+  }
+  count=0;
   mode=state.phase==='result'?'result':'race';paused=false;
   if(state.phase==='race')rebuildPrediction(state,received);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
@@ -155,7 +184,7 @@ function renderRoom(state){
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=['race','countdown'].includes(state.phase);
   if(state.phase==='lobby'){
-    mode='lobby';count=0;snapshots=[];$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
+    mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
     $('#room-status').textContent='Любой может выбрать трассу и машину. Старт начнётся, когда все нажмут «Готово». Можно отменить готовность.';
   }
   if(state.phase==='countdown'){

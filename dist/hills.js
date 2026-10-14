@@ -24,13 +24,13 @@ function hillTexture(im,crop,height){
  const key=crop.join(',')+':'+height;if(textures.has(key))return textures.get(key);
  const [x,y,w,h]=crop,texture=document.createElement('canvas');
  texture.height=Math.min(h,height);texture.width=Math.max(1,Math.round(w*texture.height/h));
- const paint=texture.getContext('2d');paint.drawImage(im,x,y,w,h,0,0,texture.width,texture.height);
+ const paint=texture.getContext('2d');paint.imageSmoothingEnabled=true;paint.imageSmoothingQuality='high';paint.drawImage(im,x,y,w,h,0,0,texture.width,texture.height);
  textures.set(key,texture);return texture;
 }
 function hillSprite(index,x,y,height,angle=0,flip=false){
  const isCloud=index===4||index===5,im=index<4?hillTrees[index%2]:isCloud?hillCloud:hillArt,crop=index<4?hillTreeBounds[index%2]:isCloud?hillCloudBounds:hillSprites[index];if(!crop||!im.complete||!im.naturalWidth)return;
  const [sx,sy,sw,sh]=crop,width=height*sw/sh;
- ctx.save();ctx.imageSmoothingEnabled=false;ctx.translate(x,y);ctx.rotate(angle);if(flip!==Boolean(isCloud&&index===5))ctx.scale(-1,1);
+ ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';ctx.translate(x,y);ctx.rotate(angle);if(flip!==Boolean(isCloud&&index===5))ctx.scale(-1,1);
  ctx.drawImage(hillTexture(im,crop,isCloud?128:512),-width/2,-height,width,height);ctx.restore();
 }
 function drawHillSun(){
@@ -60,7 +60,7 @@ function drawHillSun(){
 function drawHillBackground(){
  document.body.dataset.biome='hills';
  const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#71bce1');sky.addColorStop(1,'#d7ecd0');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
- ctx.save();ctx.imageSmoothingEnabled=false;
+ ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
  if(hillPanorama.complete&&hillPanorama.naturalWidth){
   const tileWidth=Math.max(W,H*hillPanorama.naturalWidth/hillPanorama.naturalHeight),offset=cam*.085;
   for(let i=Math.floor(offset/tileWidth)-1;i<=Math.ceil((offset+W)/tileWidth);i++){
