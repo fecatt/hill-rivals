@@ -17,11 +17,12 @@ test('server loads the updated offline physics for every racer and falling crate
     assert.ok(crate.type>=0&&crate.type<=3);
   }
 });
-test('one ready visitor starts all players after exactly ten seconds',()=>{
+test('only all ready players start after exactly ten seconds',()=>{
   let now=1000;const room=new Room({now:()=>now});
   const a=room.join(()=>{}),b=room.join(()=>{});
-  room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
-  assert.equal(room.clients.get(b).ready,false);assert.equal(room.startAt,11000);
+  room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'lobby');
+  assert.equal(room.startAt,null);now=21000;room.tick();assert.equal(room.phase,'lobby');
+  now=1000;room.message(b,{type:'ready',ready:true});assert.equal(room.phase,'countdown');assert.equal(room.startAt,11000);
   now=10999;room.tick();assert.equal(room.phase,'countdown');
   now=11000;room.tick();assert.equal(room.phase,'race');
   assert.equal(room.snapshot(a).game.cars.length,2);
@@ -30,17 +31,24 @@ test('one ready visitor starts all players after exactly ten seconds',()=>{
   assert.ok(room.snapshot(a).game.cars[0].x>x);
   assert.deepEqual(room.snapshot(a).game,room.snapshot(b).game);
 });
-test('arrivals, departures and repeated ready clicks do not restart or cancel countdown',()=>{
+test('join, readiness cancellation and profile changes cancel the countdown',()=>{
   let now=1000;const room=new Room({now:()=>now});const a=room.join(()=>{});
+  room.message(a,{type:'ready',ready:true});const originalDeadline=room.startAt;
+  now+=2000;const b=room.join(()=>{});assert.equal(room.phase,'lobby');assert.equal(room.startAt,null);
+  room.message(b,{type:'ready',ready:true});assert.equal(room.startAt,now+10000);
+  const deadline=room.startAt;room.message(a,{type:'ready',ready:true});assert.equal(room.startAt,deadline);
+  room.message(a,{type:'ready',ready:false});assert.equal(room.phase,'lobby');
+  now=originalDeadline;room.tick();assert.equal(room.phase,'lobby');
   room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
-  const deadline=room.startAt;now+=2000;
-  const b=room.join(()=>{});assert.equal(room.phase,'countdown');
-  room.message(b,{type:'ready',ready:true});assert.equal(room.startAt,deadline);
-  room.message(a,{type:'ready',ready:false});assert.equal(room.phase,'countdown');
-  room.leave(a);assert.equal(room.startAt,deadline);
-  const c=room.join(()=>{});room.message(c,{type:'profile',character:4,ability:'jump'});
-  now=deadline;room.tick();assert.equal(room.racers.length,2);
-  assert.equal(room.racers[1].character,4);
+  room.message(b,{type:'profile',character:4,ability:'jump'});assert.equal(room.phase,'lobby');
+  room.leave(b);assert.equal(room.phase,'countdown');assert.equal(room.startAt,now+10000);
+  now=room.startAt;room.tick();assert.equal(room.phase,'race');assert.equal(room.racers.length,1);
+});
+test('settings clear readiness and leaving an unready player allows the remaining ready players to start',()=>{
+  const room=new Room();const a=room.join(()=>{}),b=room.join(()=>{});
+  room.message(a,{type:'ready',ready:true});room.message(b,{type:'settings',track:1});
+  assert.equal(room.clients.get(a).ready,false);assert.equal(room.phase,'lobby');
+  room.message(a,{type:'ready',ready:true});room.leave(b);assert.equal(room.phase,'countdown');
 });
 test('any visitor selects settings; active race visitors spectate; disconnect ends two-car race',()=>{
   let now=0;const room=new Room({now:()=>now});const a=room.join(()=>{}),b=room.join(()=>{});
@@ -54,7 +62,7 @@ test('any visitor selects settings; active race visitors spectate; disconnect en
   assert.equal(room.snapshot(c).game.cars[0].ability,'shield');
   room.leave(b);room.tick();assert.equal(room.phase,'result');
   assert.equal(room.snapshot(a).game.winner,0);
-  room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
+  room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'lobby');
   room.message(c,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
 });
 test('empty room resets; forgotten controls expire; all models run finite physics',()=>{

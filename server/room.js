@@ -11,20 +11,22 @@ export class Room {
   join(send) {
     const id=randomUUID();
     this.clients.set(id,{id,send,character:0,ability:'turbo',ready:false,gas:false,brake:false,lastInput:0});
-    this.broadcast(); return id;
+    this.considerStart(); this.broadcast(); return id;
   }
   leave(id) {
     const index=this.racers.findIndex(p=>p.id===id);
     if(this.phase==='race' && index>=0) this.sim.disconnect(index);
     this.clients.delete(id);
     if(!this.clients.size) {this.phase='lobby';this.sim=null;this.startAt=null;this.racers=[];}
-    this.broadcast();
+    this.considerStart(); this.broadcast();
   }
   considerStart() {
-    if(this.phase==='lobby'&&this.clients.size&&[...this.clients.values()].some(p=>p.ready)){
-      this.phase='countdown';this.startAt=this.now()+this.countdownMs;
-    }
+    if(!['lobby','countdown'].includes(this.phase))return;
+    const allReady=this.clients.size>0&&[...this.clients.values()].every(p=>p.ready);
+    if(!allReady){this.phase='lobby';this.startAt=null;return;}
+    if(this.phase==='lobby'){this.phase='countdown';this.startAt=this.now()+this.countdownMs;}
   }
+
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
     if(msg.type==='input') {
@@ -36,7 +38,7 @@ export class Room {
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {
       if(this.phase==='result') {this.phase='lobby';this.sim=null;this.racers=[];}
-      if(msg.ready===true)p.ready=true;
+      p.ready=msg.ready===true;
       this.considerStart();
     }
     if(msg.type==='profile' && ['lobby','countdown'].includes(this.phase)) {
@@ -49,9 +51,10 @@ export class Room {
       if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<7)this.vehicle=msg.vehicle;
       for(const c of this.clients.values())c.ready=false;
     }
-    this.broadcast();
+    this.considerStart(); this.broadcast();
   }
   tick() {
+    this.considerStart();
     if(this.phase==='countdown' && this.now()>=this.startAt) {
       this.racers=[...this.clients.values()];
       this.racers.forEach((p,i)=>{p.color=palette[i%palette.length];p.gas=false;p.brake=false;p.ready=false;});
@@ -64,8 +67,7 @@ export class Room {
       if(this.sim.state().finished){this.phase='result';for(const p of this.clients.values())p.ready=false;}
     }
   }
-  snapshot(id) {
-    const state=this.sim?.state();
+  snapshot(id, state=this.sim?.state()) {
     return {type:'state',you:id,phase:this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
       track:this.track,vehicle:this.vehicle,
       online:this.clients.size,inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.id)).length:0,
@@ -73,5 +75,5 @@ export class Room {
       racers:this.racers.map(p=>({id:p.id,character:p.character,ability:p.ability,color:p.color})),
       game:state};
   }
-  broadcast() {for(const p of this.clients.values())p.send(this.snapshot(p.id));}
+  broadcast() {const state=this.sim?.state();for(const p of this.clients.values())p.send(this.snapshot(p.id,state));}
 }

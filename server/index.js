@@ -29,21 +29,21 @@ server.on('upgrade',(req,socket,head)=>{
 });
 wss.on('connection',ws=>{
   ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
-  const id=room.join(msg=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<256000)ws.send(JSON.stringify(msg));});
+  const id=room.join(msg=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<64000)ws.send(JSON.stringify(msg));});
   let windowAt=Date.now(),messages=0;
   ws.on('message',data=>{
     if(Date.now()-windowAt>1000){windowAt=Date.now();messages=0;}
     if(++messages>80)return;
-    try{const msg=JSON.parse(data.toString());if(msg&&typeof msg==='object')room.message(id,msg);}catch{}
+    try{const msg=JSON.parse(data.toString());if(msg&&typeof msg==='object'){if(msg.type==='ping'){ws.send(JSON.stringify({type:'pong',sent:msg.sent,serverNow:Date.now()}));return;}room.message(id,msg);}}catch{}
   });
   ws.on('close',()=>room.leave(id));ws.on('error',()=>ws.close());
 });
-let last=performance.now(),acc=0;
+let last=performance.now(),acc=0,nextBroadcast=0;
 const timer=setInterval(()=>{
   const now=performance.now();acc+=Math.min(.25,(now-last)/1000);last=now;
   while(acc>=1/120){room.tick();acc-=1/120;}
-  room.broadcast();
-},1000/20);
+  if(now>=nextBroadcast){room.broadcast();nextBroadcast=now+1000/30;}
+},1000/120);
 const heartbeat=setInterval(()=>{for(const ws of wss.clients){if(!ws.isAlive){ws.terminate();continue;}ws.isAlive=false;ws.ping();}},15000);
 server.listen(Number(process.env.PORT||3107),process.env.HOST||'127.0.0.1',()=>console.log('Hill Rivals listening',server.address()));
 function shutdown(){clearInterval(timer);clearInterval(heartbeat);for(const ws of wss.clients)ws.close(1012,'Server updating');server.close(()=>process.exit(0));setTimeout(()=>process.exit(0),3000).unref();}

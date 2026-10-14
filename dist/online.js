@@ -3,13 +3,40 @@ document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
+let predictedCar=null,predictionControls=[false,false],inputHistory=[];
+let poseError={x:0,y:0,a:0,wheel:0},serverToLocal=null,bestRtt=Infinity;
+let interpolationDelay=70,lastPacketAt=0;
+const predictAbility=activateAbility;
+// Use the shared wheel/suspension physics for local response. Race outcomes stay on the server.
+input=i=>i===window.onlineIndex?predictionControls:[false,false];
+function predictStep(c,dt,control){predictionControls=control;physics(c,dt,true);}
+function rebuildPrediction(state,received){
+ const index=window.onlineIndex,authoritative=state.game.cars[index];
+ if(!authoritative){predictedCar=null;return;}
+ const previous=cars[index];
+ predictedCar={...authoritative,contacts:authoritative.contacts.map(c=>({...c}))};
+ const base=serverToLocal===null?received:Math.min(received,Math.max(received-250,state.serverNow+serverToLocal));
+ let cursor=base,control=[false,false];
+ for(const command of inputHistory){
+  if(command.at<=base){control=[command.gas,command.brake];continue;}
+  advance(command.at);
+  control=[command.gas,command.brake];
+  if(command.ability)predictAbility(predictedCar);
+ }
+ advance(received);
+ function advance(until){for(;cursor<until;){const dt=Math.min(1/120,(until-cursor)/1000);predictStep(predictedCar,dt,control);cursor+=dt*1000;}}
+ // Preserve the current displayed pose while small server corrections fade out.
+ for(const field of Object.keys(poseError))poseError[field]=previous?previous[field]-predictedCar[field]:0;
+ if(Math.hypot(poseError.x,poseError.y)>180||!authoritative.alive)for(const field of Object.keys(poseError))poseError[field]=0;
+}
+
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
 const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">СПОСОБНОСТЬ</button><button data-control="gas">ГАЗ</button>';document.body.append(touch);
 document.title='Hill Rivals · Онлайн-гонка';
 $('header>div').textContent='ONLINE MULTIPLAYER';
 $('.eyebrow').textContent='ОБЩАЯ КОМНАТА. ОДИН ПОБЕДИТЕЛЬ.';
-$('.intro').textContent='Выбери персонажа. Кто-то нажимает «Готово» — через 10 секунд все в комнате начинают гонку!';
+$('.intro').textContent='Выбери персонажа. Когда все нажмут «Готово», начнётся общий отсчёт 10 секунд!';
 document.querySelector('.vehicle-choice').firstChild.textContent='Машина для гонки ';
 const hints=document.querySelectorAll('.hint');hints[hints.length-1].textContent='W / D / ↑ / → — газ · S / A / ↓ / ← — тормоз · E / пробел — способность. На телефоне — кнопки внизу. Новые посетители во время гонки наблюдают и ждут следующий старт.';
 $('#pause').hidden=true;
@@ -28,7 +55,7 @@ function renderPick(){
 }
 function sendProfile(){send({type:'profile',character:localCharacter,ability:localAbility});}
 renderPick();
-$('#start').onclick=()=>send({type:'ready',ready:true});
+$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.id===roomState.you)?.ready});};
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 togglePause=()=>{};
@@ -39,7 +66,13 @@ garage=()=>{
 };
 $('#menu').onclick=garage;
 function controls(){return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
-function sendInput(ability=false){const [gas,brake]=controls();send({type:'input',gas,brake,ability});}
+function sendInput(ability=false){
+ const [gas,brake]=controls(),at=performance.now(),previous=inputHistory.at(-1);
+ if(!previous||previous.gas!==gas||previous.brake!==brake||ability)inputHistory.push({at,gas,brake,ability});
+ while(inputHistory.length>1&&inputHistory[1].at<at-2000)inputHistory.shift();
+ if(ability&&predictedCar)predictAbility(predictedCar);
+ send({type:'input',gas,brake,ability});
+}
 addEventListener('keydown',e=>{if(e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
 addEventListener('keyup',()=>sendInput());
 addEventListener('blur',()=>sendInput());
@@ -51,21 +84,30 @@ for(const button of touch.querySelectorAll('button')){
   button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
 setInterval(()=>{if(roomState?.phase==='race')sendInput();},100);
-// Physics comes only from the server. Camera remains local to fit each screen.
+// Predict only our car; interpolate other racers and follow with a local camera.
 update=dt=>{
   if(!roomState)return;
   if(roomState.phase==='countdown'){count=Math.max(0,(roomState.startAt-(Date.now()+clockOffset))/1000);return;}
   count=0;
   if(mode==='race'&&snapshots.length){
-    // Render 100 ms behind the server, between authoritative snapshots (20 Hz).
-    // Never extrapolate physics or change the server's collision decisions.
-    const target=roomState.serverNow+performance.now()-snapshotReceived-100;
+    const now=performance.now(),elapsed=now-snapshotReceived;
+    const target=roomState.serverNow+elapsed-interpolationDelay;
     let left=snapshots[0],right=left;
     for(const snapshot of snapshots){if(snapshot.serverNow<=target)left=snapshot;else{right=snapshot;break;}right=left;}
     const mix=right.serverNow>left.serverNow?Math.max(0,Math.min(1,(target-left.serverNow)/(right.serverNow-left.serverNow))):0;
     cars=roomState.game.cars.map((latest,i)=>{
-      const car=Object.assign(cars[i]||{},latest),a=left.game.cars[i]||latest,b=right.game.cars[i]||a;
-      for(const field of ['x','y','a','wheel'])car[field]=a[field]+(b[field]-a[field])*mix;
+      const car=cars[i]||{},a=left.game.cars[i]||latest,b=right.game.cars[i]||a;
+      if(i===window.onlineIndex&&predictedCar){
+        if(elapsed<250&&latest.alive)predictStep(predictedCar,dt,controls());
+        Object.assign(car,predictedCar,{alive:latest.alive,reason:latest.reason});
+        for(const field of Object.keys(poseError)){poseError[field]*=Math.exp(-dt*14);car[field]=predictedCar[field]+poseError[field];}
+      }else{
+        Object.assign(car,latest);
+        for(const field of ['x','y','a','wheel'])car[field]=a[field]+(b[field]-a[field])*mix;
+        // A short missing packet should not freeze a moving opponent; bound drift.
+        const ahead=Math.max(0,Math.min(.15,(target-right.serverNow)/1000));
+        if(b.alive){car.x+=b.vx*ahead;car.y+=b.vy*ahead;car.a+=b.av*ahead;car.wheel+=b.vx*ahead/17;}
+      }
       return car;
     });
     time=left.game.time+(right.game.time-left.game.time)*mix;
@@ -80,8 +122,10 @@ function installGame(state){
   if(!state.game)return;
   const g=state.game;
   const newRound=onlineRound!==state.round;
-  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
-  snapshotReceived=performance.now();snapshots.push(state);if(snapshots.length>12)snapshots.shift();
+  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];predictedCar=null;poseError={x:0,y:0,a:0,wheel:0};inputHistory=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  const received=performance.now();
+  if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
+  lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
   colors.splice(0,colors.length,...state.racers.map(p=>p.color));
   chosen.splice(0,chosen.length,...state.racers.map(p=>p.character));
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
@@ -91,6 +135,7 @@ function installGame(state){
   // Keep object identities so suspension smoothing survives incoming packets.
   if(newRound||state.phase==='result')cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));bonus=g.bonus;hillBridgeStates.clear();for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,bridge);count=0;
   mode=state.phase==='result'?'result':'race';paused=false;
+  if(state.phase==='race')rebuildPrediction(state,received);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
   touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.id===state.you);
   if(state.phase==='race')$('#overlay').hidden=true;
@@ -105,12 +150,13 @@ function renderRoom(state){
   $('#my-ability').disabled=!['lobby','countdown'].includes(state.phase);
   $('#prev-char').disabled=$('#next-char').disabled=!['lobby','countdown'].includes(state.phase);
   updateMapDescription();describeVehicle();
-  $('#start').disabled=['race','countdown'].includes(state.phase);
-  $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С':'ГОТОВО';
+  $('#start').disabled=state.phase==='race';
+  const myReady=state.players.find(p=>p.id===state.you)?.ready;
+  $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=['race','countdown'].includes(state.phase);
   if(state.phase==='lobby'){
     mode='lobby';count=0;snapshots=[];$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
-    $('#room-status').textContent='Любой может выбрать трассу и машину. Нажми «Готово», чтобы запустить гонку для всех.';
+    $('#room-status').textContent='Любой может выбрать трассу и машину. Старт начнётся, когда все нажмут «Готово». Можно отменить готовность.';
   }
   if(state.phase==='countdown'){
     $('#room-status').textContent='До общего старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Все, кто в комнате, участвуют!';
@@ -127,9 +173,15 @@ function renderRoom(state){
 function connect(){
   clearTimeout(reconnectTimer);onlineBar.textContent='Подключение к серверу…';
   socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-  socket.onopen=()=>{sendProfile();};
+  socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
-    const state=JSON.parse(e.data);if(state.type!=='state')return;
+    const state=JSON.parse(e.data);
+    if(state.type==='pong'){
+      const now=performance.now(),rtt=now-state.sent;
+      if(rtt>=0&&rtt<=bestRtt*1.2){bestRtt=Math.min(bestRtt,rtt);serverToLocal=(state.sent+now)/2-state.serverNow;}
+      return;
+    }
+    if(state.type!=='state')return;
     clockOffset=state.serverNow-Date.now();
     const changed=!roomState||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.host,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.host,roomState.inRace]);
     roomState=state;installGame(state);
@@ -137,10 +189,11 @@ function connect(){
     if(changed||seconds!==renderedCountdown)renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;oldPhase='';reconnectTimer=setTimeout(connect,1500);};
+  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;predictedCar=null;snapshots=[];oldPhase='';reconnectTimer=setTimeout(connect,1500);};
   socket.onerror=()=>socket.close();
 }
-connect();
+window.assetsReady.then(connect);
+setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)send({type:'ping',sent:performance.now()});},2000);
 let deployedVersion;
 setInterval(async()=>{
   try{const state=await fetch('/health',{cache:'no-store'}).then(r=>r.json());
