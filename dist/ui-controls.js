@@ -27,6 +27,7 @@ function mountChoiceControls(){
  }
 }
 function refreshChoices(){
+ window.refreshMobileSettings?.();
  mountChoiceControls();
  for(const [select,control] of choiceControls){
   if(!select.isConnected){choiceControls.delete(select);continue;}
@@ -43,8 +44,8 @@ function refreshChoices(){
  $('#world-description').textContent=MAPS[+$('#track').value].description;
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
  if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=false;if($('#menu').parentElement!==$('#room-sidebar'))$('#room-sidebar').append($('#menu'));if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}
- else if(online&&mode==='race'){$('#menu').hidden=false;if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));}
- else if(!online){if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));$('#menu').hidden=mode==='lobby';$('#pause').hidden=mode==='lobby';}
+ else if(online&&mode==='race'){$('#menu').hidden=true;$('#pause').hidden=false;}
+ else if(!online){if($('#menu').parentElement!==document.querySelector('nav'))document.querySelector('nav').append($('#menu'));$('#menu').hidden=true;$('#pause').hidden=mode!=='race';}
 }
 const settings=$('.bottom'),worldLabel=$('#track').closest('label'),vehicleLabel=$('#vehicle').closest('label');
 worldLabel.classList.add('setting-card','world-setting');vehicleLabel.classList.add('setting-card','vehicle-setting');

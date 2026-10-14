@@ -6,7 +6,7 @@ import {WebSocketServer,WebSocket} from 'ws';
 import {Lobby} from './lobby.js';
 const root=path.resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const version=process.env.APP_VERSION||'development';
-const lobby=new Lobby();
+const lobby=new Lobby({storeFile:process.env.ROOM_STORE_FILE});
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.webmanifest':'application/manifest+json','.svg':'image/svg+xml'};
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({ok:true,version,online:lobby.clients.size,rooms:lobby.rooms.size}));return;}
@@ -24,21 +24,23 @@ const wss=new WebSocketServer({noServer:true,maxPayload:16384});
 server.on('upgrade',(req,socket,head)=>{
   let originAllowed=true;
   try{if(req.headers.origin)originAllowed=new URL(req.headers.origin).host===req.headers.host;}catch{originAllowed=false;}
-  if(req.url!=='/ws'||!originAllowed||wss.clients.size>=64){socket.destroy();return;}
+  if(new URL(req.url,'http://localhost').pathname!=='/ws'||!originAllowed||wss.clients.size>=64){socket.destroy();return;}
   wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
 });
 wss.on('connection',(ws,req)=>{
   ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
   // nginx overwrites this header from the incoming PROXY protocol address.
   const address=process.env.TRUST_PROXY==='1'?String(req.headers['x-forwarded-for']||req.socket.remoteAddress):req.socket.remoteAddress;
-  const id=lobby.connect(msg=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<64000)ws.send(JSON.stringify(msg));},address);
+  const deliver=msg=>{if(ws.readyState===WebSocket.OPEN&&ws.bufferedAmount<64000)ws.send(JSON.stringify(msg));};
+  const id=lobby.connect(deliver,address,/^[0-9a-f-]{36}$/i.test(new URL(req.url,'http://localhost').searchParams.get('session')||'')?new URL(req.url,'http://localhost').searchParams.get('session'):'');
   let windowAt=Date.now(),messages=0;
   ws.on('message',data=>{
+    if(lobby.clients.get(id)?.send!==deliver)return;
     if(Date.now()-windowAt>1000){windowAt=Date.now();messages=0;}
     if(++messages>80)return;
     try{const msg=JSON.parse(data.toString());if(msg&&typeof msg==='object'){if(msg.type==='ping'){ws.send(JSON.stringify({type:'pong',sent:msg.sent,serverNow:Date.now()}));return;}lobby.message(id,msg);}}catch{}
   });
-  ws.on('close',()=>lobby.disconnect(id));ws.on('error',()=>ws.close());
+  ws.on('close',()=>lobby.disconnect(id,deliver));ws.on('error',()=>ws.close());
 });
 let last=performance.now(),acc=0,nextBroadcast=0;
 const timer=setInterval(()=>{

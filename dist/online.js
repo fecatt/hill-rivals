@@ -2,6 +2,7 @@
 window.localGameHooks={update,input,activateAbility,togglePause,garage,start,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
+const connectionSession=sessionStorage.getItem('hill-session')||crypto.randomUUID();sessionStorage.setItem('hill-session',connectionSession);
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 let localCar=null,localControls=[false,false];
@@ -59,6 +60,7 @@ function sendPose(force=false){
  lastPoseSent=now;
  const pose={};
  for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=localCar[field];
+  if(paused){pose.vx=0;pose.vy=0;pose.av=0;}
  pose.alive=localCar.alive;pose.reason=localCar.reason;pose.rocketOn=localCar.rocketOn;
  const packet={type:'pose',round:onlineRound,seq:++poseSequence,time:localSimTime,pose};
  send(packet);window.peerTransport?.broadcast(packet);
@@ -97,17 +99,18 @@ renderPick();
 $('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.id===roomState.you)?.ready});};
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
-togglePause=()=>{};
+togglePause=()=>{if(mode!=='race')return;paused=!paused;keysClear();sendInput();$('#overlay').hidden=!paused;if(paused)showPauseMenu();};
 activateAbility=()=>sendInput(true);
 garage=()=>{
+  if(mode==='race'||mode==='result'){keysClear();paused=false;$('#overlay').hidden=true;send({type:'return-garage'});return;}
   const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);send({type:'leave-room'});
 };
 $('#menu').onclick=garage;
-function controls(){return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
+function controls(){if(paused)return [false,false];return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
 function sendInput(ability=false){
  if(!window.onlineActive)return;
  const [gas,brake]=controls();
- if(ability&&localCar)localAbilityAction(localCar);
+ if(ability&&localCar&&!paused)localAbilityAction(localCar);
  send({type:'input',gas,brake});
 }
 addEventListener('keydown',e=>{if(!window.onlineActive||e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
@@ -143,6 +146,7 @@ setInterval(()=>{if(roomState?.phase==='race')sendInput();},100);
 // Simulate our car locally; interpolate the remote cars and shared bonuses.
 update=dt=>{
   if(!roomState)return;
+  if(paused&&roomState.phase==='race'){sendPose();return;}
   if(roomState.phase==='countdown'){count=Math.max(0,(roomState.startAt-(Date.now()+clockOffset))/1000);return;}
   count=0;
   if(mode==='race'&&snapshots.length){
@@ -183,6 +187,7 @@ function installGame(state){
   const newRound=onlineRound!==state.round;
   if(newRound){window.resetTouchHints();onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];renderTarget=-Infinity;localCar=null;poseSequence=0;lastPoseSent=-Infinity;seenRewards.clear();resetHillBridges();keysClear();setWorldSeed(g.seed);}
   const received=performance.now();
+  poseSequence=Math.max(poseSequence,state.poseSequence||0);
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
   window.racerNames=state.racers.map((p,i)=>p.name||'Игрок '+(i+1));
@@ -201,11 +206,11 @@ function installGame(state){
    if(state.phase==='result')time=g.time;
   }
   count=0;
-  mode=state.phase==='result'?'result':'race';paused=false;
+  mode=state.phase==='result'?'result':'race';if(newRound||state.phase==='result')paused=false;
   if(state.phase==='race')installLocalCar(state);
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
   touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.id===state.you);
-  if(state.phase==='race')$('#overlay').hidden=true;
+  if(state.phase==='race'&&!paused)$('#overlay').hidden=true;
 }
 function renderRoom(state){
   roomUI.state(state);
@@ -222,8 +227,9 @@ function renderRoom(state){
   $('#start').disabled=state.phase==='race';
   const myReady=state.players.find(p=>p.id===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
-  $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';
+  $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
   if(state.phase==='lobby'){
+    onlineRound=-1;localCar=null;
     mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
     $('#room-status').textContent='Готовы '+ready+' из '+state.players.length+'. Старт — после готовности всех игроков.';
   }
@@ -243,7 +249,7 @@ function connect(){
   if(!window.onlineActive)return;
   if(socket&&[0,1].includes(socket.readyState))return;
   clearTimeout(reconnectTimer);onlineBar.textContent='Подключение к серверу…';
-  socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
+  socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?session='+connectionSession);
   socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
@@ -268,13 +274,13 @@ function connect(){
     if(changed||seconds!==renderedCountdown)renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;roomState=null;localCar=null;snapshots=[];oldPhase='';window.peerTransport.reset();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Переподключаемся…';reconnectTimer=setTimeout(connect,1500);}};
+  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;snapshots=[];window.peerTransport.reset();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Переподключаемся…';reconnectTimer=setTimeout(connect,1500);}};
   socket.onerror=()=>socket.close();
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 window.onlineSession={
  enter(){roomPanel.hidden=false;onlineBar.hidden=false;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=true;window.assetsReady.then(connect);},
- exit(){clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
+ exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };
 setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();}},2000);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)send({type:'ping',sent:performance.now()});},2000);

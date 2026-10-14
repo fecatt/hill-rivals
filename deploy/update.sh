@@ -15,7 +15,7 @@ docker run --rm --entrypoint node "$image" --test test/room.test.js test/online.
 docker run --rm --entrypoint node "$image" --input-type=module -e 'import {createSimulation} from "./server/simulation.js"; const s=createSimulation([{character:0,ability:"turbo",color:"red"}],0,0); s.step(); if(!Number.isFinite(s.state().cars[0].x)) process.exit(1);'
 old_image=$(docker inspect --format '{{.Config.Image}}' hill-rivals 2>/dev/null || true)
 docker rm -f hill-rivals >/dev/null 2>&1 || true
-docker run -d --name hill-rivals --restart unless-stopped --memory 256m --cpus 1 --log-opt max-size=10m --log-opt max-file=3 -p 127.0.0.1:3107:3107 -e APP_VERSION="$target" "$image" >/dev/null
+docker run -d --name hill-rivals --mount type=volume,src=hill-rivals-data,dst=/app/data --restart unless-stopped --memory 256m --cpus 1 --log-opt max-size=10m --log-opt max-file=3 -p 127.0.0.1:3107:3107 -e APP_VERSION="$target" "$image" >/dev/null
 healthy=false
 for i in {1..20}; do
   if curl -fsS http://127.0.0.1:3107/health >/dev/null; then healthy=true; break; fi
@@ -24,7 +24,7 @@ done
 if [[ "$healthy" != true ]]; then
   docker logs --tail 30 hill-rivals
   docker rm -f hill-rivals >/dev/null
-  if [[ -n "$old_image" ]]; then docker run -d --name hill-rivals --restart unless-stopped --memory 256m --cpus 1 -p 127.0.0.1:3107:3107 "$old_image" >/dev/null; fi
+  if [[ -n "$old_image" ]]; then docker run -d --name hill-rivals --mount type=volume,src=hill-rivals-data,dst=/app/data --restart unless-stopped --memory 256m --cpus 1 -p 127.0.0.1:3107:3107 "$old_image" >/dev/null; fi
   exit 1
 fi
 printf '%s\n' "$target" > /opt/hill-rivals/deployed-sha

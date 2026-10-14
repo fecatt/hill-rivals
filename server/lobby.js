@@ -1,6 +1,8 @@
 import {randomUUID,randomInt,randomBytes,createHmac} from 'node:crypto';
 import {Room} from './room.js';
 import {isIP} from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 
 function networkAddress(address){
  const value=String(address).replace(/^::ffff:/,'').split('%')[0];
@@ -12,10 +14,28 @@ function networkAddress(address){
 
 // Network identifiers stay server-side. An IP match is a discovery hint, not proof of LAN connectivity.
 export class Lobby {
- constructor(options={}){this.options=options;this.rooms=new Map();this.clients=new Map();this.salt=randomBytes(32);}
- connect(send,address='unknown'){
+ constructor(options={}){
+  this.options=options;this.rooms=new Map();this.clients=new Map();this.sessions=new Map();this.salt=randomBytes(32);
+  if(options.storeFile&&fs.existsSync(options.storeFile))for(const saved of JSON.parse(fs.readFileSync(options.storeFile,'utf8'))){
+   if(!/^[A-Z]{5}$/.test(saved.code))continue;
+   const room=new Room({...options,code:saved.code,name:saved.name});room.track=saved.track;room.vehicle=saved.vehicle;room.playerSerial=saved.playerSerial||0;this.rooms.set(room.code,room);
+  }
+ }
+ persistRooms(){
+  if(!this.options.storeFile)return;
+  const file=this.options.storeFile;fs.mkdirSync(path.dirname(file),{recursive:true});
+  fs.writeFileSync(file+'.tmp',JSON.stringify([...this.rooms.values()].map(r=>({code:r.code,name:r.name,track:r.track,vehicle:r.vehicle,playerSerial:r.playerSerial}))));fs.renameSync(file+'.tmp',file);
+ }
+ connect(send,address='unknown',session=''){
+  const previous=session&&this.sessions.get(session);
+  if(previous){
+   previous.send=send;previous.disconnectedAt=null;this.clients.set(previous.id,previous);
+   if(previous.room?.clients.has(previous.id)){previous.room.clients.get(previous.id).send=send;previous.room.clients.get(previous.id).disconnectedAt=null;previous.room.clients.get(previous.id).lastPoseAt=(this.options.now||Date.now)();previous.room.broadcast();send({type:'chat',messages:previous.room.chat});}
+   else this.directory(previous.id);
+   return previous.id;
+  }
   const id=randomUUID(),network=createHmac('sha256',this.salt).update(networkAddress(address)).digest('hex');
-  this.clients.set(id,{id,send,network,room:null,name:''});this.directory(id);return id;
+  const client={id,send,network,room:null,name:''};this.clients.set(id,client);if(session)this.sessions.set(session,client);this.directory(id);return id;
  }
  directory(id){
   const client=this.clients.get(id);if(!client||client.room)return;
@@ -27,9 +47,14 @@ export class Lobby {
  broadcastDirectory(){for(const client of this.clients.values())this.directory(client.id);}
  removeFromRoom(client){
   const room=client.room;if(!room)return;room.leave(client.id);client.room=null;
-  if(!room.clients.size)this.rooms.delete(room.code);
+  this.persistRooms();
  }
- disconnect(id){const client=this.clients.get(id);if(!client)return;this.removeFromRoom(client);this.clients.delete(id);this.broadcastDirectory();}
+ disconnect(id,expectedSend){
+  const client=this.clients.get(id);if(!client||expectedSend&&client.send!==expectedSend)return;
+  if([...this.sessions.values()].includes(client)){client.disconnectedAt=(this.options.now||Date.now)();client.send=()=>{};const player=client.room?.clients.get(id);if(player){player.send=()=>{};player.disconnectedAt=client.disconnectedAt;player.gas=false;player.brake=false;}}
+  else this.removeFromRoom(client);
+  this.clients.delete(id);this.broadcastDirectory();
+ }
  message(id,msg){
   const client=this.clients.get(id);if(!client)return;
   if(msg.type==='name'){
@@ -38,11 +63,11 @@ export class Lobby {
    client.room?.message(id,{type:'name',name:client.name});return;
   }
   if(msg.type==='create-room'){
-   if(client.room||this.rooms.size>=64)return;
+   if(client.room)return;
    let code;do{code=Array.from({length:5},()=>String.fromCharCode(65+randomInt(26))).join('');}while(this.rooms.has(code));
    const name=typeof msg.name==='string'?msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,36):'';
    const room=new Room({...this.options,code,name:name||'Гонка '+code});this.rooms.set(code,room);client.room=room;
-   room.join(client.send,id,client.name);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
+   room.join(client.send,id,client.name);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='join-room'){
    const code=typeof msg.code==='string'?msg.code.trim().toUpperCase():'';
@@ -55,8 +80,11 @@ export class Lobby {
   }
   if(msg.type==='leave-room'){this.removeFromRoom(client);this.directory(id);this.broadcastDirectory();return;}
   if(msg.type==='directory'){this.directory(id);return;}
-  client.room?.message(id,msg);
+  client.room?.message(id,msg);if(['rename-room','settings'].includes(msg.type))this.persistRooms();
  }
- tick(){for(const room of this.rooms.values())room.tick();}
+ tick(){
+  const now=(this.options.now||Date.now)();for(const [token,client] of this.sessions)if(client.disconnectedAt!==null&&client.disconnectedAt!==undefined&&now-client.disconnectedAt>30000){this.removeFromRoom(client);client.disconnectedAt=null;this.sessions.delete(token);}
+  for(const room of this.rooms.values())if(room.clients.size)room.tick();
+ }
  broadcast(){for(const room of this.rooms.values())room.broadcast(false);}
 }

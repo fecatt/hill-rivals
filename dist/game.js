@@ -32,7 +32,13 @@ function newCar(i){const v=VEHICLES[vehicleModel],spawnX=Math.max(100,Math.max(.
 $('#vehicle').onchange=describeVehicle;describeVehicle();
 function start(){window.resetTouchHints?.();vehicleModel=+$('#vehicle').value;newWorldSeed();track=+$('#track').value;snowStart=Infinity;snowEnd=0;nextSnow=6+Math.random()*6;resetHillBridges();cars=colors.slice(0,playerCount).map((_,i)=>newCar(i));cam=0;zoom=1;cameraY=0;time=0;count=3;nextDrop=5;bonus=[];particles=[];mode='race';paused=false;winner=null;$('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;$('#overlay').hidden=true;keysClear();canvas.focus()}
 $('#start').onclick=start;function keysClear(){Object.keys(keys).forEach(k=>keys[k]=false);window.resetTouchInput?.()}function garage(){mode='lobby';paused=false;$('#lobby').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;$('#foot').hidden=false;keysClear()}$('#menu').onclick=garage;
-function togglePause(){if(mode!=='race')return;paused=!paused;keysClear();$('#overlay').hidden=!paused;if(paused){$('#overlay').innerHTML='<h2>Пауза</h2><p>Переведи дыхание. Холмы подождут.</p><button id="resume">Продолжить</button>';$('#resume').onclick=togglePause}}$('#pause').onclick=togglePause;
+function showPauseMenu(){
+ $('#overlay').hidden=false;$('#overlay').innerHTML='<h2>Пауза</h2><button id="resume">Продолжить</button><button id="pause-garage">Вернуться в гараж</button><button id="pause-settings-toggle">Настройки</button><div id="pause-settings" hidden></div>';
+ $('#resume').onclick=togglePause;$('#pause-garage').onclick=()=>{paused=false;garage()};
+ $('#pause-settings-toggle').onclick=()=>{const panel=$('#pause-settings');panel.hidden=!panel.hidden;if(!panel.hidden)window.populatePauseSettings?.(panel)};
+}
+function togglePause(){if(mode!=='race')return;paused=!paused;keysClear();$('#overlay').hidden=!paused;if(paused)showPauseMenu()}
+$('#pause').onclick=togglePause;
 addEventListener('keydown',e=>{if(e.target?.matches?.('input,textarea,select,[contenteditable]'))return;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code))e.preventDefault();keys[e.code]=true;if(!e.repeat){const i=['KeyE','ShiftRight','unused'].indexOf(e.code);if(i>=0)activateAbility(cars[i])}if(e.code==='Escape'&&!e.repeat)togglePause()});addEventListener('keyup',e=>keys[e.code]=false);addEventListener('blur',()=>{keysClear();if(mode==='race'&&!paused)togglePause()});document.addEventListener('contextmenu',e=>e.preventDefault());canvas.addEventListener('mousedown',e=>{keys['Mouse'+e.button]=true;if(e.button===1)activateAbility(cars[2]);e.preventDefault()});addEventListener('mouseup',e=>keys['Mouse'+e.button]=false);
 // Engine audio: combustion pulses, exhaust resonance and filtered intake air.
 // Kept in game.js so the existing offline cache includes the complete sound.

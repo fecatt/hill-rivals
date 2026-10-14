@@ -91,7 +91,7 @@ test('client-owned poses are relayed without server integration; invalid and sta
   room.message(a,{type:'pose',round:room.round,seq:2,time:0,pose:invalid});room.tick();assert.equal(room.sim.state().cars[0].x,pose.x);
  }
  const spectator=room.join(()=>{});room.message(spectator,{type:'pose',round:room.round,seq:2,time:0,pose});assert.equal(room.clients.get(spectator).localPhysics,undefined);
- now+=5001;room.tick();assert.equal(room.sim.state().cars[0].alive,false);
+ now+=30001;room.tick();assert.equal(room.sim.state().cars[0].alive,false);
 });
 
 test('server awards a shared crate once to a client-owned car',()=>{

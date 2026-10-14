@@ -32,6 +32,11 @@ export class Room {
 
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
+    if(msg.type==='return-garage'){
+      const index=this.racers.findIndex(r=>r.id===id);
+      if(this.phase==='race'&&index>=0)this.sim.disconnect(index);
+      p.inGarage=true;p.ready=false;p.gas=false;p.brake=false;this.broadcast();return;
+    }
     if(msg.type==='name'){
       if(typeof msg.name!=='string')return;
       p.name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24)||'Игрок '+p.number;
@@ -76,7 +81,7 @@ export class Room {
     }
     if(msg.type==='ready' && ['lobby','countdown','result'].includes(this.phase)) {
       if(this.phase==='result') {this.phase='lobby';this.sim=null;this.racers=[];}
-      p.ready=msg.ready===true;
+      p.inGarage=false;p.ready=msg.ready===true;
       this.considerStart();
     }
     if(msg.type==='profile' && ['lobby','countdown'].includes(this.phase)) {
@@ -103,20 +108,21 @@ export class Room {
     if(this.phase==='race') {
       for(const [index,p] of this.racers.entries()){
         if(this.now()-p.lastInput>1500){p.gas=false;p.brake=false;}
-        if(p.localPhysics&&this.now()-p.lastPoseAt>5000)this.sim.disconnect(index);
+        if(p.localPhysics&&p.disconnectedAt==null&&this.now()-p.lastPoseAt>30000)this.sim.disconnect(index);
       }
       this.sim.step();
       if(this.sim.state().finished){this.phase='result';for(const p of this.clients.values())p.ready=false;}
     }
   }
   snapshot(id, state=this.sim?.state()) {
-    return {type:'state',you:id,phase:this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
+    const inGarage=this.clients.get(id)?.inGarage;
+    return {type:'state',you:id,poseSequence:this.clients.get(id)?.poseSeq||0,phase:inGarage?'lobby':this.phase,round:this.round,serverNow:this.now(),startAt:this.startAt,
       room:{code:this.code,name:this.name,host:this.host},
       track:this.track,vehicle:this.vehicle,
       online:this.clients.size,inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.id)).length:0,
       players:[...this.clients.values()].map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,ready:p.ready})),
       racers:this.racers.map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,color:p.color})),
-      game:state};
+      game:inGarage?null:state};
   }
   broadcast(force=true) {
     const state=this.sim?.state(),now=this.now();

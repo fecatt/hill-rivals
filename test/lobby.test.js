@@ -1,7 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Lobby} from '../server/lobby.js';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 function setup(){const lobby=new Lobby(),messages=new Map();const connect=network=>{const list=[];const id=lobby.connect(msg=>list.push(structuredClone(msg)),network);messages.set(id,list);return id;};return {lobby,messages,connect,last:(id,type)=>messages.get(id).filter(m=>m.type===type).at(-1)};}
+test('room code and settings survive empty room, disconnection and server restart',()=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hill-rooms-'));
+ try{
+  const storeFile=path.join(dir,'rooms.json');let now=1000;const lobby=new Lobby({storeFile,now:()=>now}),messages=[];
+  const deliver=msg=>messages.push(msg),id=lobby.connect(deliver,'home','session');lobby.message(id,{type:'create-room'});const code=messages.find(m=>m.type==='state').room.code;
+  lobby.message(id,{type:'rename-room',name:'Друзья'});lobby.message(id,{type:'settings',track:4,vehicle:2});lobby.disconnect(id,deliver);now+=1500;
+  const reconnected=lobby.connect(()=>{},'home','session');assert.equal(reconnected,id);assert.equal(lobby.clients.get(id).room.code,code);
+  lobby.disconnect(id,deliver);assert.ok(lobby.clients.has(id),'obsolete socket close cannot disconnect new connection');
+  lobby.disconnect(id);now+=31000;lobby.tick();assert.equal(lobby.rooms.get(code).clients.size,0);now+=365*24*3600000;lobby.tick();assert.ok(lobby.rooms.has(code));
+  const restarted=new Lobby({storeFile});const out=[],next=restarted.connect(msg=>out.push(msg));restarted.message(next,{type:'join-room',code});const state=out.find(m=>m.type==='state');assert.equal(state.room.name,'Друзья');assert.equal(state.track,4);assert.equal(state.vehicle,2);
+ }finally{assert.equal(path.dirname(path.resolve(dir)),path.resolve(os.tmpdir()));fs.rmSync(dir,{recursive:true,force:true});}
+});
 test('global directory lists every room and local directory marks only matching networks',()=>{
  const {lobby,connect,last}=setup(),a=connect('home'),b=connect('home'),c=connect('elsewhere');
  lobby.message(a,{type:'create-room',name:'Наша гонка'});const code=last(a,'state').room.code;assert.match(code,/^[A-Z]{5}$/);
@@ -12,7 +27,7 @@ test('global directory lists every room and local directory marks only matching 
  assert.equal(last(b,'state').room.host,a);lobby.message(b,{type:'settings',track:3});assert.equal(lobby.rooms.get(code).track,0);
  lobby.message(a,{type:'settings',track:3});assert.equal(lobby.rooms.get(code).track,3);
  lobby.disconnect(a);assert.equal(last(b,'state').room.host,b);
- lobby.disconnect(b);assert.equal(lobby.rooms.has(code),false);
+ lobby.disconnect(b);assert.equal(lobby.rooms.has(code),true);
 });
 test('chat and signaling remain inside the selected room; missing codes report an error',()=>{
  const {lobby,connect,last,messages}=setup(),a=connect('one'),b=connect('two'),c=connect('three');

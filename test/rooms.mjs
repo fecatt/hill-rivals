@@ -18,7 +18,7 @@ try{
  assert.equal(await a.locator('#chat-log').isVisible(),false);assert.equal(await a.locator('#player-name').inputValue(),'Игрок 1');
  const grid=await a.evaluate(()=>['racer-column','room-panel'].map(id=>{const b=document.getElementById(id).getBoundingClientRect();return {top:b.top,height:b.height};}));assert.ok(Math.abs(grid[0].top-grid[1].top)<1&&Math.abs(grid[0].height-grid[1].height)<1,'columns share top and bottom edges');
  assert.equal(await a.locator('#ability-panel .choice-tiles button').count(),3);await a.locator('#ability-panel button[data-value="jump"]').click();await a.waitForFunction(()=>roomState.players[0].ability==='jump');
- await a.locator('#room-settings').click();assert.equal(await a.locator('#mode-button').isVisible(),true);await a.locator('#room-settings').click();assert.equal(await a.locator('#mode-button').isVisible(),false);
+ await a.locator('#room-settings').click();assert.equal(await a.locator('#mode-button').isVisible(),true);await a.locator('#room-title').click();assert.equal(await a.locator('#mode-button').isVisible(),false);
  await a.locator('#rename-room').click();await a.locator('#room-name').fill('Вечерняя гонка');await a.locator('#rename-form button').first().click();await a.waitForFunction(()=>roomState.room.name==='Вечерняя гонка');
  await a.locator('#player-name').fill('Фёдор');await a.locator('#player-name').press('Enter');await a.waitForFunction(()=>roomState.players[0].name==='Фёдор');
  const invite=base+'/?mode=online&room='+code;
@@ -57,10 +57,13 @@ try{
  await shot(a,'room-desktop');await shot(b,'room-phone');assert.equal(await b.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await a.locator('#start').click();await b.locator('#start').click();await a.waitForFunction(()=>roomState?.phase==='countdown');const deadline=await a.evaluate(()=>roomState.startAt-roomState.serverNow);assert.ok(deadline>0&&deadline<=3000);
  await a.waitForFunction(()=>mode==='race',{},{timeout:7000});assert.equal(await b.locator('#touch-controls').isVisible(),true);await a.waitForFunction(()=>document.querySelector('#hud').textContent.includes('Фёдор'));
- await a.locator('#menu').click();await a.waitForSelector('#room-browser:not([hidden])');await b.waitForFunction(()=>roomState.room.host===roomState.you);
+ const ownId=await a.evaluate(()=>roomState.you);await a.evaluate(()=>socket.close());await a.waitForFunction(id=>socket?.readyState===1&&roomState?.you===id,ownId);
+ assert.equal(await a.evaluate(()=>roomState.you),ownId,'reconnection preserves racer identity');assert.equal(await a.evaluate(()=>mode),'race');assert.equal(await a.locator('nav #fullscreen-button').count(),0);assert.equal(await a.locator('#menu').isVisible(),false);
+ const sequence=await a.evaluate(()=>poseSequence);await a.reload();await a.waitForFunction(({ownId,sequence})=>roomState?.you===ownId&&mode==='race'&&roomState.poseSequence>sequence,{ownId,sequence});
+ await a.locator('#pause').click();await a.waitForTimeout(250);assert.equal(await a.evaluate(()=>paused),true,'online pause survives incoming snapshots');await a.locator('#pause-garage').click();await a.waitForFunction(()=>mode==='lobby');assert.equal(await a.evaluate(()=>roomState.room.code),code,'garage keeps the same room');await a.locator('#menu').click();await a.waitForSelector('#room-browser:not([hidden])');await b.waitForFunction(()=>roomState.room.host===roomState.you);
  await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#mode-button').textContent(),'Играть онлайн');
  await a.locator('#players + .choice-tiles button[data-value="3"]').click();await shot(a,'garage-grass');
- await a.locator('#mode-button').click();await a.waitForSelector('#room-browser:not([hidden])');await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#players').inputValue(),'3');assert.equal(documents,1,'mode switches do not reload the page');
+ await a.locator('#mode-button').click();await a.waitForSelector('#room-browser:not([hidden])');await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#players').inputValue(),'3');assert.equal(documents,2,'only the deliberate reconnection test reloads the page');
  await a.evaluate(()=>chooseMode(null));await a.waitForSelector('#mode-picker:not([hidden])');assert.equal(await a.locator('#mode-picker button').count(),0,'chooser only contains the two mode cards');assert.equal(await a.locator('#sound').isVisible(),false);
  assert.deepEqual(errors,[]);console.log('PASS: automatic title, rename permissions, persistent escaped names, QR decode/link join, hidden empty chat, square send icon, equal selects, 3-second start, terrain preview, mobile fit including height, direct mode switches, no duplicate chooser buttons.');
  await desktop.close();await phone.close();
