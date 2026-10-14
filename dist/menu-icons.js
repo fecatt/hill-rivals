@@ -3,7 +3,7 @@
 const menuIconPaths={
  globe:'<circle cx="16" cy="16" r="12"/><ellipse cx="16" cy="16" rx="5.5" ry="12"/><path d="M4 16h24M6.2 9h19.6M6.2 23h19.6"/>',
  chat:'<path d="M16 4a12 12 0 1 1-6.3 22.2L3 29l2.8-6.7A12 12 0 0 1 16 4Z"/><circle class="icon-dot" cx="11" cy="16" r="1.4"/><circle class="icon-dot" cx="16" cy="16" r="1.4"/><circle class="icon-dot" cx="21" cy="16" r="1.4"/>',
- link:'<path d="m11 17-4 4a5 5 0 0 0 7 7l5-5M21 15l4-4a5 5 0 0 0-7-7l-5 5M10 22 22 10"/>',
+ link:'<g transform="scale(1.3333)"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></g>',
  qr:'<path d="M4 4h9v9H4zM19 4h9v9h-9zM4 19h9v9H4zM19 19h4v4h-4zM27 19v4M19 27h4M27 27h1"/><path d="M8 8h1v1H8zM23 8h1v1h-1zM8 23h1v1H8z"/>',
  pencil:'<path d="m21 5 6 6M5 27l7-2L28 9a2 2 0 0 0 0-3l-2-2a2 2 0 0 0-3 0L7 20Z"/>',
  turbo:'<path class="icon-accent" d="M18 3 7 18h8l-1 11 11-16h-8Z"/>',
