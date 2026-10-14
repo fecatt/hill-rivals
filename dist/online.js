@@ -65,7 +65,7 @@ function sendPose(force=false){
 }
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
-const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
+const roomPanel=document.createElement('section');roomPanel.id='room-panel';roomPanel.hidden=true;$('#picks').after(roomPanel);
 const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake" aria-label="Тормоз и задний ход"><span class="touch-hint">НАЗАД</span></button><button data-control="ability" aria-label="Способность"><span class="touch-hint">ЩИТ / СПОСОБНОСТЬ</span></button><button data-control="gas" aria-label="Газ"><span class="touch-hint">ГАЗ</span></button>';document.body.append(touch);
 const roomUI=createRoomsUI();
 window.peerTransport=createPeerTransport(send,()=>roomState);
