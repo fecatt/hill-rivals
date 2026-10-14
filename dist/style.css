@@ -18,3 +18,54 @@ button:disabled{opacity:.55;cursor:default}#hud{max-height:180px;overflow:auto}.
 @media(max-height:760px){header{padding:16px 36px}h1{font-size:40px}.pick .portrait{height:90px}#picks{margin-top:8px}.bottom{margin-top:12px}.intro{line-height:1.4}.hint{margin:6px 0}}
 
 body[data-players="1"] #picks{grid-template-columns:minmax(260px,350px)}body[data-players="2"] #picks{grid-template-columns:repeat(2,1fr)}body[data-players="1"] #hud{max-width:400px}
+
+/* A scrollable garage and a fixed, compact driving surface are separate layouts. */
+body{min-height:100dvh;overflow-y:auto;overscroll-behavior:none}
+body[data-screen="race"]{height:100dvh;overflow:hidden;touch-action:none}
+body[data-screen="race"] header{position:fixed;top:0;left:0;right:0;padding:8px 12px;gap:10px}
+body[data-screen="race"] header b{font-size:18px}
+body[data-screen="race"] header>div,body[data-screen="race"] #install-app,body[data-screen="race"] #mode-button{display:none}
+body[data-screen="race"] nav{flex-wrap:nowrap}
+body[data-screen="race"] nav button{padding:7px 10px;font-size:11px}
+#hud{z-index:3;top:52px;max-height:110px}
+#touch-controls{display:none}
+#overlay{max-height:calc(100dvh - 24px)}
+main{padding-bottom:60px}
+@media (pointer:coarse), (max-width:750px){
+ header{padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));gap:8px;flex-wrap:wrap}
+ header b{font-size:23px}header>div{display:none}
+ header nav{gap:6px;flex-wrap:wrap}nav button{min-height:36px;padding:7px 10px;font-size:12px}
+ main{width:min(720px,100%);margin:8px auto;padding:0 max(12px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+ h1{font-size:34px;letter-spacing:-1.5px;margin:10px 0}.eyebrow{font-size:10px;letter-spacing:1px}.intro{font-size:13px;line-height:1.4}
+ #picks,body.online #picks,body[data-players="1"] #picks,body[data-players="2"] #picks{float:none;width:100%;margin:12px 0;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+ .pick{padding:10px 12px;border-radius:12px}.pick .portrait{height:76px;filter:none}.pick h3{font-size:11px}.choose b{font-size:16px}.choose button{width:40px;height:40px}.keys{display:none}
+ .ability-select{font-size:12px;margin-top:6px}.ability-select select{min-height:36px;font-size:12px}
+ #room-panel{margin-top:10px;padding:12px 14px;min-height:0}#room-panel h3{margin:0 0 6px;font-size:17px}.room-list{max-height:84px}#room-status{font-size:12px;margin:8px 0 0}
+ .bottom{margin-top:10px;padding-top:0;gap:10px}.bottom>label{width:100%;display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:8px}
+ .bottom select,.bottom>label:first-child select,.vehicle-choice select{margin:0;max-width:none;width:65%;min-width:0;font-size:13px;padding:10px}
+ #start{width:100%;min-height:46px;padding:12px;font-size:16px}#start span{margin-left:15px}.hint{font-size:11px;line-height:1.4}
+ footer{display:none}#mode-picker{margin:10px auto;padding-bottom:30px}.mode-options{grid-template-columns:1fr;gap:12px;margin-top:16px}.mode-card{padding:16px}.mode-card h2{font-size:24px;margin:8px 0}.mode-card b{margin-top:12px}
+ body[data-screen="race"] header{padding:calc(6px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 6px max(10px,env(safe-area-inset-left));flex-wrap:nowrap;height:calc(42px + env(safe-area-inset-top))}
+ body[data-screen="race"] header b{font-size:16px;white-space:nowrap}
+ body[data-screen="race"] nav button{min-height:30px;padding:5px 8px;font-size:11px}
+ #hud,body[data-players="1"] #hud{top:calc(48px + env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));max-width:240px;max-height:90px;gap:6px}
+ .stat{min-width:150px;padding:7px 10px;border-left-width:3px;border-radius:8px;box-shadow:none;flex-shrink:0}.stat strong,.stat small{font-size:12px}.stat p{font-size:10px;line-height:1.2}.fuel{height:4px;margin:5px 0}.stat .ability-status{margin-top:4px}
+ #touch-controls{display:flex;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));align-items:flex-end;gap:8px}
+ #touch-controls button{width:clamp(76px,21vw,116px);height:60px;padding:8px;font-size:13px;border-radius:14px;background:#fff8e7e8;-webkit-user-select:none;-webkit-touch-callout:none}
+ #touch-controls button[data-control="ability"]{width:clamp(100px,28vw,150px);height:46px;font-size:12px}
+ #touch-controls button:active{background:#e5ba73;border-color:#20382f}#touch-controls button:disabled{opacity:.7}
+ #online-bar{bottom:calc(8px + env(safe-area-inset-bottom));font-size:10px;padding:6px 10px;max-width:calc(100vw - 24px);overflow:hidden;pointer-events:none}
+ body[data-screen="race"] #online-bar{bottom:calc(80px + env(safe-area-inset-bottom));padding:4px 8px;font-size:9px}
+ #overlay{width:min(94vw,460px);min-width:0;padding:18px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)}#overlay h2{font-size:26px}#overlay p{font-size:13px}
+}
+@media (pointer:coarse) and (orientation:landscape){
+ body[data-screen="race"] #hud{max-width:210px;max-height:82px}
+ #touch-controls button{height:52px}#touch-controls button[data-control="ability"]{height:42px}
+ body[data-screen="race"] #online-bar{bottom:calc(68px + env(safe-area-inset-bottom))}
+ body.online #picks{float:left;width:45%;margin-right:3%}#room-panel{margin-top:12px}
+}
+
+@media(max-width:380px){
+ body[data-screen="race"] header b{display:none}
+ body[data-screen="race"] nav{width:100%;justify-content:flex-end}
+}

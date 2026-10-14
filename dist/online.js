@@ -2,6 +2,7 @@
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
+let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
 const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">СПОСОБНОСТЬ</button><button data-control="gas">ГАЗ</button>';document.body.append(touch);
@@ -55,6 +56,20 @@ update=dt=>{
   if(!roomState)return;
   if(roomState.phase==='countdown'){count=Math.max(0,(roomState.startAt-(Date.now()+clockOffset))/1000);return;}
   count=0;
+  if(mode==='race'&&snapshots.length){
+    // Render 100 ms behind the server, between authoritative snapshots (20 Hz).
+    // Never extrapolate physics or change the server's collision decisions.
+    const target=roomState.serverNow+performance.now()-snapshotReceived-100;
+    let left=snapshots[0],right=left;
+    for(const snapshot of snapshots){if(snapshot.serverNow<=target)left=snapshot;else{right=snapshot;break;}right=left;}
+    const mix=right.serverNow>left.serverNow?Math.max(0,Math.min(1,(target-left.serverNow)/(right.serverNow-left.serverNow))):0;
+    cars=roomState.game.cars.map((latest,i)=>{
+      const car=Object.assign(cars[i]||{},latest),a=left.game.cars[i]||latest,b=right.game.cars[i]||a;
+      for(const field of ['x','y','a','wheel'])car[field]=a[field]+(b[field]-a[field])*mix;
+      return car;
+    });
+    time=left.game.time+(right.game.time-left.game.time)*mix;
+  }
   if(mode==='race'){
     const own=cars[roomState.racers.findIndex(p=>p.id===roomState.you)];
     const active=own?.alive?[own]:cars.filter(c=>c.alive);
@@ -64,15 +79,17 @@ update=dt=>{
 function installGame(state){
   if(!state.game)return;
   const g=state.game;
-  if(onlineRound!==state.round){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];resetHillBridges();keysClear();}
+  const newRound=onlineRound!==state.round;
+  if(newRound){onlineRound=state.round;cam=0;zoom=1;cameraY=0;particles=[];snapshots=[];resetHillBridges();keysClear();setWorldSeed(g.seed);}
+  snapshotReceived=performance.now();snapshots.push(state);if(snapshots.length>12)snapshots.shift();
   colors.splice(0,colors.length,...state.racers.map(p=>p.color));
   chosen.splice(0,chosen.length,...state.racers.map(p=>p.character));
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
   state.racers.forEach((_,i)=>abilityKeys[i]='E / пробел');
   window.onlineIndex=state.racers.findIndex(p=>p.id===state.you);
-  setWorldSeed(g.seed);track=g.track;vehicleModel=g.vehicle;time=g.time;snowStart=g.snowStart;snowEnd=g.snowEnd;
+  track=g.track;vehicleModel=g.vehicle;time=g.time;snowStart=g.snowStart;snowEnd=g.snowEnd;
   // Keep object identities so suspension smoothing survives incoming packets.
-  cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));bonus=g.bonus;hillBridgeStates.clear();for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,bridge);count=0;
+  if(newRound||state.phase==='result')cars=g.cars.map((c,i)=>Object.assign(cars[i]||{},c));bonus=g.bonus;hillBridgeStates.clear();for(const bridge of g.bridges||[])hillBridgeStates.set(bridge.a,bridge);count=0;
   mode=state.phase==='result'?'result':'race';paused=false;
   $('#lobby').hidden=true;$('#foot').hidden=true;$('#hud').hidden=false;
   touch.hidden=state.phase!=='race'||!state.racers.some(p=>p.id===state.you);
@@ -92,12 +109,12 @@ function renderRoom(state){
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С':'ГОТОВО';
   $('#menu').disabled=['race','countdown'].includes(state.phase);
   if(state.phase==='lobby'){
-    mode='lobby';count=0;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
+    mode='lobby';count=0;snapshots=[];$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
     $('#room-status').textContent='Любой может выбрать трассу и машину. Нажми «Готово», чтобы запустить гонку для всех.';
   }
   if(state.phase==='countdown'){
     $('#room-status').textContent='До общего старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Все, кто в комнате, участвуют!';
-    mode='lobby';$('#lobby').hidden=false;$('#overlay').hidden=true;
+    mode='lobby';$('#lobby').hidden=false;$('#hud').hidden=true;touch.hidden=true;$('#overlay').hidden=true;
   }
   if(state.phase==='result'&&oldPhase!=='result'){
     $('#overlay').hidden=false;
@@ -116,7 +133,9 @@ function connect(){
     clockOffset=state.serverNow-Date.now();
     const changed=!roomState||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.host,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.host,roomState.inRace]);
     roomState=state;installGame(state);
-    if(changed||state.phase==='countdown')renderRoom(state);
+    const seconds=state.phase==='countdown'?Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000)):-1;
+    if(changed||seconds!==renderedCountdown)renderRoom(state);
+    renderedCountdown=seconds;
   };
   socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;oldPhase='';reconnectTimer=setTimeout(connect,1500);};
   socket.onerror=()=>socket.close();
