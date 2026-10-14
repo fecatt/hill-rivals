@@ -21,6 +21,7 @@ try {
  assert.equal(await page.locator('#join-code button[type=submit]').count(),0);
  assert.equal(await page.locator('#join-code #network-toggle .icon-globe').count(),1);
  assert.equal(await page.locator('#track-specs dd').count(),3);
+ assert.equal(await page.locator('#track-specs dt').count(),0);
  assert.equal(await page.locator('[data-ability-seat="0"] + .choice-tiles button').count(),3);
  await page.locator('.empty-seat').first().click();await page.waitForFunction(()=>roomState.players.length===2);
  assert.equal(await page.locator('.pick[data-online-seat]').count(),2);
@@ -29,7 +30,7 @@ try {
  await page.locator('[data-char-seat="0"][data-step="1"]').click();await page.waitForFunction(()=>roomState.players[0].character===onlineCharacters[0]);
  await page.locator('#player-name-0').fill('Фёдор');await page.locator('#player-name-0').press('Enter');await page.waitForFunction(()=>roomState.players[0].name==='Фёдор');
  await page.locator('#rename-room').click();await page.locator('#room-name').fill('FLIBS');await page.locator('#rename-form button').first().click();await page.waitForFunction(()=>roomState.room.name==='FLIBS');
- const shot=async(name,p=page)=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await p.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:true});}};
+ const shot=async(name,p=page)=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await p.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:!name.includes('landscape')});}};
  const checkLayout=async(p)=>{
   const result=await p.evaluate(()=>{const form=document.querySelector('#room-browser').getBoundingClientRect(),start=document.querySelector('#start').getBoundingClientRect();return {scroll:document.documentElement.scrollWidth,width:innerWidth,overlap:form.bottom>start.top+1,form:form.toJSON(),start:start.toJSON()}});
   assert.ok(result.scroll<=result.width+1,'no horizontal overflow: '+JSON.stringify(result));assert.equal(result.overlap,false,'code entry is not covered by ready: '+JSON.stringify(result));
@@ -63,12 +64,18 @@ try {
  assert.equal(await guest.locator('#track').isDisabled(),true);
  await page.locator('#track + .choice-switch button').last().click();await guest.waitForFunction(()=>roomState.track===1);
  await page.locator('#vehicle + .choice-switch button').last().click();await guest.waitForFunction(()=>roomState.vehicle===1);
- await checkLayout(guest);await shot('menu-phone',guest);
- await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);
+ await checkLayout(guest);
+ const card=await guest.locator('[data-online-seat="0"]').boundingBox();assert.ok(card.height<=260,'phone racer card fits instead of stretching: '+card.height);
+ await guest.locator('#network-toggle').tap();assert.equal(await guest.locator('#network-dialog').isVisible(),true);await guest.waitForSelector('.network-room-card');await guest.locator('#close-network').tap();
+ await guest.locator('#start').tap();await guest.waitForFunction(()=>roomState.players.some(p=>playerOwner(p)===roomState.you&&p.ready));
+ assert.equal(await guest.evaluate(()=>!!document.fullscreenElement),false,'ready tap does not resize the garage into fullscreen');
+ await guest.locator('#start').tap();await guest.waitForFunction(()=>roomState.players.every(p=>playerOwner(p)!==roomState.you||!p.ready));
+ await guest.evaluate(()=>scrollTo(0,0));await shot('menu-phone',guest);
+ await guest.setViewportSize({width:852,height:393});await checkLayout(guest);await shot('menu-phone-landscape',guest);assert.ok((await guest.locator('[data-online-seat="0"]').boundingBox()).height<=300,'landscape phone card stays bounded');
  await guest.locator('#room-chat-toggle').click();await guest.locator('#chat-text').fill('Привет из телефона');await guest.locator('#chat-form button').click();await page.waitForFunction(()=>document.querySelector('#chat-log').textContent.includes('Привет из телефона'));await guest.locator('#close-chat').click();
  await page.locator('#show-qr').click();assert.equal(await page.locator('#invite-qr svg').count(),1);await page.locator('#close-invite').click();
  await page.locator('#network-toggle').click();await page.waitForSelector('.network-room-card');await page.locator('#close-network').click();
- await page.locator('#start').click();await guest.waitForFunction(()=>roomState.players.filter(p=>p.ready).length===2);await guest.locator('#start').click();
+ await page.locator('#start').click();await guest.waitForFunction(()=>roomState.players.filter(p=>p.ready).length===2);await guest.locator('#start').tap();
  await page.waitForFunction(()=>mode==='race');await guest.waitForFunction(()=>mode==='race');
  assert.deepEqual(errors,[]);
  console.log('PASS: startup, 2x2 seats, add/remove up to four racers, name/character/ability, room rename, join code, host settings, chat, QR, online directory, shared race start, desktop and mobile layouts.');

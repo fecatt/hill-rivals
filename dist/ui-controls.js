@@ -61,7 +61,7 @@ function refreshChoices(){
    [['sun',18],['cloud',5],['snow',-10]]
   ];
   const labels=map.biome==='moon'?['Свет','Тень','Ночь']:map.biome==='mixed'?['Холмы','Горы','Зима']:['Утро','День','Вечер'];
-  $('#track-specs').dataset.map=$('#track').value;$('#track-specs').innerHTML=presets[+$('#track').value].map(([icon,temp],i)=>'<div><dt>'+labels[i]+'</dt>'+menuIcon(icon)+'<dd>'+(temp>0?'+':'')+temp+'°</dd></div>').join('');
+  $('#track-specs').dataset.map=$('#track').value;$('#track-specs').innerHTML=presets[+$('#track').value].map(([icon,temp],i)=>'<div>'+menuIcon(icon)+'<dd>'+(temp>0?'+':'')+temp+'°</dd></div>').join('');
  }
  const startParent=online&&$('#room-panel')?$('#room-panel'):$('.bottom');if($('#start').parentElement!==startParent)startParent.append($('#start'));
  if(online&&mode==='lobby'&&roomState?.room){$('#menu').hidden=true;if(window.cardTools.parentElement!==$('#room-options'))$('#room-options').append(window.cardTools);}

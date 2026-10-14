@@ -215,3 +215,60 @@ body.online #racer-column .pick .portrait { pointer-events:none; }
  body.online #car-specs > div:nth-child(3n) { border-right:0; }
  body.online .vehicle-setting #vehicle-preview { height:100px; }
 }
+/* One button surface throughout garage, dialogs and pause settings. */
+body.online button:not(.empty-seat):not([data-control]) {
+ --face-top:#fff8e7;--face-bottom:#e9e7ce;--face-edge:#afbb9d;--face-base:#8b9b79;--face-ink:#365b48;
+ background:linear-gradient(var(--face-top),var(--face-bottom))!important;
+ border:2px solid var(--face-edge)!important;border-radius:11px!important;color:var(--face-ink)!important;
+ box-shadow:0 4px 0 var(--face-base)!important;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+body.online button#start,body.online button.selected,body.online .primary {
+ --face-top:#e26046;--face-bottom:#d84e37;--face-edge:#a43a28;--face-base:#a43a28;--face-ink:#fff8e7;
+}
+body.online button:not(.empty-seat):not([data-control]):active:not(:disabled) { transform:translateY(3px)!important;box-shadow:0 1px 0 var(--face-base)!important; }
+body.online button svg,body.online button svg * { pointer-events:none; }
+body.online #racer-column .pick .choice-tiles { gap:6px; margin:4px 0 3px; }
+body.online #racer-column .pick .choice-tiles button { min-height:34px;height:34px;padding:3px 5px;flex-direction:row;gap:4px; }
+body.online #racer-column .pick .choice-tiles button .menu-icon { width:18px;height:18px; }
+body.online #racer-column .pick .choice-tiles button small { font-size:9px; }
+body.online #racer-column .pick .ability-select { font-size:0; }
+body.online #racer-column .pick .keys { display:none; }
+body.online #racer-column .player-name-label { font-size:0; }
+body.online #racer-column .pick .portrait { height:110px;max-height:110px;min-height:0;object-fit:contain; }
+body.online #racer-column .pick { grid-template-rows:auto auto minmax(100px,1fr) auto auto auto;gap:4px;padding:10px; }
+body.online #racer-column .pick .portrait { align-self:center; }
+body.online #room-panel > #start { position:relative;z-index:2;touch-action:manipulation; }
+body.online #join-code #network-toggle { position:relative;z-index:2;touch-action:manipulation; }
+body.online #track-specs > div { gap:7px;padding:10px 3px; }
+@media(min-width:1101px) and (max-height:800px) and (pointer:fine){
+ body.online #racer-column .pick { grid-template-rows:auto auto minmax(80px,1fr) auto auto auto; }
+ body.online #racer-column .pick .portrait { height:90px;max-height:90px; }
+}
+@media(max-width:750px),(pointer:coarse){
+ body.online #lobby { height:auto;grid-template-areas:"racer" "settings" "room";align-items:start; }
+ body.online #racer-column { display:block;height:auto;min-height:0;align-self:start; }
+ body.online #racer-column #picks { height:auto;grid-auto-rows:max-content;align-items:start; }
+ body.online #racer-column .pick { height:auto;min-height:0;max-height:260px;display:grid;grid-template-columns:112px minmax(0,1fr);grid-template-rows:16px 45px 65px 44px;grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability";gap:6px 10px;padding:12px;align-items:center; }
+ body.online #racer-column .pick .portrait { height:124px;max-height:124px;width:112px;max-width:112px;grid-area:portrait;margin:0;align-self:center; }
+ body.online #racer-column .pick h3 { grid-area:title; }
+ body.online #racer-column .player-name-label { grid-area:name; }
+ body.online #racer-column .pick .choose { grid-area:choose; }
+ body.online #racer-column .pick .ability-select { grid-area:ability;width:100%;margin:0; }
+ body.online #racer-column .pick .choice-tiles button { height:36px;min-height:36px; }
+ body.online #room-panel > #start { position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:3; }
+ body.online #lobby .bottom { height:auto;align-self:start; }
+ body.online #lobby .setting-card { height:auto;min-height:0; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { grid-template-areas:"settings racer room"; }
+ body.online #racer-column .pick { grid-template-columns:1fr;grid-template-rows:auto auto 105px auto auto;grid-template-areas:"title" "name" "portrait" "choose" "ability";max-height:300px;gap:5px; }
+ body.online #racer-column .pick .portrait { height:105px;max-height:105px;width:100%;margin:auto; }
+ body.online #racer-column .pick .choice-tiles button { padding:2px;flex-direction:column;height:38px;min-height:38px;gap:1px; }
+ body.online #racer-column .pick .choice-tiles button small { font-size:8px; }
+}
+body.online button.selected,body.online button.primary { --face-top:#e26046!important;--face-bottom:#d84e37!important;--face-edge:#a43a28!important;--face-base:#a43a28!important;--face-ink:#fff8e7!important; }
+@media(max-width:750px),(pointer:coarse){
+ body.online #lobby { grid-template-areas:"racer" "room" "settings"; }
+ body.online #room-panel > #start { position:relative;bottom:auto; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){body.online #lobby { grid-template-areas:"settings racer room"; }}

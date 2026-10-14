@@ -20,7 +20,7 @@ fullscreenButton.onclick=async()=>{
 };
 document.addEventListener('click',e=>{
  const startButton=e.target.closest?.('#start,#again,#next-race');
- if(startButton&&!startButton.disabled)openGameFullscreen();
+ if(startButton&&!startButton.disabled&&!window.onlineActive)openGameFullscreen();
 },true);
 function fullscreenChanged(){
  keysClear();resize();
