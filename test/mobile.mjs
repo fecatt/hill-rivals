@@ -49,7 +49,7 @@ try {
   await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await screenshot('portrait-room');
   const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
-  await opponent.waitForFunction(()=>socket?.readyState===1);await opponent.locator('#room-code').fill(code);await opponent.locator('#join-code button').click();await opponent.waitForFunction(()=>roomState?.room);
+  await opponent.waitForFunction(()=>socket?.readyState===1);await opponent.locator('#room-code').fill(code);await opponent.waitForFunction(()=>roomState?.room);
   await page.bringToFront();await page.locator('#start').click();
   await page.waitForFunction(()=>roomState.players.find(p=>p.id===roomState.you)?.ready);
   assert.equal(await page.evaluate(()=>roomState.phase),'lobby','one ready racer must wait');

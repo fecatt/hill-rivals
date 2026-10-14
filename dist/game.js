@@ -276,7 +276,7 @@ function frame(now){
  if(now-lastDraw<interval-.5)return;lastDraw=now;
  const dt=Math.min(.05,(now-last)/1000);last=now;
  acc+=dt;while(acc>=1/120){update(1/120);acc-=1/120}
- if(mode==='lobby')time+=dt;syncGameScreen();animateSuspension(dt);draw();
+ if(mode==='lobby')time+=dt;syncGameScreen();animateSuspension(dt);draw();window.refreshChoices?.();window.renderSettingPreviews?.();
  if(engineAudio){
   const ownIndex=window.onlineIndex??0,c=cars[ownIndex],controls=c?input(c.i):[false,false];
   engineAudio.updateEnvironment({enabled:sound&&!paused&&!document.hidden,active:mode==='race'&&!paused&&count<=0,car:c,mode,count});

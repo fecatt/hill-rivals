@@ -24,8 +24,8 @@ try{
   await page.waitForFunction(()=>socket?.readyState===1);
  }
  await pages[0].locator('#create-room').click();await pages[0].waitForFunction(()=>roomState?.room);
- const code=await pages[0].evaluate(()=>roomState.room.code);await pages[1].locator('#room-code').fill(code);await pages[1].locator('#join-code button').click();await pages[1].waitForFunction(()=>roomState?.room);
- await pages[0].selectOption('#track','3');
+ const code=await pages[0].evaluate(()=>roomState.room.code);await pages[1].locator('#room-code').fill(code);await pages[1].waitForFunction(()=>roomState?.room);
+ for(let i=0;i<3;i++)await pages[0].locator('#track + .choice-switch button').last().click();
  await pages[1].waitForFunction(()=>roomState.track===3);
  for(const page of pages)await page.locator('#start').click();
  await pages[0].waitForFunction(()=>mode==='race',{},{timeout:18000});

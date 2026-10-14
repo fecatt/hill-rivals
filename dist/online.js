@@ -203,7 +203,7 @@ function renderRoom(state){
   $('#start').disabled=state.phase==='race';
   const myReady=state.players.find(p=>p.id===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
-  $('#menu').disabled=false;$('#menu').textContent='Комнаты';
+  $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';
   if(state.phase==='lobby'){
     mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
     $('#room-status').textContent='Готовы '+ready+' из '+state.players.length+'. Старт — после готовности всех игроков.';

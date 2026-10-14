@@ -12,6 +12,7 @@ try{
  a.on('pageerror',e=>errors.push(e.message));a.on('request',r=>{if(r.isNavigationRequest()&&r.frame()===a.mainFrame())documents++;});
  await a.goto(base+'/?mode=online');await a.waitForSelector('#room-browser:not([hidden])');await a.waitForFunction(()=>socket?.readyState===1);
  const shot=async(page,name)=>{if(process.env.TEST_SCREENSHOT_DIR){await page.waitForTimeout(300);await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png',fullPage:true});}};
+ await shot(a,'directory-desktop');
  assert.equal(await a.locator('nav #mode-button,nav #sound,nav #install-app').count(),0);assert.equal(await a.locator('#mode-button').textContent(),'Играть на одном устройстве');
  await a.locator('#create-room').click();await a.waitForFunction(()=>roomState?.room.code);const code=await a.evaluate(()=>roomState.room.code);assert.match(code,/^[A-Z]{5}$/);assert.equal(await a.locator('#room-title').textContent(),'Гонка '+code);
  assert.equal(await a.locator('#chat-log').isVisible(),false);assert.equal(await a.locator('#player-name').inputValue(),'Игрок 1');
@@ -31,19 +32,24 @@ try{
  await b.goto(invite);await b.waitForFunction(()=>roomState?.players.length===2);assert.equal(await b.locator('#player-name').inputValue(),'Игрок 2');assert.equal(await b.locator('#rename-room').isVisible(),false);
  await b.locator('#player-name').fill('<b>Вера</b>');await b.locator('#player-name').press('Enter');await a.waitForFunction(()=>roomState.players.some(p=>p.name==='<b>Вера</b>'));
  assert.ok((await a.locator('.room-list').textContent()).includes('<b>Вера</b>'));assert.equal(await a.locator('.room-list b b').count(),0,'names are text, not HTML');
- assert.equal(await b.locator('#track').isDisabled(),true);await a.selectOption('#track','5');await b.waitForFunction(()=>roomState.track===5);
+ assert.equal(await b.locator('#track').isDisabled(),true);for(let i=0;i<5;i++){await a.locator('#track + .choice-switch button').last().click();if(i===1)assert.equal(await a.locator('#track + .choice-switch .choice-value').textContent(),'Луна');}await b.waitForFunction(()=>roomState.track===5);
+ await a.locator('#vehicle + .choice-switch button').last().click();await a.waitForFunction(()=>roomState.vehicle===1);assert.ok((await a.locator('#vehicle-description').textContent()).includes('Лёгкий'));assert.equal(await a.locator('.vehicle-setting #vehicle-description').isVisible(),true);await a.locator('#vehicle + .choice-switch button').first().click();
  for(const page of [a,b]){
-  const [track,vehicle]=await Promise.all([page.locator('#track').boundingBox(),page.locator('#vehicle').boundingBox()]);assert.ok(Math.abs(track.width-vehicle.width)<1,JSON.stringify({track,vehicle}));assert.ok(Math.abs(track.height-vehicle.height)<1);
+  const [track,vehicle]=await Promise.all([page.locator('#track + .choice-switch').boundingBox(),page.locator('#vehicle + .choice-switch').boundingBox()]);assert.ok(Math.abs(track.width-vehicle.width)<1,JSON.stringify({track,vehicle}));assert.ok(Math.abs(track.height-vehicle.height)<1);
  }
- await b.locator('#chat-toggle').click();assert.equal(await b.locator('#chat-log').isVisible(),false);const sendBox=await b.locator('#chat-form button').boundingBox();assert.ok(Math.abs(sendBox.width-sendBox.height)<1);assert.equal(await b.locator('#chat-form button svg').count(),1);
- await b.locator('#chat-text').fill('<b>Привет!</b>');await b.locator('#chat-form button').click();await a.waitForSelector('#chat-log p');await b.locator('#close-chat').click();assert.ok((await a.locator('#chat-log').textContent()).includes('<b>Привет!</b>'));assert.equal(await a.locator('#chat-log p b').count(),1);
+ assert.equal(await b.locator('#chat-toggle').count(),0);assert.equal(await b.locator('#chat-log').isVisible(),false);const sendBox=await b.locator('#chat-form button').boundingBox();assert.ok(Math.abs(sendBox.width-sendBox.height)<1);assert.equal(await b.locator('#chat-form button svg').count(),1);
+ const emptyHeight=(await a.locator('#room-panel').boundingBox()).height;
+ await b.locator('#chat-text').fill('<b>Привет!</b>');await b.locator('#chat-form button').click();await a.waitForSelector('#chat-log p');assert.ok((await a.locator('#chat-log').textContent()).includes('<b>Привет!</b>'));assert.equal(await a.locator('#chat-log p b').count(),1);
+ assert.ok(Math.abs((await a.locator('#room-panel').boundingBox()).height-emptyHeight)<1,'first message does not resize the room');
+ await a.evaluate(()=>roomUI.chat(Array.from({length:20},(_,i)=>({id:i,name:'Игрок',text:'Сообщение '+i}))));assert.ok(Math.abs((await a.locator('#room-panel').boundingBox()).height-emptyHeight)<1,'history scrolls without growing the menu');
+ const probe=await phone.newPage();await probe.goto(base+'/?mode=online');await probe.waitForFunction(()=>socket?.readyState===1);await probe.locator('#room-code').fill(code==='ZZZZZ'?'XXXXX':'ZZZZZ');await probe.waitForSelector('#room-code.code-error');assert.equal(await probe.locator('#room-code').getAttribute('aria-invalid'),'true');await probe.waitForTimeout(1600);assert.ok((await probe.locator('#directory-notice').textContent()).includes('не найдена'));await probe.locator('#room-code').fill(code);await probe.waitForFunction(()=>roomState?.room.code);await probe.close();
  await b.reload();await b.waitForFunction(()=>roomState?.players.some(p=>p.id===roomState.you&&p.name==='<b>Вера</b>'));assert.equal(await b.locator('#player-name').inputValue(),'<b>Вера</b>');
  await shot(a,'room-desktop');await shot(b,'room-phone');assert.equal(await b.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
  await a.locator('#start').click();await b.locator('#start').click();await a.waitForFunction(()=>roomState?.phase==='countdown');const deadline=await a.evaluate(()=>roomState.startAt-roomState.serverNow);assert.ok(deadline>0&&deadline<=3000);
  await a.waitForFunction(()=>mode==='race',{},{timeout:7000});assert.equal(await b.locator('#touch-controls').isVisible(),true);await a.waitForFunction(()=>document.querySelector('#hud').textContent.includes('Фёдор'));
  await a.locator('#menu').click();await a.waitForSelector('#room-browser:not([hidden])');await b.waitForFunction(()=>roomState.room.host===roomState.you);
  await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#mode-button').textContent(),'Играть онлайн');
- await a.selectOption('#players','3');await a.selectOption('#track','0');await shot(a,'garage-grass');
+ await a.locator('#players + .choice-switch button').first().click();await shot(a,'garage-grass');
  await a.locator('#mode-button').click();await a.waitForSelector('#room-browser:not([hidden])');await a.locator('#mode-button').click();await a.waitForFunction(()=>selectedMode==='local');assert.equal(await a.locator('#players').inputValue(),'3');assert.equal(documents,1,'mode switches do not reload the page');
  assert.deepEqual(errors,[]);console.log('PASS: automatic title, rename permissions, persistent escaped names, QR decode/link join, hidden empty chat, square send icon, equal selects, 3-second start, terrain preview, mobile fit, direct mode switches.');
  await desktop.close();await phone.close();

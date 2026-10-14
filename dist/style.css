@@ -123,3 +123,42 @@ body.online .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1f
 @media(display-mode:standalone){.card-tools #install-app{display:none}}
 .bottom #track,.bottom #vehicle{max-width:none}
 #lobby h1,#mode-picker h1,#room-browser h1,#lobby .bottom>label{color:#20382f}
+/* Online garage: racer, race setup and room each have their own surface. */
+body.online #lobby{width:min(1380px,94vw);display:grid;grid-template-columns:300px minmax(250px,1fr) minmax(360px,1.25fr);grid-template-areas:"racer settings room" "tools tools tools";gap:22px;padding:0;margin:28px auto 150px;background:none;border:0;box-shadow:none}
+body.online #lobby>.eyebrow,body.online #lobby>h1,body.online #lobby>.intro{display:none}
+body.online #picks{grid-area:racer;float:none;width:100%;margin:0;grid-template-columns:1fr;align-self:start}
+body.online #lobby .bottom{grid-area:settings;display:flex;flex-direction:column;gap:18px;margin:0;padding:0;align-items:stretch;clear:none}
+.setting-card{display:flex!important;flex-direction:column;gap:12px!important;align-items:stretch!important;width:100%;padding:18px;background:#fff8e7f7;border:2px solid #ffffff;border-radius:18px;box-shadow:0 7px 0 #20382f12;font-size:11px!important;letter-spacing:1.8px;font-weight:bold;color:#526957!important;min-width:0}
+#world-preview,#vehicle-preview{position:static;inset:auto;display:block;width:100%;height:105px;border-radius:11px;pointer-events:none;object-fit:contain}
+#vehicle-preview{height:112px}
+#lobby .vehicle-setting #vehicle-description{margin:0;letter-spacing:0;font-size:12px;line-height:1.5;font-weight:normal;color:#526957;min-height:54px}
+.choice-model{display:none!important}.choice-switch{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fffdf5;border:1px solid #d8decd;border-radius:12px;padding:5px;min-height:47px;width:100%;letter-spacing:0}
+.choice-arrow{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;background:#e9e4d8;border:0;border-radius:50%;color:#294a38;font-size:23px;line-height:1;transition:background 160ms,transform 160ms,box-shadow 160ms}
+.choice-arrow:hover{background:#d7e2cb;transform:scale(1.08)}.choice-arrow:active{transform:scale(.92)}.choice-arrow:disabled{opacity:.3;cursor:default;transform:none}
+.choice-value{flex:1;text-align:center;color:#20382f;font-size:14px;font-weight:bold;line-height:1.25;min-width:0;overflow-wrap:anywhere}.choice-switch.locked{background:#f0f0e4;color:#7c8778}
+.ability-select{display:block!important;margin-top:10px;font-size:11px}.ability-select .choice-switch{margin-top:8px;min-height:40px}.ability-select .choice-arrow{width:28px;height:28px;flex-basis:28px;font-size:19px}.ability-select .choice-value{font-size:12px}
+body.online #room-panel{grid-area:room;align-self:start;margin:0;padding:22px;background:#fff8e7f7;border:2px solid #fff;border-radius:20px;box-shadow:0 7px 0 #20382f12;min-width:0;overflow:hidden}
+body.online .room-heading{gap:9px}body.online .room-heading h2{font-size:24px;line-height:1.2;font-weight:bold;letter-spacing:-.6px}
+body.online #copy-code{background:#edf1df;border:1px solid #d2dcc5;font-size:12px;border-radius:9px;color:#456345}
+body.online .room-invite{gap:7px;margin:16px 0 12px}body.online .room-invite button{background:transparent;border:1px solid #cfd7c5;border-radius:9px;padding:8px 11px;color:#456345;transition:background 150ms,transform 150ms}body.online .room-invite button:hover{background:#e3ead8;transform:translateY(-1px)}
+#host-caption{margin:8px 0 12px!important}.room-list{height:68px;max-height:68px!important;overflow-y:auto;scrollbar-width:thin}.room-list>div{padding:7px 2px!important;font-size:13px}.room-list>div b{font-size:11px;font-weight:normal}
+#room-status{margin:12px 0 8px;min-height:30px;line-height:1.45;color:#456345}#connection-status{display:none}
+body.online #room-panel>#room-chat{display:grid!important;grid-template-rows:18px 94px 42px;gap:6px;height:166px;margin:12px 0 18px;padding:12px 0 0;border-top:1px solid #d8dfce;box-sizing:content-box}
+#room-chat h3{margin:0;font-size:12px;color:#526957;letter-spacing:.3px}
+#room-panel #chat-log{grid-row:2;height:94px;max-height:94px;min-height:94px;padding:0 3px 0 0;overflow-y:auto;scrollbar-width:thin;background:transparent;border-radius:0}
+#chat-log p{padding:7px 9px;margin:0 0 5px;font-size:12px;line-height:1.4;background:#fffdf5;border-radius:8px;overflow-wrap:anywhere}
+#chat-form{grid-row:3;display:flex;gap:7px;margin:0;align-items:center}#chat-text{background:#fffdf5;border:1px solid #d8decd;border-radius:10px;outline:none!important;outline-offset:0!important;box-shadow:none!important;height:42px;padding:10px 12px;font-size:12px;transition:border-color 160ms}#chat-text:focus{border-color:#93aa86}
+#room-panel>#start{display:block;width:100%;margin-top:16px}
+body.online #lobby>.card-tools{grid-area:tools;background:#fff8e7f0;padding:13px 17px;margin:0;border:1px solid #fff;border-radius:15px;gap:12px}
+.card-tools #menu{border:0;background:transparent;color:#a44935;order:3;margin-left:auto}.card-tools #mode-button{margin-right:auto}.card-tools #sound{order:4}.card-tools #install-app{order:5}
+body.online #room-browser{width:min(1160px,94vw);padding:30px;border-radius:24px;background:#fff8e7f7;box-shadow:0 12px 35px #20382f20}
+#room-browser .eyebrow{display:none}#room-browser h1{font-size:34px;margin:0 0 8px}#room-browser .room-actions{padding:20px 0;margin:12px 0 8px;border-bottom:1px solid #d8dfce}
+#room-browser .room-group{background:#f8f5e9;border:1px solid #d8dfce;padding:20px;border-radius:17px}#room-browser .room-card{background:#fffdf5;padding:16px;border-radius:12px;transition:transform 160ms,box-shadow 160ms,border-color 160ms}#room-browser .room-card:hover{transform:translateY(-2px);border-color:#97ad86;box-shadow:0 5px 12px #20382f12}
+#room-code{width:220px;height:53px;text-align:center;font-size:25px;font-weight:bold;letter-spacing:9px;border:2px solid #d2dcc5;background:#fffdf5;border-radius:12px;transition:border-color 150ms,color 150ms;outline:none}
+#room-code:focus{border-color:#93aa86}#room-code.code-error{border-color:#cf513b;color:#bf422e;animation:code-shake 340ms ease-in-out}#directory-notice{height:19px;margin:4px 0 14px;color:#bf422e;font-size:12px}
+@keyframes code-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+body.local .bottom{display:grid;grid-template-columns:160px 1fr 1fr auto;align-items:start}body.local .bottom>#start{align-self:end}.bottom>label:has(#players){align-self:start}
+@media(max-width:1150px){body.online #lobby{grid-template-columns:300px minmax(0,1fr);grid-template-areas:"racer room" "settings settings" "tools tools"}body.online #lobby .bottom{display:grid;grid-template-columns:1fr 1fr}.setting-card{height:100%}body.local .bottom{grid-template-columns:1fr 1fr}body.local .bottom>#start{grid-column:1/-1}}
+@media(max-width:750px),(pointer:coarse){body.online #lobby{width:calc(100% - 24px);grid-template-columns:minmax(0,1fr);grid-template-areas:"racer" "settings" "room" "tools";gap:16px;margin:14px auto 130px}body.online #picks{margin:0}body.online #lobby .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.setting-card{padding:12px;gap:9px!important;font-size:10px!important;letter-spacing:1px}#world-preview,#vehicle-preview{height:70px}.choice-switch{gap:3px;padding:3px;min-height:46px}.choice-arrow{width:25px;height:25px;flex-basis:25px;font-size:20px}.choice-value{font-size:11px}.vehicle-setting #vehicle-description{font-size:10px!important;min-height:75px!important}.room-heading h2{font-size:21px!important}body.online #room-panel{padding:18px}body.online #room-panel>#room-chat{display:grid!important}body.online #room-browser{padding:20px 16px}#room-code{width:100%}#room-browser .room-actions{padding:12px 0}body.local .bottom{grid-template-columns:1fr 1fr}.card-tools #menu{flex-basis:100%;margin-left:0;text-align:left}.card-tools #sound{order:2}}
+@media(prefers-reduced-motion:reduce){.code-error{animation:none!important}.choice-arrow,.room-card{transition:none!important}}
+#lobby #map-description{display:none!important}#lobby .vehicle-setting #vehicle-description{display:block!important}
