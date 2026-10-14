@@ -59,7 +59,7 @@ function sendPose(force=false){
  if(!localCars.size||roomState?.phase!=='race'||(!force&&now-lastPoseSent<1000/30))return;
  lastPoseSent=now;
  const poses=(window.onlineIndices||[]).map((index,slot)=>{const car=localCars.get(index);if(!car)return null;const pose={};for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=car[field];if(paused){pose.vx=0;pose.vy=0;pose.av=0;}pose.alive=car.alive;pose.reason=car.reason;pose.rocketOn=car.rocketOn;return {slot,seq:++poseSequence,time:localSimTime,pose};}).filter(Boolean);
- const packet={type:'poses',round:onlineRound,poses};
+ const packet=poses.length===1?{type:'pose',round:onlineRound,...poses[0]}:{type:'poses',round:onlineRound,poses};
  send(packet);window.peerTransport?.broadcast(packet);
 }
 
