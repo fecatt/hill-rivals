@@ -75,3 +75,30 @@ main{padding-bottom:60px}
 #loading-screen progress{width:100%;height:18px;accent-color:#365b3d}
 #loading-screen p{line-height:1.5}
 #retry-loading{margin-top:20px}
+/* Rooms, readable garage panels, and transitions without page navigation. */
+#lobby,#mode-picker,#room-browser{width:min(1100px,94vw);margin:24px auto 140px;padding:24px 28px;background:#fff8e7f2;border:2px solid #ffffff;border-radius:22px;box-shadow:0 10px 30px #20382f22;color:#20382f}
+#lobby h1,#mode-picker h1,#room-browser h1{font-size:38px;letter-spacing:-1.3px;line-height:1.12;margin:10px 0}
+#lobby .intro,#mode-picker .intro,#room-browser .intro{color:#415b4d;font-size:14px}
+#lobby .eyebrow,#mode-picker .eyebrow,#room-browser .eyebrow{color:#526957}
+#lobby #vehicle-stats,#lobby .hint:last-child{display:none}
+#lobby #vehicle-description,#lobby #map-description{font-size:13px;line-height:1.5;color:#425f4d;margin:10px 0 0}
+#foot{display:none!important}
+input{font:inherit;border:1px solid #20382f33;border-radius:9px;padding:12px;background:#fffef8;color:#20382f;min-width:0}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #367c94;outline-offset:3px}
+.primary{background:#d84e37;color:white;border:2px solid #a43a28;border-radius:10px;padding:14px 24px;font-weight:bold;box-shadow:0 5px 0 #a43a28}
+.room-actions{display:flex;gap:24px;align-items:flex-end;justify-content:space-between;margin:26px 0}
+#join-code label{display:block;font-size:12px;font-weight:bold;margin-bottom:8px}#join-code>div{display:flex;gap:8px}#room-code{width:155px;font-size:20px;font-weight:bold;letter-spacing:5px;text-transform:uppercase}
+#join-code button,.dialog-actions button:not(.primary),#copy-code,#chat-form button{border:1px solid #20382f22;border-radius:9px;background:#e9e4d8;color:#20382f;padding:10px 16px;font-weight:bold}
+#create-room{min-height:51px}#create-room span{margin-left:20px;font-size:22px}
+.room-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}.room-group{background:#f1ecdfe6;border:1px solid #20382f15;border-radius:14px;padding:18px}.room-group h2{font-size:20px;margin:0;display:flex;gap:8px;align-items:center}.room-group h2 span{font-size:12px;background:#dedfcd;border-radius:20px;padding:4px 9px}.room-group>p{font-size:12px;color:#5d7164;margin:8px 0 16px}
+.room-cards{display:grid;gap:10px;max-height:360px;overflow-y:auto;padding:3px}.room-card{text-align:left;background:#fffdf2;border:1px solid #20382f26;border-radius:12px;padding:14px;display:grid;gap:8px;width:100%;color:#20382f}.room-card:hover{border-color:#d84e37;background:#fff7db}.room-card b{font-size:16px;overflow-wrap:anywhere}.room-card span{font-size:12px}.room-card small{font-size:11px;color:#607366}.empty-rooms{font-size:13px;line-height:1.6;margin:10px 0;color:#607366}
+#directory-notice{color:#a43a28;font-size:13px;min-height:18px;margin:0}
+#room-panel{margin-top:20px;background:#f2eddf;border:1px solid #20382f15;padding:18px;border-radius:14px;min-height:0}.room-heading{display:flex;justify-content:space-between;gap:10px;align-items:center}.room-heading h2{margin:0;font-size:20px;overflow-wrap:anywhere}#copy-code{font-family:monospace;letter-spacing:2px;white-space:nowrap;padding:8px 10px;font-size:14px}#host-caption{font-size:12px;color:#536e5d}.room-list{max-height:110px}.room-list>div{padding:7px 0;display:flex;justify-content:space-between;gap:6px}#room-status{font-size:12px;margin:10px 0}#connection-status{font-size:11px;color:#607366;margin:6px 0}
+#room-chat{border-top:1px solid #20382f20;padding-top:12px;margin-top:12px}#room-chat h3{font-size:14px;margin:0 0 8px}#chat-log{height:95px;overflow-y:auto;background:#fffdf4;border-radius:8px;padding:8px 10px}#chat-log:empty::before{content:'Поздоровайтесь с участниками гонки.';font-size:12px;color:#718174}#chat-log p{font-size:12px;line-height:1.5;margin:0 0 7px;overflow-wrap:anywhere}#chat-form{display:flex;gap:8px;margin-top:8px}#chat-text{flex:1;width:0;font-size:13px;padding:10px}#chat-form button{font-size:20px;padding:6px 15px}
+#create-dialog input{display:block;width:100%;margin-top:8px}#create-dialog label{font-size:13px}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+::view-transition-old(root),::view-transition-new(root){animation-duration:220ms}main:not([hidden]){animation:panel-enter 220ms ease-out}@keyframes panel-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:750px),(pointer:coarse){#lobby,#mode-picker,#room-browser{width:calc(100% - 24px);margin:12px auto 140px;padding:18px 16px;border-radius:16px}#lobby h1,#mode-picker h1,#room-browser h1{font-size:29px}#lobby .intro,#room-browser .intro{font-size:13px}.room-actions{flex-direction:column;align-items:stretch;gap:18px;margin:20px 0}#join-code>div{width:100%}#room-code{flex:1;width:0}.room-columns{grid-template-columns:1fr;gap:14px}.room-group{padding:14px}.room-cards{max-height:260px}.room-group h2{font-size:18px}#room-panel{padding:14px;margin-top:12px}.room-heading h2{font-size:17px}#copy-code{font-size:12px}body.online #picks{float:none;width:100%;margin:12px 0;grid-template-columns:1fr}#chat-log{height:100px}#room-browser .primary{width:100%}}
+@media(prefers-reduced-motion:reduce){main:not([hidden]){animation:none}::view-transition-old(root),::view-transition-new(root){animation-duration:0s}}
+#chat-dialog{width:min(480px,94vw)}#close-chat{display:block;margin-left:auto;margin-bottom:12px;background:#e9e4d8;color:#20382f;padding:8px 12px}#chat-dialog #room-chat{display:block;border:0;margin:0;padding:0}#chat-dialog #chat-log{height:min(300px,40dvh)}
+@media(pointer:coarse),(max-width:750px){#room-panel>#room-chat{display:none}#room-panel{margin-bottom:16px}#lobby .pick .portrait{height:76px}#lobby #map-description{font-size:12px}}
+body[data-screen="lobby"] #online-bar{display:none}body.online:has(#lobby:not([hidden])) #install-app{display:none}

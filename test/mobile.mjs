@@ -44,10 +44,12 @@ try {
   await page.locator('#menu').click();await page.waitForFunction(()=>document.body.dataset.screen==='lobby');assert.equal((await layout()).touch.hidden,true);
   await page.setViewportSize({width:393,height:852});
   await page.goto(base+'/?mode=online');
+  await page.waitForFunction(()=>socket?.readyState===1);await page.locator('#create-room').click();await page.locator('#create-form .primary').click();
+  await page.waitForFunction(()=>roomState?.room);const code=await page.evaluate(()=>roomState.room.code);
   await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await screenshot('portrait-room');
   const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
-  await opponent.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
+  await opponent.waitForFunction(()=>socket?.readyState===1);await opponent.locator('#room-code').fill(code);await opponent.locator('#join-code button').click();await opponent.waitForFunction(()=>roomState?.room);
   await page.bringToFront();await page.locator('#start').click();
   await page.waitForFunction(()=>roomState.players.find(p=>p.id===roomState.you)?.ready);
   assert.equal(await page.evaluate(()=>roomState.phase),'lobby','one ready racer must wait');
@@ -58,7 +60,7 @@ try {
   const sample=await page.evaluate(()=>{
     const latest=structuredClone(roomState),left=structuredClone(latest),right=structuredClone(latest);
     left.serverNow=1000;right.serverNow=1050;const other=1-window.onlineIndex;left.game.cars[other].x=100;right.game.cars[other].x=200;
-    snapshots=[left,right];roomState=right;serverToLocal=null;renderTarget=-Infinity;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);
+    snapshots=[left,right];roomState=right;window.peerTransport.reset();serverToLocal=null;renderTarget=-Infinity;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);
     return cars[other].x;
   });
   assert.ok(sample>=149&&sample<=152,'render between server positions');

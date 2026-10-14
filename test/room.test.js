@@ -46,13 +46,14 @@ test('join, readiness cancellation and profile changes cancel the countdown',()=
 });
 test('settings clear readiness and leaving an unready player allows the remaining ready players to start',()=>{
   const room=new Room();const a=room.join(()=>{}),b=room.join(()=>{});
-  room.message(a,{type:'ready',ready:true});room.message(b,{type:'settings',track:1});
+  room.message(a,{type:'ready',ready:true});room.message(a,{type:'settings',track:1});
   assert.equal(room.clients.get(a).ready,false);assert.equal(room.phase,'lobby');
   room.message(a,{type:'ready',ready:true});room.leave(b);assert.equal(room.phase,'countdown');
 });
-test('any visitor selects settings; active race visitors spectate; disconnect ends two-car race',()=>{
+test('only host selects settings; active race visitors spectate; disconnect ends two-car race',()=>{
   let now=0;const room=new Room({now:()=>now});const a=room.join(()=>{}),b=room.join(()=>{});
-  room.message(b,{type:'settings',track:4});assert.equal(room.track,4);
+  room.message(b,{type:'settings',track:4});assert.equal(room.track,0);
+  room.message(a,{type:'settings',track:4});assert.equal(room.track,4);
   room.message(a,{type:'settings',track:100,vehicle:-1});assert.equal(room.track,4);
   assert.equal('host' in room.snapshot(a),false);
   room.message(a,{type:'profile',character:6,ability:'shield'});
@@ -102,4 +103,13 @@ test('server awards a shared crate once to a client-owned car',()=>{
  assert.equal(sim.state().bonus.length,0);assert.equal(sim.state().cars[0].fuel,70);
  assert.deepEqual(JSON.parse(JSON.stringify(sim.state().rewards)),[{id:123,i:0,type:0}]);
  for(let i=0;i<10;i++)sim.step();assert.equal(sim.state().rewards.length,1);
+});
+
+test('direct peers receive reduced server backups and immediately restore the normal stream on fallback',()=>{
+ let now=0,count=0;const room=new Room({now:()=>now,countdownMs:0}),a=room.join(()=>count++),b=room.join(()=>{});
+ room.message(a,{type:'ready',ready:true});room.message(b,{type:'ready',ready:true});room.tick();
+ room.message(a,{type:'transport',peers:[b]});now=100;room.broadcast(false);const baseline=count;
+ now=130;room.broadcast(false);assert.equal(count,baseline);
+ now=201;room.broadcast(false);assert.equal(count,baseline+1);
+ room.message(a,{type:'transport',peers:[]});now=230;room.broadcast(false);assert.equal(count,baseline+2);
 });

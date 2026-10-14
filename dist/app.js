@@ -1,63 +1,60 @@
 'use strict';
 const modeQuery=new URLSearchParams(location.search);
-const selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode');
+let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode');
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
-modeButton.onclick=()=>location.href=location.pathname;
 document.querySelector('nav').prepend(modeButton);
-const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';
-document.querySelector('nav').append(installButton);
+const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
+const chooser=document.createElement('main');chooser.id='mode-picker';chooser.hidden=true;
+chooser.innerHTML='<div class="eyebrow">MIREA RACING</div><h1>Выберите режим</h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>Создавайте комнаты, находите друзей в своей сети или присоединяйтесь по коду.</p><b>Найти гонку →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Соло или до трёх игроков на одном устройстве. Доступна без интернета после первой загрузки.</p><b>В гараж →</b></a></div>';
+document.body.append(chooser);
+let currentMode=null;
+let savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
+function chooseMode(next,push=true){
+ if(!['online','local'].includes(next))next=null;
+ if(currentMode===next&&currentMode!==undefined)return;
+ const apply=()=>{
+  if(currentMode==='local')savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
+  window.onlineActive=false;window.onlineSession.exit();
+  mode='lobby';count=0;time=0;cam=0;zoom=1;cameraY=0;cars=[];bonus=[];particles=[];keysClear();resetHillBridges();window.onlineIndex=undefined;
+  currentMode=selectedMode=next;
+  document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.toggle('choosing',next===null);
+  const hooks=next==='online'?window.onlineGameHooks:window.localGameHooks;
+  update=hooks.update;input=hooks.input;activateAbility=hooks.activateAbility;togglePause=hooks.togglePause;garage=hooks.garage;
+  start=next==='local'?()=>{if(assetsLoaded)window.localGameHooks.start();}:window.localGameHooks.start;
+  $('#start').onclick=next==='online'?hooks.start:start;$('#track').onchange=hooks.trackChange;$('#vehicle').onchange=()=>{hooks.vehicleChange();if(next==='local')vehicleModel=+$('#vehicle').value;};
+  $('#menu').onclick=garage;$('#pause').onclick=togglePause;$('#pause').hidden=next!=='local';$('#menu').hidden=next!=='local';$('#menu').disabled=false;$('#menu').textContent='Гараж';
+  $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;chooser.hidden=next!==null;
+  $('#lobby').hidden=next!=='local';$('#players').closest('label').hidden=next==='online';
+  document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':next==='local'?'ОБЫЧНАЯ ИГРА':'ГОНКИ ПО ХОЛМАМ';
+  modeButton.textContent='Режимы';
+  document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
+  if(next==='local'){
+   colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;
+   $('#players').value=playerCount;document.body.dataset.players=playerCount;$('#track').value=savedLocal.track;$('#vehicle').value=savedLocal.vehicle;
+   picks();vehicleModel=+$('#vehicle').value;$('#lobby h1').textContent='Обычная игра';$('#lobby .eyebrow').textContent='СОЛО ИЛИ ОДИН ЭКРАН';
+   $('#lobby .intro').textContent='Выберите машину, трассу и персонажа.';$('#start').textContent='НА СТАРТ →';$('#start').disabled=!assetsLoaded;
+   $('#track').disabled=$('#vehicle').disabled=false;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;updateMapDescription();describeVehicle();
+  }
+  if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.onlineSession.enter();}
+  syncGameScreen();window.scrollTo(0,0);
+  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next)url.searchParams.set('mode',next);else url.searchParams.delete('mode');history.pushState({},'',url);}
+ };
+ if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
+}
+modeButton.onclick=()=>chooseMode(null);
+for(const link of chooser.querySelectorAll('a'))link.onclick=e=>{e.preventDefault();chooseMode(new URL(link.href).searchParams.get('mode'));};
+addEventListener('popstate',()=>chooseMode(new URLSearchParams(location.search).get('mode'),false));
 let installPrompt;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
 installButton.onclick=async()=>{
-  if(installPrompt){await installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return;}
-  let help=document.querySelector('#install-help');
-  if(!help){help=document.createElement('dialog');help.id='install-help';help.innerHTML='<h2>Игра на телефоне</h2><p><b>Android:</b> открой игру в Chrome и выбери в меню «Установить приложение» или «Добавить на главный экран».</p><p><b>iPhone:</b> открой игру в Safari → «Поделиться» → «На экран Домой».</p><p>Значок игры появится рядом с приложениями. Обычный режим работает и без интернета после первой загрузки.</p><button id="close-install">Понятно</button>';document.body.append(help);help.querySelector('button').onclick=()=>help.close();}
-  help.showModal();
+ if(installPrompt){await installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;return;}
+ let help=$('#install-help');if(!help){help=document.createElement('dialog');help.id='install-help';help.innerHTML='<h2>Игра на телефоне</h2><p><b>Android:</b> Chrome → меню → «Установить приложение».</p><p><b>iPhone:</b> Safari → «Поделиться» → «На экран Домой».</p><button>Понятно</button>';document.body.append(help);help.querySelector('button').onclick=()=>help.close();}help.showModal();
 };
 if(matchMedia('(display-mode: standalone)').matches)installButton.hidden=true;
 addEventListener('appinstalled',()=>{installButton.hidden=true;installPrompt=null;});
-if(location.protocol==='file:'||selectedMode==='local'){
-  document.title='Hill Rivals · Обычная игра';
-  document.body.classList.add('local');modeButton.textContent='Обычный · сменить';
-}else if(selectedMode==='online'){
-  modeButton.textContent='Онлайн · сменить';
-  const script=document.createElement('script');script.src='online.js';document.body.append(script);
-}else{
-  document.body.classList.add('choosing');
-  document.querySelector('header>div').textContent='ОНЛАЙН / ОБЫЧНАЯ ИГРА';
-  const chooser=document.createElement('main');chooser.id='mode-picker';
-  chooser.innerHTML='<div class="eyebrow">ВЫБЕРИ СВОЮ ГОНКУ</div><h1>Держи газ.<br><em>С друзьями или дома.</em></h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>С разных телефонов и компьютеров. Когда все нажмут «Готово» — через 10 секунд общий старт.</p><b>В общую комнату →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Три гонщика на одном устройстве. Знакомые машины, трассы и способности. Можно играть без интернета.</p><b>В гараж →</b></a></div><p class="hint">Установи игру на телефон кнопкой «Установить» вверху.</p>';
-  document.body.append(chooser);
-}
-if('serviceWorker' in navigator && location.protocol!=='file:'){
-  navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{});
-}
-if(location.protocol!=='file:'&&selectedMode!=='online'){
-  let appVersion;
-  async function checkAppVersion(){
-    try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());
-      if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}
-      appVersion=health.version;
-    }catch{}
-  }
-  checkAppVersion();setInterval(checkAppVersion,5000);
-}
-
-// Local solo has the same multitouch controls as the online game.
-if(document.body.classList.contains('local')){
-  const controls=document.createElement('div');controls.id='touch-controls';controls.hidden=true;
-  controls.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">Способность</button><button data-control="gas">ГАЗ</button>';
-  document.body.append(controls);
-  for(const button of controls.querySelectorAll('button')){
-    const key=button.dataset.control==='gas'?'TouchGas':'TouchBrake';
-    button.addEventListener('pointerdown',event=>{
-      event.preventDefault();button.setPointerCapture(event.pointerId);
-      if(button.dataset.control==='ability')activateAbility(cars[0]);else keys[key]=true;
-    });
-    const release=()=>{if(button.dataset.control!=='ability')keys[key]=false;};
-    for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,release);
-  }
-}
-
-// No local race can start before all textures have loaded and decoded.
-if(selectedMode!=='online'){const startLoaded=start;start=()=>{if(assetsLoaded)startLoaded();};$('#start').onclick=start;window.gameDebug.start=start;}
+if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{});
+let appVersion;
+setInterval(async()=>{if(window.onlineActive||location.protocol==='file:')return;try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}appVersion=health.version;}catch{}},5000);
+currentMode=undefined;chooseMode(location.protocol==='file:'?'local':selectedMode,false);
+window.gameDebug.start=()=>start();
+window.assetsReady.then(()=>{if(currentMode==='local')$('#start').disabled=false;});

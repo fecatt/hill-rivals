@@ -1,17 +1,18 @@
 import assert from 'node:assert/strict';
 import {WebSocket} from 'ws';
 const base=process.env.TEST_URL||'http://127.0.0.1:3107';
-const sockets=[],latest=[],updates=[[],[]];
+const sockets=[],latest=[],updates=[[],[]],directory=[];
 try {
   assert.equal((await fetch(base+'/health')).status,200);
   for(const asset of ['/','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/assets/hills-panorama.png','/assets/car-jeep-open-arches.png','/assets/'+encodeURIComponent('Егерь')+'.png'])assert.equal((await fetch(base+asset)).status,200,asset+' must load');
   for(let i=0;i<2;i++){
     const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws');sockets.push(ws);
-    ws.on('message',data=>{const state=JSON.parse(data);latest[i]=state;updates[i].push(state);});
+    ws.on('message',data=>{const state=JSON.parse(data);if(state.type==='state')latest[i]=state;if(state.type==='directory')directory[i]=state;updates[i].push(state);});
     await new Promise((resolve,reject)=>{ws.once('open',resolve);ws.once('error',reject);});
   }
   const until=async(fn,ms=15000)=>{const end=Date.now()+ms;while(!fn()){if(Date.now()>end)throw Error('Timed out');await new Promise(r=>setTimeout(r,25));}};
-  await until(()=>latest.every(s=>s?.online===2));
+  await until(()=>directory.length===2&&directory.every(s=>s?.type==='directory'));
+  sockets[0].send(JSON.stringify({type:'create-room',name:'Проверка'}));await until(()=>latest[0]?.room);sockets[1].send(JSON.stringify({type:'join-room',code:latest[0].room.code}));await until(()=>latest.length===2&&latest.every(s=>s?.online===2));
   sockets[0].send(JSON.stringify({type:'ready',ready:true}));
   await until(()=>latest[0]?.players[0].ready);
   assert.equal(latest[0].phase,'lobby');

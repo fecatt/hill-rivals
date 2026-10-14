@@ -6,6 +6,6 @@ COPY dist ./dist
 COPY server ./server
 COPY test ./test
 USER node
-ENV HOST=0.0.0.0 PORT=3107 NODE_ENV=production
+ENV HOST=0.0.0.0 PORT=3107 NODE_ENV=production TRUST_PROXY=1
 EXPOSE 3107
 CMD ["node", "server/index.js"]

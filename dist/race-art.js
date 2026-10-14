@@ -38,7 +38,7 @@ function vehicleBody(c,v,bob){
  const openCabin=['jeep','buggy','hotrod','rocket'].includes(v.kind);
  const driverSize=a.size*(openCabin?1.32:1.15),driverFloor=floor+79*(driverSize-a.size)+(openCabin?3:0);
  // Draw the complete seated figure FIRST; the entire body is then in front of it.
- ctx.save();ctx.beginPath();ctx.rect(seatX-24,top-20,48,Math.max(20,driverFloor-top+20));ctx.clip();ctx.translate(seatX+6*driverSize,driverFloor-13*driverSize);ctx.scale(driverSize,driverSize);seatedDriver(c,0);ctx.restore();
+ if(!c.emptyCabin){ctx.save();ctx.beginPath();ctx.rect(seatX-24,top-20,48,Math.max(20,driverFloor-top+20));ctx.clip();ctx.translate(seatX+6*driverSize,driverFloor-13*driverSize);ctx.scale(driverSize,driverSize);seatedDriver(c,0);ctx.restore();}
  // Wheels are drawn first. Use the painting's own transparent wheel wells;
  // never erase the foreground fenders with a circular wheel mask.
  for(const [s1,s2,x1,x2] of strips)ctx.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,top,x2-x1+.15,height);
@@ -68,6 +68,16 @@ function drawVehicle(c){
  if(c.alive&&c.noticeTime>0){ctx.font='bold 13px Arial';ctx.textAlign='center';ctx.fillStyle='#fff9df';ctx.strokeStyle='#2d4935';ctx.lineWidth=4;ctx.strokeText(c.notice,c.x,c.y-87);ctx.fillText(c.notice,c.x,c.y-87);ctx.textAlign='left'}
 }
 const CRATE_COLORS=['#d65d46','#e8ad36','#4dafbc','#987044'];
+function drawGarageRoad(){
+ const roadY=H*.89;
+ ctx.fillStyle='#758069';ctx.fillRect(0,roadY-6,W,6);
+ const road=ctx.createLinearGradient(0,roadY,0,H);road.addColorStop(0,'#53646a');road.addColorStop(1,'#364b53');ctx.fillStyle=road;ctx.fillRect(0,roadY,W,H-roadY);
+ ctx.fillStyle='#e5ddbc';ctx.fillRect(0,roadY+3,W,3);
+ ctx.strokeStyle='#d7c99c';ctx.lineWidth=3;ctx.setLineDash([45,35]);ctx.beginPath();ctx.moveTo(0,roadY+(H-roadY)*.65);ctx.lineTo(W,roadY+(H-roadY)*.65);ctx.stroke();ctx.setLineDash([]);
+ const v=VEHICLES[vehicleModel],size=Math.min(1.7,Math.max(.9,W/1000));
+ const parked={i:0,model:vehicleModel,x:0,y:0,vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
+ ctx.save();ctx.translate(W*.77,roadY-(v.mount+Math.max(...wheelSpecs(v).map(w=>w.r)))*size);ctx.scale(size,size);drawVehicle(parked);ctx.restore();
+}
 let crateSerial=0;
 function newCrate(x,type){const y=terrain(x)-330;return {id:++crateSerial,x,y,prevX:x,prevY:y,vx:0,vy:50,a:0,av:0,type,claimedBy:null,age:0,deployed:true,chuteFade:0,grounded:false}}
 function crateSupport(b){const cs=Math.cos(b.a),sn=Math.sin(b.a);let best={depth:-Infinity,x:b.x};for(const [x,y] of [[-16,-16],[16,-16],[-16,16],[16,16]]){const wx=b.x+x*cs-y*sn,wy=b.y+x*sn+y*cs,sl=slope(wx),len=Math.hypot(1,sl),depth=(wy-terrain(wx))/len;if(depth>best.depth)best={depth,x:wx,nx:sl/len,ny:-1/len}}return best}

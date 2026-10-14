@@ -1,4 +1,5 @@
 'use strict';
+window.localGameHooks={update,input,activateAbility,togglePause,garage,start,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer;
@@ -59,16 +60,19 @@ function sendPose(force=false){
  const pose={};
  for(const field of ['x','y','vx','vy','a','av','wheel','fuel','cp','shield','boost','mud','cooldown','air','flip'])pose[field]=localCar[field];
  pose.alive=localCar.alive;pose.reason=localCar.reason;pose.rocketOn=localCar.rocketOn;
- send({type:'pose',round:onlineRound,seq:++poseSequence,time:localSimTime,pose});
+ const packet={type:'pose',round:onlineRound,seq:++poseSequence,time:localSimTime,pose};
+ send(packet);window.peerTransport?.broadcast(packet);
 }
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';$('#picks').after(roomPanel);
 const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake">ТОРМОЗ</button><button data-control="ability">СПОСОБНОСТЬ</button><button data-control="gas">ГАЗ</button>';document.body.append(touch);
+const roomUI=createRoomsUI();
+window.peerTransport=createPeerTransport(send,()=>roomState);
 document.title='Hill Rivals · Онлайн-гонка';
 $('header>div').textContent='ONLINE MULTIPLAYER';
-$('.eyebrow').textContent='ОБЩАЯ КОМНАТА. ОДИН ПОБЕДИТЕЛЬ.';
-$('.intro').textContent='Выбери персонажа. Когда все нажмут «Готово», начнётся общий отсчёт 10 секунд!';
+$('#lobby .eyebrow').textContent='ГОТОВИМСЯ К ГОНКЕ';
+$('#lobby .intro').textContent='Выберите персонажа и нажмите «Готово».';
 document.querySelector('.vehicle-choice').firstChild.textContent='Машина для гонки ';
 const hints=document.querySelectorAll('.hint');hints[hints.length-1].textContent='W / D / ↑ / → — газ · S / A / ↓ / ← — тормоз · E / пробел — способность. На телефоне — кнопки внизу. Новые посетители во время гонки наблюдают и ждут следующий старт.';
 $('#pause').hidden=true;
@@ -93,23 +97,23 @@ $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#t
 togglePause=()=>{};
 activateAbility=()=>sendInput(true);
 garage=()=>{
-  if(roomState && ['race','countdown'].includes(roomState.phase))return;
-  mode='lobby';$('#lobby').hidden=false;$('#overlay').hidden=true;$('#hud').hidden=true;touch.hidden=true;
+  send({type:'leave-room'});
 };
 $('#menu').onclick=garage;
 function controls(){return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
 function sendInput(ability=false){
+ if(!window.onlineActive)return;
  const [gas,brake]=controls();
  if(ability&&localCar)localAbilityAction(localCar);
  send({type:'input',gas,brake});
 }
-addEventListener('keydown',e=>{if(e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
+addEventListener('keydown',e=>{if(!window.onlineActive||e.target.matches('select,input,textarea'))return;if(e.code==='Space'&&!e.repeat)sendInput(true);sendInput();});
 addEventListener('keyup',()=>sendInput());
 addEventListener('blur',()=>sendInput());
 document.addEventListener('visibilitychange',()=>{if(document.hidden){keysClear();sendInput();}});
 for(const button of touch.querySelectorAll('button')){
   const key=button.dataset.control==='gas'?'TouchGas':'TouchBrake';
-  button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(button.dataset.control==='ability'){sendInput(true);return;}keys[key]=true;sendInput();});
+  button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);if(button.dataset.control==='ability'){if(window.onlineActive)sendInput(true);else activateAbility(cars[0]);return;}keys[key]=true;sendInput();});
   const release=()=>{if(button.dataset.control!=='ability'){keys[key]=false;sendInput();}};
   button.addEventListener('pointerup',release);button.addEventListener('pointercancel',release);button.addEventListener('lostpointercapture',release);
 }
@@ -137,6 +141,8 @@ update=dt=>{
         // A short missing packet should not freeze a moving opponent; bound drift.
         const ahead=Math.max(0,Math.min(.15,(target-right.serverNow)/1000));
         if(b.alive){car.x+=b.vx*ahead;car.y+=b.vy*ahead;car.a+=b.av*ahead;car.wheel+=b.vx*ahead/17;}
+        const direct=window.peerTransport.pose(roomState.racers[i]?.id);
+        if(direct&&latest.alive)Object.assign(car,direct,{alive:latest.alive,reason:latest.reason});
       }
       return car;
     });
@@ -179,22 +185,24 @@ function installGame(state){
   if(state.phase==='race')$('#overlay').hidden=true;
 }
 function renderRoom(state){
+  roomUI.state(state);
+  track=state.track;vehicleModel=state.vehicle;
   const ready=state.players.filter(p=>p.ready).length;
   const spectator=state.phase==='race'&&!state.racers.some(p=>p.id===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.innerHTML=`<h3>Комната · ${state.players.length} онлайн</h3><div class="room-list">${state.players.map((p,i)=>`<div>${p.id===state.you?'Вы':'Гонщик '+(i+1)} · ${names[p.character]} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('')}</div><p id="room-status"></p>`;
+  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.id===state.room.host?'♛ ':''}${p.id===state.you?'Вы':'Гонщик '+(i+1)} · ${names[p.character]} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
-  $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby';
+  $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#my-ability').disabled=!['lobby','countdown'].includes(state.phase);
   $('#prev-char').disabled=$('#next-char').disabled=!['lobby','countdown'].includes(state.phase);
   updateMapDescription();describeVehicle();
   $('#start').disabled=state.phase==='race';
   const myReady=state.players.find(p=>p.id===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
-  $('#menu').disabled=['race','countdown'].includes(state.phase);
+  $('#menu').disabled=false;$('#menu').textContent='Комнаты';
   if(state.phase==='lobby'){
     mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
-    $('#room-status').textContent='Любой может выбрать трассу и машину. Старт начнётся, когда все нажмут «Готово». Можно отменить готовность.';
+    $('#room-status').textContent='Готовы '+ready+' из '+state.players.length+'. Старт — после готовности всех игроков.';
   }
   if(state.phase==='countdown'){
     $('#room-status').textContent='До общего старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Все, кто в комнате, участвуют!';
@@ -209,11 +217,18 @@ function renderRoom(state){
   oldPhase=state.phase;
 }
 function connect(){
+  if(!window.onlineActive)return;
+  if(socket&&[0,1].includes(socket.readyState))return;
   clearTimeout(reconnectTimer);onlineBar.textContent='Подключение к серверу…';
   socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
   socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
+    if(state.type==='directory'){roomUI.directory(state);return;}
+    if(state.type==='chat'){roomUI.chat(state.messages);return;}
+    if(state.type==='notice'){roomUI.notice(state.text);return;}
+    if(state.type==='signal'){window.peerTransport.signal(state);return;}
+    if(state.type==='peer-probe'){window.peerTransport.relay(state);return;}
     if(state.type==='pong'){
       const now=performance.now(),rtt=now-state.sent;
       if(rtt>=0&&rtt<=bestRtt*1.2){bestRtt=Math.min(bestRtt,rtt);serverToLocal=(state.sent+now)/2-state.serverNow;}
@@ -221,19 +236,28 @@ function connect(){
     }
     if(state.type!=='state')return;
     clockOffset=state.serverNow-Date.now();
-    const changed=!roomState||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.host,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.host,roomState.inRace]);
+    const joined=!roomState||state.room.code!==roomState.room?.code;
+    const changed=joined||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.room,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.room,roomState.inRace]);
     roomState=state;installGame(state);
+    window.peerTransport.update(state);
+    if(joined)sendProfile();
     const seconds=state.phase==='countdown'?Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000)):-1;
     if(changed||seconds!==renderedCountdown)renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;onlineBar.textContent='Связь потеряна. Переподключаемся…';roomState=null;localCar=null;snapshots=[];oldPhase='';reconnectTimer=setTimeout(connect,1500);};
+  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;roomState=null;localCar=null;snapshots=[];oldPhase='';window.peerTransport.reset();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Переподключаемся…';reconnectTimer=setTimeout(connect,1500);}};
   socket.onerror=()=>socket.close();
 }
-window.assetsReady.then(connect);
+window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
+window.onlineSession={
+ enter(){roomPanel.hidden=false;onlineBar.hidden=false;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=true;window.assetsReady.then(connect);},
+ exit(){clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
+};
+setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();}},2000);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)send({type:'ping',sent:performance.now()});},2000);
 let deployedVersion;
 setInterval(async()=>{
+  if(!window.onlineActive)return;
   try{const state=await fetch('/health',{cache:'no-store'}).then(r=>r.json());
     if(deployedVersion&&deployedVersion!==state.version){
       if(roomState?.phase==='race'){onlineBar.textContent+=' · Доступно обновление после гонки';return;}

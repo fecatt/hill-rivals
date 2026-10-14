@@ -10,7 +10,7 @@ current=$(cat /opt/hill-rivals/deployed-sha 2>/dev/null || true)
 git checkout --quiet --detach "$target"
 image="hill-rivals:$target"
 docker build --quiet -t "$image" .
-docker run --rm --entrypoint node "$image" --test test/room.test.js test/online.test.js test/loading.test.js
+docker run --rm --entrypoint node "$image" --test test/room.test.js test/online.test.js test/loading.test.js test/lobby.test.js test/peers.test.js
 # Validate the candidate in isolation before replacing the serving process.
 docker run --rm --entrypoint node "$image" --input-type=module -e 'import {createSimulation} from "./server/simulation.js"; const s=createSimulation([{character:0,ability:"turbo",color:"red"}],0,0); s.step(); if(!Number.isFinite(s.state().cars[0].x)) process.exit(1);'
 old_image=$(docker inspect --format '{{.Config.Image}}' hill-rivals 2>/dev/null || true)

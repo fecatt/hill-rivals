@@ -19,7 +19,9 @@ function client(){
   document:{body:element('body'),querySelector:element,querySelectorAll:s=>s==='.hint'?[element('hint')]:[],createElement:()=>element('created'),addEventListener(){}},
   Image:class {},innerWidth:1280,innerHeight:800,devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){},
   performance:{now:()=>clock},matchMedia:()=>({matches:false,addEventListener(){}}),crypto:webcrypto,
-  window:{assetsReady:Promise.resolve()},localStorage:{getItem(){},setItem(){}},location:{protocol:'http:',host:'localhost'},
+  window:{assetsReady:Promise.resolve(),onlineActive:true},localStorage:{getItem(){},setItem(){}},location:{protocol:'http:',host:'localhost'},
+  createRoomsUI:()=>({browser:{hidden:true},state(){},directory(){},chat(){},notice(){},hide(){}}),
+  createPeerTransport:()=>({pose(){},update(){},probe(){},reset(){},broadcast(){},signal(){},relay(){},summary(){return '';}}),
   WebSocket:class {static OPEN=1;readyState=1;send(){}},setInterval(){},setTimeout(){},clearTimeout(){},
   console,Date,structuredClone,assetsLoaded:true,
  });
