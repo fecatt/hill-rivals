@@ -374,6 +374,18 @@ body.online #room-options .card-tools button { min-height:44px;padding:10px 16px
 body.online #room-options .drawer-head button { width:36px;margin:0!important; }
 body.online #room-sidebar>button { position:relative;display:flex!important;align-items:center;justify-content:center;line-height:0; }
 body.online #room-sidebar>button>.menu-icon { position:static!important;inset:auto!important;display:block;flex:none;margin:0!important;transform:none!important; }
+body.online #room-sidebar { gap:8px; }
+body.online #room-sidebar>button { width:44px;height:44px;min-width:44px;min-height:44px;padding:7px; }
+body.online #room-sidebar>button>.menu-icon { width:24px;height:24px; }
+body.online #room-sidebar #network-toggle { width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:7px; }
+body.online #room-panel .room-list .kick-player { flex:0 0 26px;width:26px;height:26px;min-width:26px;min-height:26px;margin:0;padding:4px;border:1px solid #bf806e;border-radius:8px;background:#fbe6dc;color:#963c2d;box-shadow:none; }
+body.online #room-panel .room-list .kick-player>.menu-icon { width:16px;height:16px; }
+body.online #room-panel .room-list .kick-player:hover:not(:disabled) { background:#f5d7c9;color:#7e2d21;box-shadow:none;transform:none; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-sidebar>button { width:34px;height:34px;min-width:34px;min-height:34px;flex:0 0 34px;padding:5px; }
+ body.online #room-sidebar>button>.menu-icon { width:22px;height:22px; }
+ body.online #room-sidebar #network-toggle { width:34px;height:34px;min-width:34px;min-height:34px; }
+}
 @media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
  body.online #lobby { height:350px;min-height:350px;max-height:none; }
  body.online #room-panel { height:350px;min-height:350px;max-height:none;overflow:visible;grid-template-columns:minmax(0,1fr) 36px; }

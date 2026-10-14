@@ -9,6 +9,7 @@
     "test:mobile": "node test/mobile.mjs",
     "test:network": "node test/network.mjs",
     "test:rooms": "node test/rooms.mjs",
+    "test:room-toolbar": "node test/room-toolbar.mjs",
     "test:render": "node test/render.mjs",
     "test:menu": "node test/menu.mjs"
   },

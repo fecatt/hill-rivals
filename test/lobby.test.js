@@ -13,7 +13,7 @@ test('room code and settings survive empty room, disconnection and server restar
   lobby.message(id,{type:'rename-room',name:'Друзья'});lobby.message(id,{type:'settings',track:4,vehicle:2});lobby.disconnect(id,deliver);now+=1500;
   const reconnected=lobby.connect(()=>{},'home','session');assert.equal(reconnected,id);assert.equal(lobby.clients.get(id).room.code,code);
   lobby.disconnect(id,deliver);assert.ok(lobby.clients.has(id),'obsolete socket close cannot disconnect new connection');
-  lobby.disconnect(id);now+=31000;lobby.tick();assert.equal(lobby.rooms.get(code).clients.size,0);now+=5000;lobby.tick();assert.ok(lobby.rooms.has(code));
+  lobby.disconnect(id);now+=5*60*1000-1;lobby.tick();assert.equal(lobby.rooms.get(code).clients.size,1,'offline session remains reconnectable for five minutes');now+=1;lobby.tick();assert.equal(lobby.rooms.get(code).clients.size,0);now+=5000;lobby.tick();assert.ok(lobby.rooms.has(code));
   const restarted=new Lobby({storeFile,now:()=>now});const out=[],next=restarted.connect(msg=>out.push(msg));restarted.message(next,{type:'join-room',code});const state=out.find(m=>m.type==='state');assert.equal(state.room.name,'Друзья');assert.equal(state.track,4);assert.equal(state.vehicle,2);
  }finally{assert.equal(path.dirname(path.resolve(dir)),path.resolve(os.tmpdir()));fs.rmSync(dir,{recursive:true,force:true});}
 });
@@ -58,6 +58,20 @@ test('rooms receive automatic titles, only the host renames, and player names su
  lobby.message(b,{type:'leave-room'});lobby.message(b,{type:'create-room'});
  assert.equal(last(b,'state').players[0].name,'<b>Вера</b>');
  assert.equal(last(a,'state').players[0].name,'Фёдор');
+});
+
+test('only the host can remove a room member, and the removed player returns to the room browser',()=>{
+ const {lobby,connect,last}=setup(),host=connect('host'),guest=connect('guest');
+ lobby.message(host,{type:'create-room'});const code=last(host,'state').room.code;lobby.message(guest,{type:'join-room',code});
+ lobby.message(guest,{type:'kick-player',player:host});assert.equal(lobby.clients.get(host).room.code,code,'non-host cannot remove the host');
+ lobby.message(host,{type:'kick-player',player:guest});assert.equal(lobby.clients.get(guest).room,null);assert.equal(last(guest,'room-left').reason,'kicked');assert.equal(last(guest,'directory').rooms[0].count,1);assert.deepEqual(last(host,'state').players.map(player=>player.owner),[host]);
+});
+
+test('offline room members stay reconnectable until five minutes, then are removed',()=>{
+ let now=1000;const lobby=new Lobby({now:()=>now}),out=[],guestOut=[];
+ const host=lobby.connect(message=>out.push(message),'host'),guest=lobby.connect(message=>guestOut.push(message),'guest','guest-session');lobby.message(host,{type:'create-room'});const code=out.find(message=>message.type==='state').room.code;lobby.message(guest,{type:'join-room',code});
+ lobby.disconnect(guest);now+=5*60*1000-1;lobby.tick();lobby.broadcast();assert.equal(lobby.rooms.get(code).clients.get(guest).disconnectedAt,1000);assert.equal(out.filter(message=>message.type==='state').at(-1).players.find(player=>player.owner===guest).online,false);
+ now+=1; lobby.tick();assert.equal(lobby.rooms.get(code).clients.has(guest),false);assert.equal(lobby.sessions.has('guest-session'),false);
 });
 
 test('empty rooms expire after fifteen minutes and occupied rooms never expire',()=>{

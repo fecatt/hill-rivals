@@ -86,12 +86,18 @@ export class Lobby {
    if(room.seatCount()>=8){client.send({type:'notice',text:'Комната заполнена: максимум 8 гонщиков.'});return;}
    this.removeFromRoom(client);client.room=room;room.join(client.send,id,client.name);this.markOccupancy(room);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
-  if(msg.type==='leave-room'){this.removeFromRoom(client);this.directory(id);this.broadcastDirectory();return;}
+  if(msg.type==='leave-room'){this.removeFromRoom(client);client.send({type:'room-left',reason:'left'});this.directory(id);this.broadcastDirectory();return;}
+  if(msg.type==='kick-player'){
+   const room=client.room,targetId=typeof msg.player==='string'?msg.player:'';
+   if(!room||room.host!==id||!targetId||targetId===id)return;
+   const target=this.clients.get(targetId);if(!target||target.room!==room)return;
+   target.send({type:'room-left',reason:'kicked'});this.removeFromRoom(target);this.directory(target.id);this.broadcastDirectory();return;
+  }
   if(msg.type==='directory'){this.directory(id,true);return;}
   client.room?.message(id,msg);if(['rename-room','settings','profile'].includes(msg.type))this.persistRooms();if(msg.type==='profile')this.broadcastDirectory();
  }
  tick(){
-  const now=(this.options.now||Date.now)();for(const [token,client] of this.sessions)if(client.disconnectedAt!==null&&client.disconnectedAt!==undefined&&now-client.disconnectedAt>30000){this.removeFromRoom(client);client.disconnectedAt=null;this.sessions.delete(token);}
+  const now=(this.options.now||Date.now)();for(const [token,client] of this.sessions)if(client.disconnectedAt!==null&&client.disconnectedAt!==undefined&&now-client.disconnectedAt>=5*60*1000){this.removeFromRoom(client);client.disconnectedAt=null;this.sessions.delete(token);}
   let expired=false;
   for(const [code,room] of this.rooms){this.markOccupancy(room);if(room.emptySince!=null&&now-room.emptySince>=EMPTY_ROOM_TTL){this.rooms.delete(code);expired=true;}}
   if(expired){this.persistRooms();this.broadcastDirectory();}

@@ -5,7 +5,7 @@ window.localGameHooks={update,input,activateAbility,togglePause,garage,start,tra
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 const connectionSession=sessionStorage.getItem('hill-session')||crypto.randomUUID();sessionStorage.setItem('hill-session',connectionSession);
-let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer,selfRoomRequested=false;
+let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer,selfRoomRequested=false,roomExitNotice='';
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 let localCar=null,localCars=new Map(),localControls=[false,false];
 let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
@@ -270,7 +270,7 @@ function renderRoom(state){
   const ready=state.players.filter(p=>p.ready).length;
   const spectator=state.phase==='race'&&!state.racers.some(p=>playerOwner(p)===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div><span class="room-player-name" ${playerOwner(p)===state.you?'title="На этом устройстве"':''}>${playerOwner(p)===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}</span><b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
+  const kickedOwners=new Set();roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>{const owner=playerOwner(p),canKick=state.room.host===state.you&&owner!==state.you&&!kickedOwners.has(owner);if(canKick)kickedOwners.add(owner);return `<div><span class="room-player-name" ${owner===state.you?'title="На этом устройстве"':''}>${owner===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}</span><b>${p.online===false?'Не в сети':p.ready?'✓ Готов':'В комнате'}</b>${canKick?`<button class="kick-player" type="button" data-kick-player="${escapeLabel(owner)}" aria-label="Удалить ${escapeLabel(p.name||'игрока')} из комнаты" title="Удалить из комнаты">${menuIcon('kick')}</button>`:''}</div>`;}).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#picks').querySelectorAll('select,[data-char-seat]').forEach(control=>control.disabled=!['lobby','countdown'].includes(state.phase));
@@ -306,7 +306,8 @@ function connect(){
   socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
-  if(state.type==='directory'){if(roomState?.room){roomUI.updateDirectory(state);return;}roomUI.directory(state);const requested=new URL(location.href).searchParams.get('room');if(!requested&&!selfRoomRequested){selfRoomRequested=true;send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});sendProfile();}return;}
+  if(state.type==='room-left'){roomState=null;selfRoomRequested=true;window.peerTransport.reset();const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);roomExitNotice=state.reason==='kicked'?'Ведущий удалил вас из комнаты.':'Вы вышли из комнаты.';return;}
+  if(state.type==='directory'){if(roomState?.room){roomUI.updateDirectory(state);return;}roomUI.directory(state);const requested=new URL(location.href).searchParams.get('room');if(!requested&&!selfRoomRequested){selfRoomRequested=true;send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});sendProfile();}if(roomExitNotice)$('#directory-notice').textContent=roomExitNotice;return;}
     if(state.type==='chat'){roomUI.chat(state.messages);return;}
     if(state.type==='notice'){roomUI.notice(state.text);return;}
     if(state.type==='signal'){window.peerTransport.signal(state);return;}
@@ -320,7 +321,7 @@ function connect(){
     clockOffset=state.serverNow-Date.now();
     const joined=!roomState||state.room.code!==roomState.room?.code;
     const changed=joined||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.room,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.room,roomState.inRace]);
-    roomState=state;installGame(state);
+    roomState=state;roomExitNotice='';installGame(state);
     window.peerTransport.update(state);
     if(joined){if(state.room.host!==state.you){const owned=state.players.filter(p=>playerOwner(p)===state.you).length;onlineSeatCount=Math.max(1,Math.min(onlineSeatCount,8-(state.players.length-owned)));$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);renderPick();}sendProfile();}
     const seconds=state.phase==='countdown'?Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000)):-1;
@@ -333,6 +334,7 @@ function connect(){
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 window.onlineSession={
  enter(){selfRoomRequested=false;roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;window.assetsReady.then(connect);},
+ leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };
 setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();}},2000);

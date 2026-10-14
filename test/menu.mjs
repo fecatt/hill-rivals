@@ -11,7 +11,7 @@ try {
  const desktop=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
  const page=await desktop.newPage();page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:3138');
- await page.waitForFunction(()=>roomState?.room&&assetsLoaded);
+ await page.waitForFunction(()=>roomState?.room&&assetsLoaded).catch(async error=>{const state=await page.evaluate(()=>({readyState:document.readyState,online:window.onlineActive,assetsLoaded:window.assetsLoaded,room:window.roomState?.room,body:document.body.innerText.slice(0,300)}));throw new Error(error.message+'; page errors: '+errors.join(' | ')+'; state: '+JSON.stringify(state));});
  assert.equal(await page.locator('.pick[data-online-seat]').count(),1);
  assert.equal(await page.locator('.empty-seat').count(),3);
  assert.equal(await page.locator('#world-preview').count(),0);
@@ -19,7 +19,7 @@ try {
  assert.ok((await page.locator('#car-specs').textContent()).includes('Макс. скорость'));
  assert.ok((await page.locator('#car-specs').textContent()).includes('л.с.'));
  assert.equal(await page.locator('#join-code button[type=submit]').count(),0);
- assert.equal(await page.locator('#join-code #network-toggle .icon-globe').count(),1);
+ assert.equal(await page.locator('#room-sidebar #network-toggle .icon-globe').count(),1);
  assert.equal(await page.locator('#track-specs dd').count(),3);
  assert.equal(await page.locator('#track-specs dt').count(),0);
  assert.equal(await page.locator('[data-ability-seat="0"] + .choice-tiles button').count(),3);

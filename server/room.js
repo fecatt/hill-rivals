@@ -136,7 +136,7 @@ export class Room {
       room:{code:this.code,name:this.name,host:this.host},
       track:this.track,vehicle:this.vehicle,
       online:this.seatCount(),inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.owner)).length:0,
-      players:[...this.clients.values()].flatMap(p=>p.seats.map(seat=>({id:seat.id,owner:p.id,slot:seat.slot,name:seat.name,character:seat.character,ability:seat.ability,ready:p.ready}))),
+      players:[...this.clients.values()].flatMap(p=>p.seats.map(seat=>({id:seat.id,owner:p.id,slot:seat.slot,name:seat.name,character:seat.character,ability:seat.ability,ready:p.ready,online:p.disconnectedAt==null}))),
       racers:this.racers.map(p=>({id:p.id,owner:p.owner,slot:p.slot,name:p.name,character:p.character,ability:p.ability,color:p.color})),
       carPoses:this.racers.map(p=>({seq:p.poseSeq||0,at:p.lastPoseAt??this.raceStartedAt})),
       game:inGarage?null:state};
