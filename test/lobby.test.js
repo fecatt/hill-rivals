@@ -30,3 +30,17 @@ test('IPv6 devices in the same /64 and IPv4 mapped addresses are discovered toge
  lobby.message(a,{type:'create-room'});assert.equal(last(b,'directory').rooms[0].local,true);
  const c=connect('::ffff:192.0.2.10'),d=connect('192.0.2.10');lobby.message(c,{type:'create-room'});assert.equal(last(d,'directory').rooms.some(room=>room.local),true);
 });
+
+test('rooms receive automatic titles, only the host renames, and player names survive room changes',()=>{
+ const {lobby,connect,last}=setup(),a=connect('home'),b=connect('home');
+ lobby.message(a,{type:'name',name:'  Фёдор  '});lobby.message(a,{type:'create-room'});
+ const code=last(a,'state').room.code;assert.equal(last(a,'state').room.name,'Гонка '+code);
+ lobby.message(b,{type:'join-room',code});assert.equal(last(b,'state').players[1].name,'Игрок 2');
+ lobby.message(b,{type:'rename-room',name:'Чужое название'});assert.equal(last(a,'state').room.name,'Гонка '+code);
+ lobby.message(a,{type:'rename-room',name:'Наш заезд'});assert.equal(last(b,'state').room.name,'Наш заезд');
+ lobby.message(b,{type:'name',name:'<b>Вера</b>'});lobby.message(b,{type:'chat',text:'Привет'});
+ assert.equal(last(a,'chat').messages[0].name,'<b>Вера</b>');
+ lobby.message(b,{type:'leave-room'});lobby.message(b,{type:'create-room'});
+ assert.equal(last(b,'state').players[0].name,'<b>Вера</b>');
+ assert.equal(last(a,'state').players[0].name,'Фёдор');
+});

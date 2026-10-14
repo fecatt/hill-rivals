@@ -84,12 +84,15 @@ let localAbility=localStorage.getItem('hill-ability')||'turbo';
 if(!abilityNames[localAbility])localAbility='turbo';
 function send(msg){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(msg));}
 function renderPick(){
-  $('#picks').innerHTML=`<section class="pick"><h3>ВАШ ГОНЩИК</h3><img class="portrait" src="assets/${assetNames[localCharacter]}.png"><div class="choose"><button id="prev-char" aria-label="Предыдущий персонаж">‹</button><b>${names[localCharacter]}</b><button id="next-char" aria-label="Следующий персонаж">›</button></div><label class="ability-select">Способность<select id="my-ability">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===localAbility?'selected':''}>${label}</option>`).join('')}</select></label></section>`;
+  $('#picks').innerHTML=`<section class="pick"><h3>ВАШ ГОНЩИК</h3><label class="player-name-label" for="player-name">Ваше имя<input id="player-name" maxlength="24" placeholder="Игрок 1" autocomplete="nickname"></label><img class="portrait" src="assets/${assetNames[localCharacter]}.png"><div class="choose"><button id="prev-char" aria-label="Предыдущий персонаж">‹</button><b>${names[localCharacter]}</b><button id="next-char" aria-label="Следующий персонаж">›</button></div><label class="ability-select">Способность<select id="my-ability">${Object.entries(abilityNames).map(([key,label])=>`<option value="${key}" ${key===localAbility?'selected':''}>${label}</option>`).join('')}</select></label></section>`;
+  const field=$('#player-name');field.value=localStorage.getItem('hill-player-name')||roomState?.players.find(p=>p.id===roomState.you)?.name||'';
+  const saveName=()=>{const name=field.value.trim().slice(0,24);localStorage.setItem('hill-player-name',name);send({type:'name',name});};
+  field.onchange=saveName;field.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();saveName();field.blur();}};
   const change=d=>{if(!['lobby','countdown'].includes(roomState?.phase))return;localCharacter=(localCharacter+d+7)%7;localStorage.setItem('hill-character',localCharacter);renderPick();sendProfile();};
   $('#prev-char').onclick=()=>change(-1);$('#next-char').onclick=()=>change(1);
   $('#my-ability').onchange=e=>{localAbility=e.target.value;localStorage.setItem('hill-ability',localAbility);sendProfile();};
 }
-function sendProfile(){send({type:'profile',character:localCharacter,ability:localAbility});}
+function sendProfile(){send({type:'name',name:localStorage.getItem('hill-player-name')||''});send({type:'profile',character:localCharacter,ability:localAbility});}
 renderPick();
 $('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>p.id===roomState.you)?.ready});};
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
@@ -97,7 +100,7 @@ $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#t
 togglePause=()=>{};
 activateAbility=()=>sendInput(true);
 garage=()=>{
-  send({type:'leave-room'});
+  const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);send({type:'leave-room'});
 };
 $('#menu').onclick=garage;
 function controls(){return [!!(keys.KeyW||keys.KeyD||keys.ArrowUp||keys.ArrowRight||keys.TouchGas),!!(keys.KeyS||keys.KeyA||keys.ArrowDown||keys.ArrowLeft||keys.TouchBrake)];}
@@ -163,6 +166,7 @@ function installGame(state){
   const received=performance.now();
   if(lastPacketAt)interpolationDelay+=(Math.max(60,Math.min(140,(received-lastPacketAt)*1.5))-interpolationDelay)*.1;
   lastPacketAt=received;snapshotReceived=received;snapshots.push(state);if(snapshots.length>12)snapshots.shift();
+  window.racerNames=state.racers.map((p,i)=>p.name||'Игрок '+(i+1));
   colors.splice(0,colors.length,...state.racers.map(p=>p.color));
   chosen.splice(0,chosen.length,...state.racers.map(p=>p.character));
   abilities.splice(0,abilities.length,...state.racers.map(p=>p.ability));
@@ -190,7 +194,7 @@ function renderRoom(state){
   const ready=state.players.filter(p=>p.ready).length;
   const spectator=state.phase==='race'&&!state.racers.some(p=>p.id===state.you);
   onlineBar.textContent=`На сайте: ${state.online} · В гонке: ${state.inRace} · Готовы: ${ready}/${state.players.length}${spectator?' · Вы наблюдаете':''}`;
-  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.id===state.room.host?'♛ ':''}${p.id===state.you?'Вы':'Гонщик '+(i+1)} · ${names[p.character]} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
+  roomPanel.querySelector('.room-list').innerHTML=state.players.map((p,i)=>`<div>${p.id===state.room.host?'♛ ':''}${escapeLabel(p.name||'Игрок '+(i+1))}${p.id===state.you?' · Вы':''} <b>${p.ready?'✓ Готов':'В комнате'}</b></div>`).join('');
   $('#track').value=state.track;$('#vehicle').value=state.vehicle;
   $('#track').disabled=$('#vehicle').disabled=state.phase!=='lobby'||state.room.host!==state.you;
   $('#my-ability').disabled=!['lobby','countdown'].includes(state.phase);
@@ -211,7 +215,7 @@ function renderRoom(state){
   if(state.phase==='result'&&oldPhase!=='result'){
     $('#overlay').hidden=false;
     const ranked=[...cars].sort((a,b)=>b.x-a.x);
-    $('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${state.game.winner===null?'Все выбыли':'Гонщик '+(state.game.winner+1)+' победил!'}</h2><p>${ranked.map(c=>`${names[chosen[c.i]]} · ${Math.floor(raceMetres(c))} м`).join('<br>')}</p><button id="next-race">Следующая гонка</button>`;
+    $('#overlay').innerHTML=`<div class="eyebrow">ГОНКА ОКОНЧЕНА</div><h2>${state.game.winner===null?'Все выбыли':escapeLabel(state.racers[state.game.winner]?.name||'Игрок '+(state.game.winner+1))+' победил!'}</h2><p>${ranked.map(c=>`${escapeLabel(racerName(c))} · ${Math.floor(raceMetres(c))} м`).join('<br>')}</p><button id="next-race">Следующая гонка</button>`;
     $('#next-race').onclick=()=>{send({type:'ready',ready:true});};
   }
   oldPhase=state.phase;
@@ -221,7 +225,7 @@ function connect(){
   if(socket&&[0,1].includes(socket.readyState))return;
   clearTimeout(reconnectTimer);onlineBar.textContent='Подключение к серверу…';
   socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws');
-  socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();send({type:'ping',sent:performance.now()});};
+  socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
     if(state.type==='directory'){roomUI.directory(state);return;}

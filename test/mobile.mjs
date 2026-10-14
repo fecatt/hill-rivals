@@ -44,7 +44,7 @@ try {
   await page.locator('#menu').click();await page.waitForFunction(()=>document.body.dataset.screen==='lobby');assert.equal((await layout()).touch.hidden,true);
   await page.setViewportSize({width:393,height:852});
   await page.goto(base+'/?mode=online');
-  await page.waitForFunction(()=>socket?.readyState===1);await page.locator('#create-room').click();await page.locator('#create-form .primary').click();
+  await page.waitForFunction(()=>socket?.readyState===1);await page.locator('#create-room').click();
   await page.waitForFunction(()=>roomState?.room);const code=await page.evaluate(()=>roomState.room.code);
   await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await screenshot('portrait-room');

@@ -15,7 +15,7 @@ export class Lobby {
  constructor(options={}){this.options=options;this.rooms=new Map();this.clients=new Map();this.salt=randomBytes(32);}
  connect(send,address='unknown'){
   const id=randomUUID(),network=createHmac('sha256',this.salt).update(networkAddress(address)).digest('hex');
-  this.clients.set(id,{id,send,network,room:null});this.directory(id);return id;
+  this.clients.set(id,{id,send,network,room:null,name:''});this.directory(id);return id;
  }
  directory(id){
   const client=this.clients.get(id);if(!client||client.room)return;
@@ -32,12 +32,17 @@ export class Lobby {
  disconnect(id){const client=this.clients.get(id);if(!client)return;this.removeFromRoom(client);this.clients.delete(id);this.broadcastDirectory();}
  message(id,msg){
   const client=this.clients.get(id);if(!client)return;
+  if(msg.type==='name'){
+   if(typeof msg.name!=='string')return;
+   client.name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24);
+   client.room?.message(id,{type:'name',name:client.name});return;
+  }
   if(msg.type==='create-room'){
    if(client.room||this.rooms.size>=64)return;
    let code;do{code=Array.from({length:5},()=>String.fromCharCode(65+randomInt(26))).join('');}while(this.rooms.has(code));
    const name=typeof msg.name==='string'?msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,36):'';
-   const room=new Room({...this.options,code,name:name||'Гонка с друзьями'});this.rooms.set(code,room);client.room=room;
-   room.join(client.send,id);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
+   const room=new Room({...this.options,code,name:name||'Гонка '+code});this.rooms.set(code,room);client.room=room;
+   room.join(client.send,id,client.name);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='join-room'){
    const code=typeof msg.code==='string'?msg.code.trim().toUpperCase():'';
@@ -46,7 +51,7 @@ export class Lobby {
    if(!room){client.send({type:'notice',text:'Комната не найдена. Проверьте код.'});return;}
    if(client.room===room)return;
    if(room.clients.size>=8){client.send({type:'notice',text:'Комната заполнена: максимум 8 игроков.'});return;}
-   this.removeFromRoom(client);client.room=room;room.join(client.send,id);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
+   this.removeFromRoom(client);client.room=room;room.join(client.send,id,client.name);client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='leave-room'){this.removeFromRoom(client);this.directory(id);this.broadcastDirectory();return;}
   if(msg.type==='directory'){this.directory(id);return;}

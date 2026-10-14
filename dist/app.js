@@ -1,9 +1,10 @@
 'use strict';
 const modeQuery=new URLSearchParams(location.search);
-let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode');
+let selectedMode=modeQuery.has('local')?'local':modeQuery.get('mode')||(modeQuery.has('room')?'online':null);
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
 document.querySelector('nav').prepend(modeButton);
 const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
+const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
 const chooser=document.createElement('main');chooser.id='mode-picker';chooser.hidden=true;
 chooser.innerHTML='<div class="eyebrow">MIREA RACING</div><h1>Выберите режим</h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>Создавайте комнаты, находите друзей в своей сети или присоединяйтесь по коду.</p><b>Найти гонку →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Соло или до трёх игроков на одном устройстве. Доступна без интернета после первой загрузки.</p><b>В гараж →</b></a></div>';
 document.body.append(chooser);
@@ -26,7 +27,8 @@ function chooseMode(next,push=true){
   $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;chooser.hidden=next!==null;
   $('#lobby').hidden=next!=='local';$('#players').closest('label').hidden=next==='online';
   document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':next==='local'?'ОБЫЧНАЯ ИГРА':'ГОНКИ ПО ХОЛМАМ';
-  modeButton.textContent='Режимы';
+  modeButton.textContent=next==='online'?'Играть на одном устройстве':'Играть онлайн';
+  (next==='online'?$('#room-browser'):next==='local'?$('#lobby'):chooser).append(cardTools);
   document.title='Mirea Racing'+(next==='online'?' · Онлайн':next==='local'?' · Обычная игра':'');
   if(next==='local'){
    colors.splice(0,colors.length,...savedLocal.colors);chosen.splice(0,chosen.length,...savedLocal.chosen);abilities.splice(0,abilities.length,...savedLocal.abilities);playerCount=savedLocal.playerCount;
@@ -37,11 +39,11 @@ function chooseMode(next,push=true){
   }
   if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.onlineSession.enter();}
   syncGameScreen();window.scrollTo(0,0);
-  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next)url.searchParams.set('mode',next);else url.searchParams.delete('mode');history.pushState({},'',url);}
+  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next!=='online')url.searchParams.delete('room');if(next)url.searchParams.set('mode',next);else url.searchParams.delete('mode');history.pushState({},'',url);}
  };
  if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
 }
-modeButton.onclick=()=>chooseMode(null);
+modeButton.onclick=()=>chooseMode(currentMode==='online'?'local':'online');
 for(const link of chooser.querySelectorAll('a'))link.onclick=e=>{e.preventDefault();chooseMode(new URL(link.href).searchParams.get('mode'));};
 addEventListener('popstate',()=>chooseMode(new URLSearchParams(location.search).get('mode'),false));
 let installPrompt;

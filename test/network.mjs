@@ -23,7 +23,7 @@ try{
   await page.goto('http://127.0.0.1:3111/?mode=online');
   await page.waitForFunction(()=>socket?.readyState===1);
  }
- await pages[0].locator('#create-room').click();await pages[0].locator('#create-form .primary').click();await pages[0].waitForFunction(()=>roomState?.room);
+ await pages[0].locator('#create-room').click();await pages[0].waitForFunction(()=>roomState?.room);
  const code=await pages[0].evaluate(()=>roomState.room.code);await pages[1].locator('#room-code').fill(code);await pages[1].locator('#join-code button').click();await pages[1].waitForFunction(()=>roomState?.room);
  await pages[0].selectOption('#track','3');
  await pages[1].waitForFunction(()=>roomState.track===3);

@@ -17,14 +17,14 @@ test('server loads the updated offline physics for every racer and falling crate
     assert.ok(crate.type>=0&&crate.type<=3);
   }
 });
-test('only all ready players start after exactly ten seconds',()=>{
+test('only all ready players start after exactly three seconds',()=>{
   let now=1000;const room=new Room({now:()=>now});
   const a=room.join(()=>{}),b=room.join(()=>{});
   room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'lobby');
   assert.equal(room.startAt,null);now=21000;room.tick();assert.equal(room.phase,'lobby');
-  now=1000;room.message(b,{type:'ready',ready:true});assert.equal(room.phase,'countdown');assert.equal(room.startAt,11000);
-  now=10999;room.tick();assert.equal(room.phase,'countdown');
-  now=11000;room.tick();assert.equal(room.phase,'race');
+  now=1000;room.message(b,{type:'ready',ready:true});assert.equal(room.phase,'countdown');assert.equal(room.startAt,4000);
+  now=3999;room.tick();assert.equal(room.phase,'countdown');
+  now=4000;room.tick();assert.equal(room.phase,'race');
   assert.equal(room.snapshot(a).game.cars.length,2);
   const x=room.snapshot(a).game.cars[0].x;
   for(let i=0;i<240;i++){now+=1000/120;room.message(a,{type:'input',gas:true});room.tick();}
@@ -35,13 +35,13 @@ test('join, readiness cancellation and profile changes cancel the countdown',()=
   let now=1000;const room=new Room({now:()=>now});const a=room.join(()=>{});
   room.message(a,{type:'ready',ready:true});const originalDeadline=room.startAt;
   now+=2000;const b=room.join(()=>{});assert.equal(room.phase,'lobby');assert.equal(room.startAt,null);
-  room.message(b,{type:'ready',ready:true});assert.equal(room.startAt,now+10000);
+  room.message(b,{type:'ready',ready:true});assert.equal(room.startAt,now+3000);
   const deadline=room.startAt;room.message(a,{type:'ready',ready:true});assert.equal(room.startAt,deadline);
   room.message(a,{type:'ready',ready:false});assert.equal(room.phase,'lobby');
   now=originalDeadline;room.tick();assert.equal(room.phase,'lobby');
   room.message(a,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
   room.message(b,{type:'profile',character:4,ability:'jump'});assert.equal(room.phase,'lobby');
-  room.leave(b);assert.equal(room.phase,'countdown');assert.equal(room.startAt,now+10000);
+  room.leave(b);assert.equal(room.phase,'countdown');assert.equal(room.startAt,now+3000);
   now=room.startAt;room.tick();assert.equal(room.phase,'race');assert.equal(room.racers.length,1);
 });
 test('settings clear readiness and leaving an unready player allows the remaining ready players to start',()=>{

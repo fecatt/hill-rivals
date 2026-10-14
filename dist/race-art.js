@@ -69,14 +69,13 @@ function drawVehicle(c){
 }
 const CRATE_COLORS=['#d65d46','#e8ad36','#4dafbc','#987044'];
 function drawGarageRoad(){
- const roadY=H*.89;
- ctx.fillStyle='#758069';ctx.fillRect(0,roadY-6,W,6);
- const road=ctx.createLinearGradient(0,roadY,0,H);road.addColorStop(0,'#53646a');road.addColorStop(1,'#364b53');ctx.fillStyle=road;ctx.fillRect(0,roadY,W,H-roadY);
- ctx.fillStyle='#e5ddbc';ctx.fillRect(0,roadY+3,W,3);
- ctx.strokeStyle='#d7c99c';ctx.lineWidth=3;ctx.setLineDash([45,35]);ctx.beginPath();ctx.moveTo(0,roadY+(H-roadY)*.65);ctx.lineTo(W,roadY+(H-roadY)*.65);ctx.stroke();ctx.setLineDash([]);
- const v=VEHICLES[vehicleModel],size=Math.min(1.7,Math.max(.9,W/1000));
- const parked={i:0,model:vehicleModel,x:0,y:0,vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
- ctx.save();ctx.translate(W*.77,roadY-(v.mount+Math.max(...wheelSpecs(v).map(w=>w.r)))*size);ctx.scale(size,size);drawVehicle(parked);ctx.restore();
+ const roadY=H*.89,t=+$('#track').value,v=VEHICLES[vehicleModel],size=Math.min(1.7,Math.max(.9,W/1000));
+ const x=W*.77/size,ground=groundHeight(t,x);
+ ctx.save();ctx.translate(0,roadY);ctx.scale(size,size);
+ // Preview the same surface renderer as the race, including soil, grass and snow.
+ drawGround(t,0,W/size,(H-roadY)/size+300);
+ const parked={i:0,model:vehicleModel,x,y:ground-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r)),vx:0,vy:0,a:Math.atan((groundHeight(t,x+1)-groundHeight(t,x-1))/2),wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
+ drawVehicle(parked);ctx.restore();
 }
 let crateSerial=0;
 function newCrate(x,type){const y=terrain(x)-330;return {id:++crateSerial,x,y,prevX:x,prevY:y,vx:0,vy:50,a:0,av:0,type,claimedBy:null,age:0,deployed:true,chuteFade:0,grounded:false}}

@@ -3,14 +3,15 @@ import {createSimulation} from './simulation.js';
 
 const palette = ['#e64d36','#418acb','#e5b83d','#8b5cc7','#2b9b82','#e779a8','#b07945'];
 export class Room {
-  constructor({now = Date.now, countdownMs = 10000, makeSimulation = createSimulation,code='',name='Комната'} = {}) {
+  constructor({now = Date.now, countdownMs = 3000, makeSimulation = createSimulation,code='',name='Комната'} = {}) {
     this.now=now; this.countdownMs=countdownMs; this.makeSimulation=makeSimulation;
     this.clients=new Map(); this.phase='lobby'; this.startAt=null;
     this.track=0; this.vehicle=0; this.racers=[]; this.round=0; this.sim=null;
-    this.code=code;this.name=name;this.host=null;this.chat=[];this.chatSerial=0;
+    this.code=code;this.name=name;this.host=null;this.chat=[];this.chatSerial=0;this.playerSerial=0;
   }
-  join(send,id=randomUUID()) {
-    this.clients.set(id,{id,send,character:0,ability:'turbo',ready:false,gas:false,brake:false,lastInput:0});
+  join(send,id=randomUUID(),name='') {
+    const number=++this.playerSerial;
+    this.clients.set(id,{id,send,number,name:name||'Игрок '+number,character:0,ability:'turbo',ready:false,gas:false,brake:false,lastInput:0});
     if(!this.host)this.host=id;
     this.considerStart(); this.broadcast(); return id;
   }
@@ -31,13 +32,23 @@ export class Room {
 
   message(id,msg) {
     const p=this.clients.get(id); if(!p) return;
+    if(msg.type==='name'){
+      if(typeof msg.name!=='string')return;
+      p.name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,24)||'Игрок '+p.number;
+      this.broadcast();return;
+    }
+    if(msg.type==='rename-room'){
+      if(id!==this.host||!['lobby','result'].includes(this.phase)||typeof msg.name!=='string')return;
+      const name=msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,36);
+      if(name){this.name=name;this.broadcast();}return;
+    }
     if(msg.type==='transport'){
       p.directPeers=new Set(Array.isArray(msg.peers)?msg.peers.filter(key=>key!==id&&this.clients.has(key)).slice(0,7):[]);return;
     }
     if(msg.type==='chat'){
       if(typeof msg.text!=='string'||this.now()-(p.lastChatAt??-Infinity)<500)return;
       const text=msg.text.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,300);if(!text)return;
-      p.lastChatAt=this.now();this.chat.push({id:++this.chatSerial,from:id,character:p.character,text,at:this.now()});
+      p.lastChatAt=this.now();this.chat.push({id:++this.chatSerial,from:id,name:p.name,character:p.character,text,at:this.now()});
       if(this.chat.length>80)this.chat.shift();
       for(const c of this.clients.values())c.send({type:'chat',messages:this.chat});
       return;
@@ -103,8 +114,8 @@ export class Room {
       room:{code:this.code,name:this.name,host:this.host},
       track:this.track,vehicle:this.vehicle,
       online:this.clients.size,inRace:this.phase==='race'?state.cars.filter(c=>c.alive&&this.clients.has(this.racers[c.i]?.id)).length:0,
-      players:[...this.clients.values()].map(p=>({id:p.id,character:p.character,ability:p.ability,ready:p.ready})),
-      racers:this.racers.map(p=>({id:p.id,character:p.character,ability:p.ability,color:p.color})),
+      players:[...this.clients.values()].map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,ready:p.ready})),
+      racers:this.racers.map(p=>({id:p.id,name:p.name,character:p.character,ability:p.ability,color:p.color})),
       game:state};
   }
   broadcast(force=true) {

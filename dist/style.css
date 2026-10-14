@@ -102,3 +102,24 @@ input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #367c
 #chat-dialog{width:min(480px,94vw)}#close-chat{display:block;margin-left:auto;margin-bottom:12px;background:#e9e4d8;color:#20382f;padding:8px 12px}#chat-dialog #room-chat{display:block;border:0;margin:0;padding:0}#chat-dialog #chat-log{height:min(300px,40dvh)}
 @media(pointer:coarse),(max-width:750px){#room-panel>#room-chat{display:none}#room-panel{margin-bottom:16px}#lobby .pick .portrait{height:76px}#lobby #map-description{font-size:12px}}
 body[data-screen="lobby"] #online-bar{display:none}body.online:has(#lobby:not([hidden])) #install-app{display:none}
+/* Room invitations, player names and controls inside the game card. */
+.card-tools{clear:both;display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-top:1px solid #20382f20;margin-top:20px;padding-top:16px}
+.card-tools button,.room-invite button,#rename-form button,#copy-invite-link,.icon-button,.dialog-close{border:1px solid #20382f26;border-radius:9px;background:#e9e4d8;color:#20382f;padding:10px 14px;font:inherit;font-size:13px}
+.card-tools #mode-button{background:#365c48;color:white;border-color:#294a38;font-weight:bold;margin-right:auto}
+.card-tools #install-app{display:inline-flex}
+body.online .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:18px;align-items:end}
+.bottom{gap:16px}.bottom label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:14px}
+.bottom label:has(#track),.bottom label:has(#vehicle){flex:1}
+.bottom #track,.bottom #vehicle{width:100%;height:44px;margin:0;font-size:14px;padding:10px 12px}
+.player-name-label{display:block;margin:12px 0 4px;font-size:12px;color:#526957}.player-name-label input{display:block;width:100%;height:37px;margin-top:5px;padding:8px 10px;font-size:14px}
+.room-heading h2{flex:1}.icon-button{width:34px;height:34px;padding:7px;flex-shrink:0}.icon-button svg,#chat-form button svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.room-invite{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}.room-invite button{padding:8px 10px;font-size:12px}#invite-status{font-size:12px;color:#44634e}
+#rename-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rename-form input{flex:1;min-width:140px;font-size:14px}#rename-form button{padding:8px 10px;font-size:12px}
+#chat-log:empty::before{content:none}#chat-log:empty,#chat-log[hidden]{display:none!important}#chat-log{height:auto;max-height:140px;min-height:0}#chat-dialog #chat-log{height:auto;max-height:40dvh}
+#chat-form{align-items:center}#chat-form input{height:42px}#chat-form button{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;padding:11px;border-radius:10px;background:#365c48;color:#fff;border-color:#294a38}
+#invite-dialog{width:min(410px,94vw);text-align:center}#invite-dialog h2{font-size:23px}#invite-dialog p{font-size:13px;line-height:1.5}.dialog-close{display:block;margin-left:auto}#invite-qr{width:min(270px,100%);margin:12px auto;background:white;border-radius:12px;overflow:hidden}#invite-qr svg{width:100%;height:auto;display:block}#invite-url{width:100%;font-size:12px;margin:8px 0 12px}#copy-invite-link{width:100%}
+#lobby>.hint:last-of-type{display:none}
+@media(max-width:750px),(pointer:coarse){body.online .bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}body.online .bottom #start{grid-column:1/-1;width:100%}.bottom label{font-size:12px}.bottom #track,.bottom #vehicle{font-size:12px}.card-tools #mode-button{flex-basis:100%;margin-right:0}.room-heading{gap:6px}.room-heading h2{font-size:16px}#rename-form button{flex:1}.room-invite{gap:6px}}
+@media(display-mode:standalone){.card-tools #install-app{display:none}}
+.bottom #track,.bottom #vehicle{max-width:none}
+#lobby h1,#mode-picker h1,#room-browser h1,#lobby .bottom>label{color:#20382f}

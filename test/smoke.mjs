@@ -19,7 +19,7 @@ try {
   sockets[1].send(JSON.stringify({type:'ready',ready:true}));
   await until(()=>latest.every(s=>s?.phase==='countdown'));
   const deadline=latest[0].startAt;assert.equal(deadline,latest[1].startAt);
-  assert.ok(deadline-latest[0].serverNow>9000);
+  assert.ok(deadline-latest[0].serverNow>2500&&deadline-latest[0].serverNow<=3000);
   await until(()=>latest.every(s=>s.phase==='race'));
   assert.equal(latest[0].game.seed,latest[1].game.seed);
   assert.equal(latest[0].game.cars.length,2);
@@ -29,5 +29,5 @@ try {
   await until(()=>latest[0].game.cars[0].x>x+10,5000);clearInterval(input);
   sockets[1].close();await until(()=>latest[0].phase==='result');
   assert.equal(latest[0].game.winner,0);
-  console.log('PASS: two real WebSocket clients, shared ten-second countdown, shared track, movement, disconnect, result');
+  console.log('PASS: two real WebSocket clients, shared three-second countdown, shared track, movement, disconnect, result');
 } finally {for(const ws of sockets)ws.close();}
