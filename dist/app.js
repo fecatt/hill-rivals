@@ -26,7 +26,7 @@ if(location.protocol==='file:'||selectedMode==='local'){
   document.body.classList.add('choosing');
   document.querySelector('header>div').textContent='ОНЛАЙН / ОБЫЧНАЯ ИГРА';
   const chooser=document.createElement('main');chooser.id='mode-picker';
-  chooser.innerHTML='<div class="eyebrow">ВЫБЕРИ СВОЮ ГОНКУ</div><h1>Держи газ.<br><em>С друзьями или дома.</em></h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>С разных телефонов и компьютеров. Любой нажимает «Готово» — через 10 секунд общий старт.</p><b>В общую комнату →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Три гонщика на одном устройстве. Знакомые машины, трассы и способности. Можно играть без интернета.</p><b>В гараж →</b></a></div><p class="hint">Установи игру на телефон кнопкой «Установить» вверху.</p>';
+  chooser.innerHTML='<div class="eyebrow">ВЫБЕРИ СВОЮ ГОНКУ</div><h1>Держи газ.<br><em>С друзьями или дома.</em></h1><div class="mode-options"><a class="mode-card" href="?mode=online"><span>🌐</span><h2>Онлайн</h2><p>С разных телефонов и компьютеров. Когда все нажмут «Готово» — через 10 секунд общий старт.</p><b>В общую комнату →</b></a><a class="mode-card" href="?mode=local"><span>🏁</span><h2>Обычная игра</h2><p>Три гонщика на одном устройстве. Знакомые машины, трассы и способности. Можно играть без интернета.</p><b>В гараж →</b></a></div><p class="hint">Установи игру на телефон кнопкой «Установить» вверху.</p>';
   document.body.append(chooser);
 }
 if('serviceWorker' in navigator && location.protocol!=='file:'){
@@ -58,3 +58,6 @@ if(document.body.classList.contains('local')){
     for(const name of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(name,release);
   }
 }
+
+// No local race can start before all textures have loaded and decoded.
+if(selectedMode!=='online'){const startLoaded=start;start=()=>{if(assetsLoaded)startLoaded();};$('#start').onclick=start;window.gameDebug.start=start;}
