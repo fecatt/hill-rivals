@@ -49,14 +49,17 @@ try {
   const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
   await opponent.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await page.bringToFront();await page.locator('#start').click();
+  await page.waitForFunction(()=>roomState.players.find(p=>p.id===roomState.you)?.ready);
+  assert.equal(await page.evaluate(()=>roomState.phase),'lobby','one ready racer must wait');
+  await opponent.locator('#start').click();
   await page.waitForFunction(()=>gameDebug.getState().mode==='race',{},{timeout:15000});
   state=await layout();assert.equal(state.touch.hidden,false);assert.equal(await page.locator('.stat').count(),1,'phone shows only own HUD');
   // Two deterministic packets must produce an intermediate pose, without extrapolation.
   const sample=await page.evaluate(()=>{
     const latest=structuredClone(roomState),left=structuredClone(latest),right=structuredClone(latest);
-    left.serverNow=1000;right.serverNow=1050;left.game.cars[0].x=100;right.game.cars[0].x=200;
-    snapshots=[left,right];roomState=right;snapshotReceived=performance.now()-75;update(1/120);
-    return cars[0].x;
+    left.serverNow=1000;right.serverNow=1050;const other=1-window.onlineIndex;left.game.cars[other].x=100;right.game.cars[other].x=200;
+    snapshots=[left,right];roomState=right;interpolationDelay=70;snapshotReceived=performance.now()-45;update(1/120);
+    return cars[other].x;
   });
   assert.ok(sample>=149&&sample<=152,'render between server positions');
   await opponent.close();

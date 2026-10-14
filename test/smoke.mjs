@@ -13,6 +13,9 @@ try {
   const until=async(fn,ms=15000)=>{const end=Date.now()+ms;while(!fn()){if(Date.now()>end)throw Error('Timed out');await new Promise(r=>setTimeout(r,25));}};
   await until(()=>latest.every(s=>s?.online===2));
   sockets[0].send(JSON.stringify({type:'ready',ready:true}));
+  await until(()=>latest[0]?.players[0].ready);
+  assert.equal(latest[0].phase,'lobby');
+  sockets[1].send(JSON.stringify({type:'ready',ready:true}));
   await until(()=>latest.every(s=>s?.phase==='countdown'));
   const deadline=latest[0].startAt;assert.equal(deadline,latest[1].startAt);
   assert.ok(deadline-latest[0].serverNow>9000);
