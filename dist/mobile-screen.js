@@ -5,21 +5,30 @@ const fullscreenButton=document.createElement('button');fullscreenButton.id='ful
 fullscreenButton.textContent='На весь экран';fullscreenButton.setAttribute('aria-label','На весь экран');fullscreenButton.title='На весь экран';fullscreenButton.hidden=!requestGameScreen;
 window.cardTools.append(fullscreenButton);
 function gameIsFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+async function openGameFullscreen(){
+ if(!mobileInput.matches||!requestGameScreen||gameIsFullscreen())return;
+ try{
+  await requestGameScreen.call(fullscreenRoot,{navigationUI:'hide'});
+  if(gameIsFullscreen()&&screen.orientation?.lock)await screen.orientation.lock('landscape').catch(()=>{});
+ }catch{} // Unsupported browsers keep the ordinary game working.
+}
 fullscreenButton.onclick=async()=>{
  try{
   if(gameIsFullscreen())await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
-  else if(requestGameScreen){
-   await requestGameScreen.call(fullscreenRoot,{navigationUI:'hide'});
-   if(gameIsFullscreen()&&screen.orientation?.lock)await screen.orientation.lock('landscape').catch(()=>{});
-  }
+  else await openGameFullscreen();
  }catch{} // Unsupported browsers keep the ordinary game working.
 };
 function fullscreenChanged(){
  keysClear();resize();
  const label=gameIsFullscreen()?'Выйти из полного экрана':'На весь экран';fullscreenButton.setAttribute('aria-label',label);fullscreenButton.title=label;fullscreenButton.textContent=label;
+ const pauseButton=$('#pause-fullscreen');if(pauseButton)pauseButton.textContent=label;
  if(!gameIsFullscreen())screen.orientation?.unlock?.();
 }
 document.addEventListener('fullscreenchange',fullscreenChanged);document.addEventListener('webkitfullscreenchange',fullscreenChanged);
+document.addEventListener('click',e=>{
+ const startButton=e.target.closest?.('#start,#again,#next-race');
+ if(startButton&&!startButton.disabled&&!window.onlineActive)openGameFullscreen();
+},true);
 window.populatePauseSettings=panel=>{
  panel.replaceChildren();
  if(mobileInput.matches&&requestGameScreen){const full=document.createElement('button');full.id='pause-fullscreen';full.textContent=fullscreenButton.textContent;full.onclick=()=>fullscreenButton.click();panel.append(full);}

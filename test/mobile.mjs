@@ -18,7 +18,9 @@ try {
   });
   const screenshot=async name=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png'});}};
   await page.goto(base+'/?mode=local');
+  await page.evaluate(()=>chooseMode('local',false));
   assert.equal((await layout()).overflow,false,'garage must fit phone width');
+  await page.locator('#local-settings-button').click();assert.equal(await page.locator('#local-options #fullscreen-button').count(),1,'garage settings expose fullscreen');await page.locator('#local-settings-button').click();
   await page.locator('#start').click();
   await page.waitForFunction(()=>document.body.dataset.screen==='race');
   let state=await layout();assert.equal(state.touch.hidden,false);assert.ok(state.hud.w<=240);assert.ok(state.hud.h<=90);assert.ok(state.canvas[0]<=393*1.5+1);
@@ -35,7 +37,7 @@ try {
   await session.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
   assert.equal(await page.evaluate(()=>!!keys.TouchGas),false,'cancel releases throttle');
   assert.equal(await stat.evaluate(e=>e===document.querySelector('.stat')),true,'HUD keeps its DOM nodes');
-  assert.equal(await page.evaluate(()=>!!document.fullscreenElement),false,'starting the game avoids Android fullscreen exit notifications');
+  assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true,'starting a local mobile game opens fullscreen');
   assert.equal(await page.locator('#online-bar').isVisible(),false,'race hides the online counters');
   assert.equal(await page.locator('[data-control="gas"]').evaluate(e=>getComputedStyle(e).webkitTapHighlightColor),'rgba(0, 0, 0, 0)');
   await page.waitForFunction(()=>document.querySelector('#touch-controls').classList.contains('hints-faded'));
@@ -51,7 +53,7 @@ try {
   await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;count=0;gameDebug.activateAbility(cars[0]);});assert.ok(await page.evaluate(()=>cars[0].shield>0),'shield ability activates without entering fullscreen');
   await screenshot('portrait-race');
   await page.evaluate(()=>togglePause());await page.locator('#pause-settings-toggle').click();assert.equal(await page.locator('#pause-fullscreen').count(),1,'pause settings expose manual fullscreen control');
-  await page.locator('#pause-fullscreen').click();await page.waitForFunction(()=>!!document.fullscreenElement,'manual setting enters fullscreen');
+  assert.match(await page.locator('#pause-fullscreen').textContent(),/Выйти из полного экрана/);
   await page.locator('#pause-fullscreen').click();await page.waitForFunction(()=>!document.fullscreenElement,'manual setting exits fullscreen');await page.locator('#resume').click();
   await page.setViewportSize({width:320,height:640});
   await page.waitForTimeout(150);assert.equal((await layout()).overflow,false,'small phone header must fit');
