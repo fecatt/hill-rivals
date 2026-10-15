@@ -33,7 +33,7 @@ function hillSprite(index,x,y,height,angle=0,flip=false){
  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';ctx.translate(x,y);ctx.rotate(angle);if(flip!==Boolean(isCloud&&index===5))ctx.scale(-1,1);
  ctx.drawImage(hillTexture(im,crop,isCloud?128:512),-width/2,-height,width,height);ctx.restore();
 }
-function drawHillSun(){
+function paintHillSun(){
  const x=W*.82,y=Math.max(82,H*.17),radius=Math.max(34,Math.min(43,W*.036));
  ctx.save();ctx.translate(x,y);ctx.imageSmoothingEnabled=true;
  const halo=ctx.createRadialGradient(0,0,radius*.5,0,0,radius*3.4);
@@ -57,15 +57,35 @@ function drawHillSun(){
  }
  ctx.restore();
 }
+// Firefox's software Canvas2D path is expensive when a full-screen panorama
+// is filtered every frame. Rasterise it once at the backing-store resolution.
+let hillBackdrop=null,hillSunRaster=null;
+function prepareHillBackground(){
+ const ratio=renderRatio,key=W+':'+H+':'+ratio;
+ if(hillBackdrop?.key===key)return hillBackdrop;
+ const sky=document.createElement('canvas');sky.width=Math.ceil(W*ratio);sky.height=Math.ceil(H*ratio);
+ const skyPaint=sky.getContext('2d'),gradient=skyPaint.createLinearGradient(0,0,0,sky.height);gradient.addColorStop(0,'#71bce1');gradient.addColorStop(1,'#d7ecd0');skyPaint.fillStyle=gradient;skyPaint.fillRect(0,0,sky.width,sky.height);
+ let panorama=null,tileWidth=Math.max(W,H*hillPanorama.naturalWidth/hillPanorama.naturalHeight);
+ if(hillPanorama.complete&&hillPanorama.naturalWidth){panorama=document.createElement('canvas');panorama.width=Math.ceil(tileWidth*ratio);panorama.height=Math.ceil(H*ratio);tileWidth=panorama.width/ratio;const p=panorama.getContext('2d');p.imageSmoothingEnabled=true;p.imageSmoothingQuality='medium';p.drawImage(hillPanorama,0,0,panorama.width,panorama.height);}
+ hillBackdrop={key,sky,panorama,tileWidth};return hillBackdrop;
+}
+function drawHillSun(){
+ const ratio=renderRatio,radius=Math.max(34,Math.min(43,W*.036)),pad=Math.ceil(radius*3.5),x=W*.82,y=Math.max(82,H*.17),key=W+':'+H+':'+ratio;
+ if(!hillSunRaster||hillSunRaster.key!==key||Math.abs(time-hillSunRaster.time)>=.25){
+  const surface=hillSunRaster?.key===key?hillSunRaster.surface:document.createElement('canvas');surface.width=Math.ceil(pad*2*ratio);surface.height=Math.ceil(pad*2*ratio);
+  const p=surface.getContext('2d');p.setTransform(ratio,0,0,ratio,(pad-x)*ratio,(pad-y)*ratio);withDrawingContext(p,paintHillSun);hillSunRaster={key,time,surface};
+ }
+ ctx.drawImage(hillSunRaster.surface,Math.round((x-pad)*ratio)/ratio,Math.round((y-pad)*ratio)/ratio,hillSunRaster.surface.width/ratio,hillSunRaster.surface.height/ratio);
+}
 function drawHillBackground(){
  document.body.dataset.biome='hills';
- const sky=ctx.createLinearGradient(0,0,0,H);sky.addColorStop(0,'#71bce1');sky.addColorStop(1,'#d7ecd0');ctx.fillStyle=sky;ctx.fillRect(0,0,W,H);
+ const backdrop=prepareHillBackground();ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
- if(hillPanorama.complete&&hillPanorama.naturalWidth){
-  const tileWidth=Math.max(W,H*hillPanorama.naturalWidth/hillPanorama.naturalHeight),offset=cam*.085;
-  for(let i=Math.floor(offset/tileWidth)-1;i<=Math.ceil((offset+W)/tileWidth);i++){
-   ctx.save();ctx.translate(i*tileWidth-offset,0);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
-   ctx.drawImage(hillTexture(hillPanorama,[0,0,hillPanorama.naturalWidth,hillPanorama.naturalHeight],1024),0,-cameraY*scale()*.07,tileWidth,H);ctx.restore();
+ if(backdrop.panorama){
+  const tileWidth=backdrop.tileWidth,offset=cam*.085,y=Math.round(-cameraY*scale()*.07*renderRatio)/renderRatio;
+  for(let i=Math.floor(offset/tileWidth);i<=Math.floor((offset+W)/tileWidth);i++){
+   ctx.save();ctx.translate(Math.round((i*tileWidth-offset)*renderRatio)/renderRatio,y);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
+   ctx.drawImage(backdrop.panorama,0,0,tileWidth,backdrop.panorama.height/renderRatio);ctx.restore();
   }
  }
  drawHillSun();

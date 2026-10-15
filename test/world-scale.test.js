@@ -138,3 +138,13 @@ test('driver placement does not alter physical wheel geometry and exported setti
  assert.equal(result.before,result.after);assert.equal(result.payload.version,2);assert.equal(result.payload.vehicles.length,9);
  assert.deepEqual({...result.payload.vehicles.find(v=>v.kind==='evo').driver},{x:10,y:-12,scale:1.7});
 });
+
+test('slow drawing reduces backing resolution without changing the world or simulation state',()=>{
+ const run=fixture(),result=run(`(()=>{
+  const c=newCar(0),before={width:W,height:H,ratio:renderRatio,car:JSON.stringify(c)};
+  for(let n=0;n<180;n++)adaptRenderQuality(25);
+  return {before,width:W,height:H,ratio:renderRatio,backing:canvas.width,car:JSON.stringify(c),hz:window.gameDebug.getPerformance().physicsHz};
+ })()`);
+ assert.ok(result.ratio<result.before.ratio);assert.equal(result.width,result.before.width);assert.equal(result.height,result.before.height);
+ assert.equal(result.car,result.before.car);assert.equal(result.hz,120);assert.equal(result.backing,Math.round(result.width*result.ratio));
+});

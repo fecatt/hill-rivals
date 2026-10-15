@@ -24,9 +24,10 @@ async function loadGameAssets(){
  const results=await Promise.allSettled(gameImages.map(async im=>{await decodeAsset(im);$('#loading-progress').value=++done/gameImages.length;$('#loading-status').textContent=`Текстуры: ${done} / ${gameImages.length}`;}));
  if(results.some(r=>r.status==='rejected')){$('#loading-status').textContent='Не удалось загрузить все текстуры. Проверь соединение и повтори загрузку.';$('#retry-loading').hidden=false;return;}
  // Build the reusable scenery textures before racing rather than on the first frame.
- hillTexture(hillPanorama,[0,0,hillPanorama.naturalWidth,hillPanorama.naturalHeight],1024);
  for(let i=0;i<hillTrees.length;i++)hillTexture(hillTrees[i],hillTreeBounds[i],512);
  hillTexture(hillCloud,hillCloudBounds,128);
+ for(const crop of (typeof ENV_CROPS==='undefined'?[]:ENV_CROPS))hillTexture(environmentAtlas,crop,512);
+ if(typeof prepareHillBackground==='function')prepareHillBackground();
  assetsLoaded=true;loadingScreen.remove();resolveAssets();
 }
 $('#retry-loading').onclick=loadGameAssets;

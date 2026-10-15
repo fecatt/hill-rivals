@@ -7,13 +7,22 @@ const checkpoint=1500,baseScale=()=>Math.min(1.3,Math.max(.7,W/1250)),scale=()=>
 const abilityNames={turbo:'Турбо',jump:'Прыжок',shield:'Щит'},abilityKeys=['E','Правый Shift','СКМ','U'];
 // Bound the backing store on dense phone screens; physics stays in CSS pixels.
 const mobileInput=matchMedia('(pointer: coarse), (max-width: 750px)');
-let renderRatio=1;
+let renderRatio=1,renderQuality=1,renderCostTotal=0,renderCostSamples=0,renderCostAverage=0,renderQualityCooldown=0,renderQualityGoodFrames=0;
 function resize(){
  W=innerWidth;H=innerHeight;
  const pixelBudget=mobileInput.matches?2400000:Math.max(W*H,8300000);
- renderRatio=Math.min(devicePixelRatio||1,mobileInput.matches?1.5:2,Math.sqrt(pixelBudget/(W*H)));
+ renderRatio=Math.min(devicePixelRatio||1,mobileInput.matches?1.5:2,Math.sqrt(pixelBudget/(W*H)))*renderQuality;
  canvas.width=Math.round(W*renderRatio);canvas.height=Math.round(H*renderRatio);
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
+}
+function adaptRenderQuality(cost){
+ if(!Number.isFinite(cost)||cost<0)return;
+ if(renderQualityCooldown>0){renderQualityCooldown--;return;}
+ renderCostTotal+=cost;if(++renderCostSamples<30)return;
+ renderCostAverage=renderCostTotal/renderCostSamples;renderCostTotal=0;renderCostSamples=0;
+ if(renderCostAverage>13&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.85);renderQualityCooldown=45;renderQualityGoodFrames=0;resize();}
+ else if(renderCostAverage<4&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=300){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=90;resize();}}
+ else renderQualityGoodFrames=0;
 }
 addEventListener('resize',resize);mobileInput.addEventListener('change',resize);resize();
 function syncGameScreen(){
@@ -315,6 +324,7 @@ function frame(now){
   for(const car of cars)previousPoses.set(car,renderFields.map(key=>car[key]));
   update(1/120);acc-=1/120;
  }
+ const renderingStarted=performance.now();
  if(mode==='lobby')time+=dt;syncGameScreen();window.updateTouchHints?.(dt);animateSuspension(dt);drawInterpolated(acc*120);
  if(mode==='lobby'){window.refreshChoices?.();window.renderSettingPreviews?.();}
  if(engineAudio){
@@ -322,6 +332,7 @@ function frame(now){
   engineAudio.updateEnvironment({enabled:sound&&!paused&&!document.hidden,active:mode==='race'&&!paused&&count<=0,car:c,mode,count});
   engineAudio.update(dt,{active:sound&&mode==='race'&&!paused&&count<=0,car:c,spec:c?carSpec(c):null,gas:controls[0],brake:controls[1]});
  }
+ if(mode==='race'&&!paused)adaptRenderQuality(performance.now()-renderingStarted);
 }
 requestAnimationFrame(frame);
 document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;if(document.hidden)engineAudio?.silence();});
