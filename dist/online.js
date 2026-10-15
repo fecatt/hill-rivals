@@ -10,6 +10,7 @@ let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 let localCar=null,localCars=new Map(),localControls=[false,false];
 let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
 let serverToLocal=null,bestRtt=Infinity;
+let recentRtts=[],lastPongAt=0,lastStateReceived=0,connectionLost=false;
 let interpolationDelay=70,lastPacketAt=0,renderTarget=-Infinity;
 const remoteFrames=new Map();
 function remotePose(index,target,fallback){
@@ -77,9 +78,29 @@ function sendPose(force=false){
 }
 
 const onlineBar=document.createElement('div');onlineBar.id='online-bar';onlineBar.setAttribute('aria-live','polite');document.body.append(onlineBar);
+const connectionIndicator=document.createElement('div');connectionIndicator.id='connection-indicator';connectionIndicator.hidden=true;connectionIndicator.setAttribute('role','status');connectionIndicator.setAttribute('aria-live','polite');document.body.append(connectionIndicator);
+let showPing=localStorage.getItem('hill-show-ping')==='true';
+window.appendConnectionSettings=panel=>{
+ const label=document.createElement('label');label.className='connection-setting';
+ const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=showPing;checkbox.addEventListener('change',()=>{showPing=checkbox.checked;localStorage.setItem('hill-show-ping',String(showPing));refreshConnectionIndicator();});
+ const text=document.createElement('span');text.textContent='Показывать пинг';label.append(checkbox,text);panel.append(label);
+};
+function refreshConnectionIndicator(){
+ const freshRtts=performance.now()-lastPongAt<5000?recentRtts:[],sortedRtts=[...freshRtts].sort((a,b)=>a-b);
+ const serverPing=sortedRtts.length?Math.round(sortedRtts[Math.floor(sortedRtts.length/2)]):null;
+ const peerPings=window.peerTransport?.pings?.()||[];
+ const age=lastStateReceived?performance.now()-lastStateReceived:Infinity;
+ const poor=mode==='race'&&(connectionLost||age>1800||serverPing!==null&&serverPing>=400);
+ const pingText=[serverPing!==null?'Сервер '+serverPing+' мс':'Сервер —',...peerPings.map(value=>'Игроки '+value+' мс')].join(' · ');
+ connectionIndicator.hidden=!poor&&(!showPing||mode!=='race');
+ connectionIndicator.classList.toggle('poor',poor);
+ connectionIndicator.textContent=poor?'Связь с комнатой нестабильна · гонка продолжается':pingText;
+}
+window.refreshConnectionIndicator=refreshConnectionIndicator;
 const roomPanel=document.createElement('section');roomPanel.id='room-panel';roomPanel.hidden=true;$('#picks').after(roomPanel);
 const touch=document.createElement('div');touch.id='touch-controls';touch.hidden=true;touch.innerHTML='<button data-control="brake" aria-label="Тормоз и задний ход"><span class="touch-hint">НАЗАД</span></button><button data-control="ability" aria-label="Способность"><span class="touch-hint">ЩИТ / СПОСОБНОСТЬ</span></button><button data-control="gas" aria-label="Газ"><span class="touch-hint">ГАЗ</span></button>';document.body.append(touch);
 const roomUI=createRoomsUI();
+window.appendConnectionSettings($('#room-options .drawer-body'));
 window.peerTransport=createPeerTransport(send,()=>roomState);
 document.title='Hill Rivals · Онлайн-гонка';
 $('header>div').textContent='ONLINE MULTIPLAYER';
@@ -185,6 +206,13 @@ update=dt=>{
   if(paused&&roomState.phase==='race'){sendPose();return;}
   if(roomState.phase==='countdown'){count=Math.max(0,(roomState.startAt-(Date.now()+clockOffset))/1000);return;}
   count=0;
+  if(connectionLost&&mode==='race'&&localCars.size&&window.onlineIndices?.length===1&&roomState.racers.length===1){
+    const index=window.onlineIndices[0],owned=localCars.get(index);
+    cars[index]=Object.assign(cars[index]||{},owned);
+    window.localGameHooks.update(dt);
+    Object.assign(owned,cars[index]);localCar=owned;localSimTime+=dt;sendPose();
+    return;
+  }
   if(mode==='race'&&snapshots.length){
     const now=performance.now(),elapsed=now-snapshotReceived;
     const target=renderTarget=Math.max(renderTarget,(serverToLocal===null?roomState.serverNow+elapsed:now-serverToLocal)-interpolationDelay);
@@ -314,6 +342,7 @@ function connect(){
     if(state.type==='peer-probe'){window.peerTransport.relay(state);return;}
     if(state.type==='pong'){
       const now=performance.now(),rtt=now-state.sent;
+      if(rtt>=0&&rtt<10000){recentRtts.push(rtt);if(recentRtts.length>9)recentRtts.shift();lastPongAt=now;}
       if(rtt>=0&&rtt<=bestRtt*1.2){bestRtt=Math.min(bestRtt,rtt);serverToLocal=(state.sent+now)/2-state.serverNow;}
       return;
     }
@@ -321,14 +350,14 @@ function connect(){
     clockOffset=state.serverNow-Date.now();
     const joined=!roomState||state.room.code!==roomState.room?.code;
     const changed=joined||JSON.stringify([state.phase,state.players,state.track,state.vehicle,state.room,state.inRace])!==JSON.stringify([roomState.phase,roomState.players,roomState.track,roomState.vehicle,roomState.room,roomState.inRace]);
-    roomState=state;roomExitNotice='';installGame(state);
+    roomState=state;roomExitNotice='';lastStateReceived=performance.now();connectionLost=false;installGame(state);refreshConnectionIndicator();
     window.peerTransport.update(state);
     if(joined){if(state.room.host!==state.you){const owned=state.players.filter(p=>playerOwner(p)===state.you).length;onlineSeatCount=Math.max(1,Math.min(onlineSeatCount,8-(state.players.length-owned)));$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);renderPick();}sendProfile();}
     const seconds=state.phase==='countdown'?Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000)):-1;
     if(changed||seconds!==renderedCountdown)renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{keysClear();$('#start').disabled=true;touch.hidden=true;snapshots=[];window.peerTransport.reset();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Переподключаемся…';reconnectTimer=setTimeout(connect,1500);}};
+  socket.onclose=()=>{connectionLost=true;if(mode!=='race'){$('#start').disabled=true;touch.hidden=true;}refreshConnectionIndicator();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Идёт переподключение…';reconnectTimer=setTimeout(connect,1500);}};
   socket.onerror=()=>socket.close();
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
@@ -337,7 +366,7 @@ window.onlineSession={
  leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };
-setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();}},2000);
+setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();refreshConnectionIndicator();}},1000);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)send({type:'ping',sent:performance.now()});},2000);
 let deployedVersion;
 setInterval(async()=>{

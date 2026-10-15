@@ -57,7 +57,7 @@ export function createSimulation(players, trackId, model) {
           const value=raw[field];if(!Number.isFinite(value)||value<low||value>high)return false;pose[field]=value;
         }
         const previous=pendingPoses.get(i)||c;
-        if(Math.abs(pose.x-previous.x)>(carSpec(c).maxSpeed*1.24+200)*Math.min(5,elapsed)+64||Math.abs(pose.y-previous.y)>950*Math.min(5,elapsed)+120)return false;
+        if(Math.abs(pose.x-previous.x)>(carSpec(c).maxSpeed*1.24+200)*Math.min(30,elapsed)+64||Math.abs(pose.y-previous.y)>950*Math.min(30,elapsed)+120)return false;
         if(typeof raw.alive!=='boolean')return false;
         pose.alive=raw.alive;pose.reason=raw.alive?'':['Переворот','Авария','Нет топлива'].includes(raw.reason)?raw.reason:'Авария';pose.rocketOn=raw.rocketOn===true&&carSpec(c).rocket===true;
         profiles[i].localPhysics=true;pendingPoses.set(i,pose);return true;

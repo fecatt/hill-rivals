@@ -92,6 +92,7 @@ function createPeerTransport(send,getRoom){
    return pose;
   },
   summary(){let direct=0;for(const peer of peers.values())if(peer.selected&&peer.channel?.readyState==='open')direct++;const count=Math.max(0,new Set((getRoom()?.players||[]).map(ownerOf).filter(id=>id!==getRoom()?.you)).size);return count?'Напрямую: '+direct+' · Через сервер: '+(count-direct):'Ожидаем игроков';},
+  pings(){const now=performance.now();return [...peers.values()].filter(peer=>peer.selected&&peer.channel?.readyState==='open'&&peer.direct.length&&now-(peer.lastEcho||0)<5000).map(peer=>Math.round(median(peer.direct)));},
   reset(){for(const peer of peers.values())peer.pc.close();peers.clear();round=-1;},
   debug(){return [...peers.values()].map(p=>({id:p.id,connected:p.channel?.readyState==='open',directRtt:median(p.direct),relayRtt:median(p.relay),selected:p.selected,frames:[...p.frames.values()].reduce((count,frames)=>count+frames.length,0)}));},
  };

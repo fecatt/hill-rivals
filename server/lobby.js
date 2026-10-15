@@ -37,7 +37,7 @@ export class Lobby {
   const previous=session&&this.sessions.get(session);
   if(previous){
    previous.send=send;previous.disconnectedAt=null;this.clients.set(previous.id,previous);
-   if(previous.room?.clients.has(previous.id)){const party=previous.room.clients.get(previous.id),now=(this.options.now||Date.now)();party.send=send;party.disconnectedAt=null;for(const seat of party.seats){seat.disconnectedAt=null;seat.lastPoseAt=now;}this.markOccupancy(previous.room);this.persistRooms();previous.room.broadcast();send({type:'chat',messages:previous.room.chat});}
+   if(previous.room?.clients.has(previous.id)){const party=previous.room.clients.get(previous.id);party.send=send;party.disconnectedAt=null;for(const seat of party.seats)seat.disconnectedAt=null;this.markOccupancy(previous.room);this.persistRooms();previous.room.broadcast();send({type:'chat',messages:previous.room.chat});}
    else this.directory(previous.id);
    return previous.id;
   }

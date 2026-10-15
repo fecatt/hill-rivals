@@ -73,6 +73,17 @@ test('offline room members stay reconnectable until five minutes, then are remov
  lobby.disconnect(guest);now+=5*60*1000-1;lobby.tick();lobby.broadcast();assert.equal(lobby.rooms.get(code).clients.get(guest).disconnectedAt,1000);assert.equal(out.filter(message=>message.type==='state').at(-1).players.find(player=>player.owner===guest).online,false);
  now+=1; lobby.tick();assert.equal(lobby.rooms.get(code).clients.has(guest),false);assert.equal(lobby.sessions.has('guest-session'),false);
 });
+test('reconnecting preserves the last client pose time so resumed movement is accepted',()=>{
+ let now=1000;const lobby=new Lobby({now:()=>now,countdownMs:0}),id=lobby.connect(()=>{},'home','session');
+ lobby.message(id,{type:'create-room'});const room=lobby.clients.get(id).room;
+ lobby.message(id,{type:'ready',ready:true});room.tick();
+ const initial=room.sim.state().cars[0],first={...initial,x:initial.x+10};
+ lobby.message(id,{type:'pose',round:room.round,seq:1,time:0,pose:first});room.tick();
+ const acceptedAt=room.racers[0].lastPoseAt;lobby.disconnect(id);now+=6000;lobby.connect(()=>{},'home','session');
+ assert.equal(room.racers[0].lastPoseAt,acceptedAt);
+ const resumed={...first,x:first.x+100};lobby.message(id,{type:'pose',round:room.round,seq:2,time:6,pose:resumed});room.tick();
+ assert.equal(room.sim.state().cars[0].x,resumed.x);
+});
 
 test('leaving or switching removes an empty old room; offline sessions still expire after five minutes',()=>{
  let now=1000;const lobby=new Lobby({now:()=>now}),outA=[],outB=[];

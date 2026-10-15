@@ -60,6 +60,15 @@ test('local driving survives a 900 ms packet gap and incoming poses cannot move 
  assert.equal(c.context.sent[0].type,'pose');assert.equal(c.context.sent[0].pose.x,x);
 });
 
+test('solo race keeps its full local simulation running after the server socket drops',()=>{
+ const c=client(),sample=state();sample.players=sample.players.slice(0,1);sample.racers=sample.racers.slice(0,1);sample.game.cars=sample.game.cars.slice(0,1);
+ c.context.sample=sample;c.run('roomState=sample;installGame(sample);snapshots=[];connectionLost=true;keys.KeyD=true');
+ const before=c.run('localCar.x'),time=c.run('time');
+ for(let i=0;i<120;i++){c.advance(1000/120);c.run('update(1/120)');}
+ assert.ok(c.run('localCar.x')>before+10,'the solo car continues accelerating without server snapshots');
+ assert.ok(c.run('time')>time+.9,'offline continuation advances the race world');
+});
+
 test('shared bonus rewards apply locally once without replacing the local pose',()=>{
  const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample);localCar.fuel=30');
  c.context.sample.game.rewards=[{id:7,i:0,type:0}];
