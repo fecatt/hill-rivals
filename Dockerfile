@@ -5,6 +5,8 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY dist ./dist
 COPY server ./server
 COPY test ./test
+COPY scripts ./scripts
+RUN npm run build
 RUN mkdir -p /app/data && chown node:node /app/data
 VOLUME ["/app/data"]
 ENV ROOM_STORE_FILE=/app/data/rooms.json

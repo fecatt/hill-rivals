@@ -4,10 +4,12 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {WebSocketServer,WebSocket} from 'ws';
 import {Lobby} from './lobby.js';
+import {gzip} from 'node:zlib';
 const root=path.resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const version=process.env.APP_VERSION||'development';
 const lobby=new Lobby({storeFile:process.env.ROOM_STORE_FILE});
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.webp':'image/webp','.webmanifest':'application/manifest+json','.svg':'image/svg+xml'};
+const compressedFiles=new Map();
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({ok:true,version,online:lobby.clients.size,rooms:lobby.rooms.size}));return;}
   let file;
@@ -17,7 +19,13 @@ const server=http.createServer((req,res)=>{
   fs.stat(file,(error,stat)=>{
     if(error||!stat.isFile()){res.writeHead(404);res.end('Not found');return;}
     const etag='W/"'+stat.size.toString(16)+'-'+Math.trunc(stat.mtimeMs).toString(16)+'"',headers={'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','ETag':etag,'Last-Modified':stat.mtime.toUTCString()};
+    const compressible=/\.(html|js|css|svg|webmanifest)$/.test(file);if(compressible)headers.Vary='Accept-Encoding';
     if(req.headers['if-none-match']===etag){res.writeHead(304,headers);res.end();return;}
+    if(compressible&&/\bgzip\b/.test(req.headers['accept-encoding']||'')){
+      const key=file+':'+etag,send=buffer=>{res.writeHead(200,{...headers,'Content-Encoding':'gzip','Content-Length':buffer.length});res.end(req.method==='HEAD'?undefined:buffer);};
+      const cached=compressedFiles.get(key);if(cached){send(cached);return;}
+      fs.readFile(file,(error,source)=>{if(error){res.writeHead(500);res.end();return;}gzip(source,(error,buffer)=>{if(error){res.writeHead(500);res.end();return;}if(compressedFiles.size>=32)compressedFiles.delete(compressedFiles.keys().next().value);compressedFiles.set(key,buffer);send(buffer);});});return;
+    }
     res.writeHead(200,{...headers,'Content-Length':stat.size});
     if(req.method==='HEAD'){res.end();return;}
     fs.createReadStream(file).pipe(res);

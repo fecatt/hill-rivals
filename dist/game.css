@@ -1,0 +1,884 @@
+*{box-sizing:border-box}body{margin:0;background:#8dd5ed;color:#20382f;font-family:Arial,sans-serif;overflow:hidden}canvas{position:fixed;inset:0;width:100%;height:100%}header{position:relative;padding:22px 36px;display:flex;align-items:center;gap:28px;z-index:2}header b{font-size:25px;font-style:italic;letter-spacing:-1px}header b span{color:#d84e37}header div{font-size:10px;letter-spacing:2px;font-weight:bold}nav{margin-left:auto;display:flex;gap:8px}button,select{font:inherit;cursor:pointer}nav button{border:1px solid #24443640;background:#ffffff70;border-radius:8px;padding:9px 14px;font-size:12px;color:#20382f}main{position:relative;margin:12px auto;width:min(1080px,94vw);z-index:2}h1{font-size:clamp(36px,4.8vw,64px);line-height:.98;letter-spacing:-3px;margin:12px 0}h1 em{color:#d84e37;font-style:normal}.eyebrow{font-size:11px;font-weight:800;letter-spacing:3px}.intro{font-size:14px;line-height:1.6}#picks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}.pick{background:#fff8e7ec;border:2px solid #fff;border-radius:16px;padding:14px 18px;box-shadow:0 6px 0 #21362c17;position:relative;overflow:hidden}.pick h3{margin:0;font-size:13px;letter-spacing:1px}.pick .portrait{height:145px;display:block;margin:0 auto;object-fit:contain;filter:drop-shadow(0 5px 2px #0002)}.choose{display:flex;align-items:center;justify-content:space-between}.choose button{border:0;background:#e9e4d8;border-radius:50%;width:30px;height:30px;font-size:18px}.choose b{font-size:16px}.keys{font-size:11px;color:#63766b;margin-top:10px;text-align:center}.bottom{display:flex;justify-content:space-between;align-items:center;margin-top:20px}select{background:#fff8e7;border:0;padding:12px;border-radius:8px;margin-left:8px}#start{background:#d84e37;color:#fff;border:2px solid #a43a28;border-radius:10px;padding:16px 35px;font-size:18px;font-weight:bold;box-shadow:0 5px 0 #a43a28}#start span{margin-left:35px}.hint{font-size:11px;line-height:1.8;font-weight:bold}footer{position:fixed;bottom:18px;left:36px;right:36px;font-size:10px;font-weight:bold;letter-spacing:2px;display:flex;justify-content:space-between}#hud{position:fixed;top:80px;left:24px;right:24px;display:flex;gap:12px;pointer-events:none}.stat{flex:1;background:#fff8e7ed;border-radius:12px;padding:10px 16px;border-left:5px solid var(--color);box-shadow:0 3px 0 #0002}.stat strong{font-size:14px}.stat small{float:right;font-weight:bold}.fuel{height:7px;background:#d7d6c5;border-radius:5px;margin:7px 0;overflow:hidden}.fuel i{display:block;height:100%;background:#65a53b}.stat p{font-size:10px;margin:0;color:#56685e}#overlay{position:fixed;z-index:5;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;background:#fff8e7f2;border:3px solid white;border-radius:22px;padding:30px 60px;box-shadow:0 15px 60px #243c3440;min-width:350px}#overlay h2{font-size:36px;margin:0 0 15px}#overlay button{background:#d84e37;color:white;border:0;border-radius:8px;padding:13px 25px;margin:6px}#overlay p{line-height:1.7}[hidden]{display:none!important}@media(max-height:760px){main{margin-top:0}h1{font-size:44px}.pick .portrait{height:112px}.intro{margin:10px 0}#picks{margin-top:12px}.hint{margin:10px 0}footer{bottom:9px}}@media(max-width:750px){header{padding:14px;gap:10px}header div{display:none}.pick{padding:10px}.keys{font-size:9px}nav button{padding:8px}#hud{left:10px;right:10px;gap:5px}.stat{padding:8px}main{width:96vw}}
+
+.ability-select{display:flex;align-items:center;justify-content:space-between;font-size:11px;margin-top:10px}.ability-select select{font-size:11px;padding:6px;margin-left:4px;background:#e9e4d8}.stat .ability-status{margin-top:6px;font-weight:bold;color:#30594b}
+
+#map-description{margin-bottom:4px;color:#395d4b}.ability-select{gap:5px}.ability-select select{flex-shrink:0}
+body[data-biome="moon"] header{color:#f0eee2}body[data-biome="moon"] .eyebrow,body[data-biome="moon"] .intro,body[data-biome="moon"] .hint,body[data-biome="moon"] .bottom>label,body[data-biome="moon"] footer{color:#f0eee2}body[data-biome="moon"] h1{color:#f0eee2}
+.bottom{gap:12px;flex-wrap:wrap}.vehicle-choice{font-size:13px}.vehicle-choice select{max-width:185px;font-size:12px}.bottom>label:first-child select{max-width:230px}
+#vehicle-description,#vehicle-stats{margin:4px 0;line-height:1.35;font-size:11px}
+
+#online-bar{position:fixed;z-index:6;bottom:12px;left:50%;transform:translateX(-50%);padding:9px 16px;border-radius:12px;background:#fff8e7ed;color:#20382f;font-size:12px;font-weight:bold;white-space:nowrap;max-width:96vw;overflow:auto}
+#connection-indicator{position:fixed;z-index:6;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);max-width:calc(100vw - 20px);padding:7px 11px;border:1px solid #24443640;border-radius:8px;background:#fff8e7ed;color:#20382f;font-size:11px;font-weight:bold;text-align:center;pointer-events:none}#connection-indicator.poor{background:#fff0df;color:#9a3d28;border-color:#e3a17d}.connection-setting{display:flex;align-items:center;gap:9px;padding:6px 4px;font-size:13px}.connection-setting input{width:18px;height:18px;margin:0;accent-color:#438449}
+.choosing #lobby,.choosing #hud,.choosing #overlay,.choosing #foot,.choosing #pause,.choosing #menu{display:none!important}#mode-picker{margin:45px auto;max-width:1000px;padding-bottom:40px}.mode-options{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px}.mode-card{display:block;padding:28px;background:#fff8e7ed;border:3px solid white;border-radius:20px;color:#20382f;text-decoration:none;box-shadow:0 7px 0 #21362c20}.mode-card>span{font-size:36px}.mode-card h2{font-size:30px;margin:15px 0}.mode-card p{font-size:15px;line-height:1.6}.mode-card b{display:block;color:#d84e37;margin-top:24px}.mode-card:hover,.mode-card:focus-visible{border-color:#d84e37}#room-status{font-size:18px;font-weight:bold}dialog{max-width:480px;width:92vw;border:3px solid white;border-radius:20px;background:#fff8e7;color:#20382f;padding:28px;line-height:1.6}dialog::backdrop{background:#20382f70}dialog button{background:#d84e37;color:white;border:0;border-radius:9px;padding:12px 24px}@media(max-width:750px){.mode-options{grid-template-columns:1fr;gap:16px}#mode-picker{margin:15px auto;padding:0 12px 40px}.mode-card{padding:20px}.mode-card h2{font-size:25px}.mode-card p{font-size:13px}header nav{flex-wrap:wrap}header{position:relative}#room-status{font-size:15px}}@media(display-mode:standalone){#install-app{display:none}}
+body.online #picks{grid-template-columns:minmax(240px,360px);float:left;width:35%;margin-right:3%}
+#room-panel{background:#fff8e7e8;border-radius:16px;padding:14px 20px;margin-top:20px;min-height:215px;overflow:hidden}
+#room-panel h3{margin:0 0 12px}.room-list{max-height:150px;overflow:auto}.room-list>div{padding:6px 0;border-bottom:1px solid #20382f18;font-size:13px}.room-list b{color:#44863e}#room-status{font-size:13px;line-height:1.5}.bottom{clear:both;padding-top:12px}
+button:disabled{opacity:.55;cursor:default}#hud{max-height:180px;overflow:auto}.stat{min-width:200px}#touch-controls{position:fixed;z-index:4;bottom:56px;left:15px;right:15px;display:flex;gap:12px;justify-content:space-between;pointer-events:none}#touch-controls button{pointer-events:auto;touch-action:none;user-select:none;background:#fff8e7c9;border:2px solid #20382f40;border-radius:14px;padding:18px;color:#20382f;font-weight:bold}#overlay{max-height:80vh;overflow:auto}
+@media(max-width:750px){body{overflow:auto}header{flex-wrap:wrap}header>div{display:block;font-size:8px}nav{gap:4px}body.online #picks{float:none;width:100%;margin-right:0;grid-template-columns:1fr}.pick .portrait{height:90px}#room-panel{margin-top:12px;min-height:0}h1{font-size:38px}.intro{font-size:12px}.bottom{gap:10px;justify-content:center}.bottom>label{width:100%;display:flex;justify-content:space-between}#start{width:100%}footer{display:none}main{padding-bottom:65px}#hud{top:100px;max-height:100px}.stat{min-width:160px}#overlay{min-width:0;width:94vw;padding:24px}#online-bar{font-size:10px}#touch-controls button{padding:18px 10px;font-size:11px}}
+
+@media(max-height:760px){header{padding:16px 36px}h1{font-size:40px}.pick .portrait{height:90px}#picks{margin-top:8px}.bottom{margin-top:12px}.intro{line-height:1.4}.hint{margin:6px 0}}
+
+body[data-players="1"] #picks{grid-template-columns:minmax(260px,350px)}body[data-players="2"] #picks{grid-template-columns:repeat(2,1fr)}body[data-players="1"] #hud{max-width:400px}
+
+/* A scrollable garage and a fixed, compact driving surface are separate layouts. */
+body{min-height:100dvh;overflow-y:auto;overscroll-behavior:none}
+body[data-screen="race"]{height:100dvh;overflow:hidden;touch-action:none}
+body[data-screen="race"] header{position:fixed;top:0;left:0;right:0;padding:8px 12px;gap:10px}
+body[data-screen="race"] header b{font-size:18px}
+body[data-screen="race"] header>div,body[data-screen="race"] #install-app,body[data-screen="race"] #mode-button{display:none}
+body[data-screen="race"] nav{flex-wrap:nowrap}
+body[data-screen="race"] nav button{padding:7px 10px;font-size:11px}
+#hud{z-index:3;top:52px;max-height:110px}
+#touch-controls{display:none}
+#overlay{max-height:calc(100dvh - 24px)}
+main{padding-bottom:60px}
+@media (pointer:coarse), (max-width:750px){
+ header{padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));gap:8px;flex-wrap:wrap}
+ header b{font-size:23px}header>div{display:none}
+ header nav{gap:6px;flex-wrap:wrap}nav button{min-height:36px;padding:7px 10px;font-size:12px}
+ main{width:min(720px,100%);margin:8px auto;padding:0 max(12px,env(safe-area-inset-right)) calc(60px + env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+ h1{font-size:34px;letter-spacing:-1.5px;margin:10px 0}.eyebrow{font-size:10px;letter-spacing:1px}.intro{font-size:13px;line-height:1.4}
+ #picks,body.online #picks,body[data-players="1"] #picks,body[data-players="2"] #picks{float:none;width:100%;margin:12px 0;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+ .pick{padding:10px 12px;border-radius:12px}.pick .portrait{height:76px;filter:none}.pick h3{font-size:11px}.choose b{font-size:16px}.choose button{width:40px;height:40px}.keys{display:none}
+ .ability-select{font-size:12px;margin-top:6px}.ability-select select{min-height:36px;font-size:12px}
+ #room-panel{margin-top:10px;padding:12px 14px;min-height:0}#room-panel h3{margin:0 0 6px;font-size:17px}.room-list{max-height:84px}#room-status{font-size:12px;margin:8px 0 0}
+ .bottom{margin-top:10px;padding-top:0;gap:10px}.bottom>label{width:100%;display:flex;align-items:center;justify-content:space-between;font-size:13px;gap:8px}
+ .bottom select,.bottom>label:first-child select,.vehicle-choice select{margin:0;max-width:none;width:65%;min-width:0;font-size:13px;padding:10px}
+ #start{width:100%;min-height:46px;padding:12px;font-size:16px}#start span{margin-left:15px}.hint{font-size:11px;line-height:1.4}
+ footer{display:none}#mode-picker{margin:10px auto;padding-bottom:30px}.mode-options{grid-template-columns:1fr;gap:12px;margin-top:16px}.mode-card{padding:16px}.mode-card h2{font-size:24px;margin:8px 0}.mode-card b{margin-top:12px}
+ body[data-screen="race"] header{padding:calc(6px + env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) 6px max(10px,env(safe-area-inset-left));flex-wrap:nowrap;height:calc(42px + env(safe-area-inset-top))}
+ body[data-screen="race"] header b{font-size:16px;white-space:nowrap}
+ body[data-screen="race"] nav button{min-height:30px;padding:5px 8px;font-size:11px}
+ #hud,body[data-players="1"] #hud{top:calc(48px + env(safe-area-inset-top));left:max(10px,env(safe-area-inset-left));right:max(10px,env(safe-area-inset-right));max-width:240px;max-height:90px;gap:6px}
+ .stat{min-width:150px;padding:7px 10px;border-left-width:3px;border-radius:8px;box-shadow:none;flex-shrink:0}.stat strong,.stat small{font-size:12px}.stat p{font-size:10px;line-height:1.2}.fuel{height:4px;margin:5px 0}.stat .ability-status{margin-top:4px}
+ #touch-controls{display:flex;left:max(12px,env(safe-area-inset-left));right:max(12px,env(safe-area-inset-right));bottom:calc(12px + env(safe-area-inset-bottom));align-items:flex-end;gap:8px}
+ #touch-controls button{width:clamp(76px,21vw,116px);height:60px;padding:8px;font-size:13px;border-radius:14px;background:#fff8e7e8;-webkit-user-select:none;-webkit-touch-callout:none}
+ #touch-controls button[data-control="ability"]{width:clamp(100px,28vw,150px);height:46px;font-size:12px}
+ #touch-controls button:active{background:#e5ba73;border-color:#20382f}#touch-controls button:disabled{opacity:.7}
+ #online-bar{bottom:calc(8px + env(safe-area-inset-bottom));font-size:10px;padding:6px 10px;max-width:calc(100vw - 24px);overflow:hidden;pointer-events:none}
+ body[data-screen="race"] #online-bar{bottom:calc(80px + env(safe-area-inset-bottom));padding:4px 8px;font-size:9px}
+ #overlay{width:min(94vw,460px);min-width:0;padding:18px;max-height:calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px)}#overlay h2{font-size:26px}#overlay p{font-size:13px}
+}
+@media (pointer:coarse) and (orientation:landscape){
+ body[data-screen="race"] #hud{max-width:210px;max-height:82px}
+ #touch-controls button{height:52px}#touch-controls button[data-control="ability"]{height:42px}
+ body[data-screen="race"] #online-bar{bottom:calc(68px + env(safe-area-inset-bottom))}
+ body.online #picks{float:left;width:45%;margin-right:3%}#room-panel{margin-top:12px}
+}
+
+@media(max-width:380px){
+ body[data-screen="race"] header b{display:none}
+ body[data-screen="race"] nav{width:100%;justify-content:flex-end}
+}
+
+#loading-screen{position:fixed;inset:0;z-index:1000;background:#f6efdfff;display:grid;place-items:center;padding:24px;text-align:center}
+#loading-screen section{width:min(400px,100%)}
+#loading-screen progress{width:100%;height:18px;accent-color:#365b3d}
+#loading-screen p{line-height:1.5}
+#retry-loading{margin-top:20px}
+/* Rooms, readable garage panels, and transitions without page navigation. */
+#lobby,#mode-picker,#room-browser{width:min(1100px,94vw);margin:24px auto 140px;padding:24px 28px;background:#fff8e7f2;border:2px solid #ffffff;border-radius:22px;box-shadow:0 10px 30px #20382f22;color:#20382f}
+#lobby h1,#mode-picker h1,#room-browser h1{font-size:38px;letter-spacing:-1.3px;line-height:1.12;margin:10px 0}
+#lobby .intro,#mode-picker .intro,#room-browser .intro{color:#415b4d;font-size:14px}
+#lobby .eyebrow,#mode-picker .eyebrow,#room-browser .eyebrow{color:#526957}
+#lobby #vehicle-stats,#lobby .hint:last-child{display:none}
+#lobby #vehicle-description,#lobby #map-description{font-size:13px;line-height:1.5;color:#425f4d;margin:10px 0 0}
+#foot{display:none!important}
+input{font:inherit;border:1px solid #20382f33;border-radius:9px;padding:12px;background:#fffef8;color:#20382f;min-width:0}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #367c94;outline-offset:3px}
+.primary{background:#d84e37;color:white;border:2px solid #a43a28;border-radius:10px;padding:14px 24px;font-weight:bold;box-shadow:0 5px 0 #a43a28}
+.room-actions{display:flex;gap:24px;align-items:flex-end;justify-content:space-between;margin:26px 0}
+#join-code label{display:block;font-size:12px;font-weight:bold;margin-bottom:8px}#join-code>div{display:flex;gap:8px}#room-code{width:155px;font-size:20px;font-weight:bold;letter-spacing:5px;text-transform:uppercase}
+#join-code button,.dialog-actions button:not(.primary),#copy-code,#chat-form button{border:1px solid #20382f22;border-radius:9px;background:#e9e4d8;color:#20382f;padding:10px 16px;font-weight:bold}
+#create-room{min-height:51px}#create-room span{margin-left:20px;font-size:22px}
+.room-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px}.room-group{background:#f1ecdfe6;border:1px solid #20382f15;border-radius:14px;padding:18px}.room-group h2{font-size:20px;margin:0;display:flex;gap:8px;align-items:center}.room-group h2 span{font-size:12px;background:#dedfcd;border-radius:20px;padding:4px 9px}.room-group>p{font-size:12px;color:#5d7164;margin:8px 0 16px}
+.room-cards{display:grid;gap:10px;max-height:360px;overflow-y:auto;padding:3px}.room-card{text-align:left;background:#fffdf2;border:1px solid #20382f26;border-radius:12px;padding:14px;display:grid;gap:8px;width:100%;color:#20382f}.room-card:hover{border-color:#d84e37;background:#fff7db}.room-card b{font-size:16px;overflow-wrap:anywhere}.room-card span{font-size:12px}.room-card small{font-size:11px;color:#607366}.empty-rooms{font-size:13px;line-height:1.6;margin:10px 0;color:#607366}
+#directory-notice{color:#a43a28;font-size:13px;min-height:18px;margin:0}
+#room-panel{margin-top:20px;background:#f2eddf;border:1px solid #20382f15;padding:18px;border-radius:14px;min-height:0}.room-heading{display:flex;justify-content:space-between;gap:10px;align-items:center}.room-heading h2{margin:0;font-size:20px;overflow-wrap:anywhere}#copy-code{font-family:monospace;letter-spacing:2px;white-space:nowrap;padding:8px 10px;font-size:14px}#host-caption{font-size:12px;color:#536e5d}.room-list{max-height:110px}.room-list>div{padding:7px 0;display:flex;justify-content:space-between;gap:6px}#room-status{font-size:12px;margin:10px 0}#connection-status{font-size:11px;color:#607366;margin:6px 0}
+#room-chat{border-top:1px solid #20382f20;padding-top:12px;margin-top:12px}#room-chat h3{font-size:14px;margin:0 0 8px}#chat-log{height:95px;overflow-y:auto;background:#fffdf4;border-radius:8px;padding:8px 10px}#chat-log:empty::before{content:'Поздоровайтесь с участниками гонки.';font-size:12px;color:#718174}#chat-log p{font-size:12px;line-height:1.5;margin:0 0 7px;overflow-wrap:anywhere}#chat-form{display:flex;gap:8px;margin-top:8px}#chat-text{flex:1;width:0;font-size:13px;padding:10px}#chat-form button{font-size:20px;padding:6px 15px}
+#create-dialog input{display:block;width:100%;margin-top:8px}#create-dialog label{font-size:13px}.dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+::view-transition-old(root),::view-transition-new(root){animation-duration:220ms}main:not([hidden]){animation:panel-enter 220ms ease-out}@keyframes panel-enter{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:750px),(pointer:coarse){#lobby,#mode-picker,#room-browser{width:calc(100% - 24px);margin:12px auto 140px;padding:18px 16px;border-radius:16px}#lobby h1,#mode-picker h1,#room-browser h1{font-size:29px}#lobby .intro,#room-browser .intro{font-size:13px}.room-actions{flex-direction:column;align-items:stretch;gap:18px;margin:20px 0}#join-code>div{width:100%}#room-code{flex:1;width:0}.room-columns{grid-template-columns:1fr;gap:14px}.room-group{padding:14px}.room-cards{max-height:260px}.room-group h2{font-size:18px}#room-panel{padding:14px;margin-top:12px}.room-heading h2{font-size:17px}#copy-code{font-size:12px}body.online #picks{float:none;width:100%;margin:12px 0;grid-template-columns:1fr}#chat-log{height:100px}#room-browser .primary{width:100%}}
+@media(prefers-reduced-motion:reduce){main:not([hidden]){animation:none}::view-transition-old(root),::view-transition-new(root){animation-duration:0s}}
+#chat-dialog{width:min(480px,94vw)}#close-chat{display:block;margin-left:auto;margin-bottom:12px;background:#e9e4d8;color:#20382f;padding:8px 12px}#chat-dialog #room-chat{display:block;border:0;margin:0;padding:0}#chat-dialog #chat-log{height:min(300px,40dvh)}
+@media(pointer:coarse),(max-width:750px){#room-panel>#room-chat{display:none}#room-panel{margin-bottom:16px}#lobby .pick .portrait{height:76px}#lobby #map-description{font-size:12px}}
+body[data-screen="lobby"] #online-bar{display:none}body.online:has(#lobby:not([hidden])) #install-app{display:none}
+/* Room invitations, player names and controls inside the game card. */
+.card-tools{clear:both;display:flex;flex-wrap:wrap;align-items:center;gap:10px;border-top:1px solid #20382f20;margin-top:20px;padding-top:16px}
+.card-tools button,.room-invite button,#rename-form button,#copy-invite-link,.icon-button,.dialog-close{border:1px solid #20382f26;border-radius:9px;background:#e9e4d8;color:#20382f;padding:10px 14px;font:inherit;font-size:13px}
+.card-tools #mode-button{background:#365c48;color:white;border-color:#294a38;font-weight:bold;margin-right:auto}
+.card-tools #install-app{display:inline-flex}
+body.online .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:18px;align-items:end}
+.bottom{gap:16px}.bottom label{display:flex;flex-direction:column;gap:8px;min-width:0;font-size:14px}
+.bottom label:has(#track),.bottom label:has(#vehicle){flex:1}
+.bottom #track,.bottom #vehicle{width:100%;height:44px;margin:0;font-size:14px;padding:10px 12px}
+.player-name-label{display:block;margin:12px 0 4px;font-size:12px;color:#526957}.player-name-label input{display:block;width:100%;height:37px;margin-top:5px;padding:8px 10px;font-size:14px}
+.room-heading h2{flex:1}.icon-button{width:34px;height:34px;padding:7px;flex-shrink:0}.icon-button svg,#chat-form button svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.room-invite{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px}.room-invite button{padding:8px 10px;font-size:12px}#invite-status{font-size:12px;color:#44634e}
+#rename-form{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#rename-form input{flex:1;min-width:140px;font-size:14px}#rename-form button{padding:8px 10px;font-size:12px}
+#chat-log:empty::before{content:none}#chat-log:empty,#chat-log[hidden]{display:none!important}#chat-log{height:auto;max-height:140px;min-height:0}#chat-dialog #chat-log{height:auto;max-height:40dvh}
+#chat-form{align-items:center}#chat-form input{height:42px}#chat-form button{width:42px;height:42px;flex:0 0 42px;display:grid;place-items:center;padding:11px;border-radius:10px;background:#365c48;color:#fff;border-color:#294a38}
+#invite-dialog{width:min(410px,94vw);text-align:center}#invite-dialog h2{font-size:23px}#invite-dialog p{font-size:13px;line-height:1.5}.dialog-close{display:block;margin-left:auto}#invite-qr{width:min(270px,100%);margin:12px auto;background:white;border-radius:12px;overflow:hidden}#invite-qr svg{width:100%;height:auto;display:block}#invite-url{width:100%;font-size:12px;margin:8px 0 12px}#copy-invite-link{width:100%}
+#lobby>.hint:last-of-type{display:none}
+@media(max-width:750px),(pointer:coarse){body.online .bottom{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}body.online .bottom #start{grid-column:1/-1;width:100%}.bottom label{font-size:12px}.bottom #track,.bottom #vehicle{font-size:12px}.card-tools #mode-button{flex-basis:100%;margin-right:0}.room-heading{gap:6px}.room-heading h2{font-size:16px}#rename-form button{flex:1}.room-invite{gap:6px}}
+@media(display-mode:standalone){.card-tools #install-app{display:none}}
+.bottom #track,.bottom #vehicle{max-width:none}
+#lobby h1,#mode-picker h1,#room-browser h1,#lobby .bottom>label{color:#20382f}
+/* Online garage: racer, race setup and room each have their own surface. */
+body.online #lobby{width:min(1380px,94vw);display:grid;grid-template-columns:300px minmax(250px,1fr) minmax(360px,1.25fr);grid-template-areas:"racer settings room" "tools tools tools";gap:22px;padding:0;margin:28px auto 150px;background:none;border:0;box-shadow:none}
+body.online #lobby>.eyebrow,body.online #lobby>h1,body.online #lobby>.intro{display:none}
+body.online #picks{grid-area:racer;float:none;width:100%;margin:0;grid-template-columns:1fr;align-self:start}
+body.online #lobby .bottom{grid-area:settings;display:flex;flex-direction:column;gap:18px;margin:0;padding:0;align-items:stretch;clear:none}
+.setting-card{display:flex!important;flex-direction:column;gap:12px!important;align-items:stretch!important;width:100%;padding:18px;background:#fff8e7f7;border:2px solid #ffffff;border-radius:18px;box-shadow:0 7px 0 #20382f12;font-size:11px!important;letter-spacing:1.8px;font-weight:bold;color:#526957!important;min-width:0}
+#world-preview,#vehicle-preview{position:static;inset:auto;display:block;width:100%;height:105px;border-radius:11px;pointer-events:none;object-fit:contain}
+#vehicle-preview{height:112px}
+#lobby .vehicle-setting #vehicle-description{margin:0;letter-spacing:0;font-size:12px;line-height:1.5;font-weight:normal;color:#526957;min-height:54px}
+.choice-model{display:none!important}.choice-switch{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fffdf5;border:1px solid #d8decd;border-radius:12px;padding:5px;min-height:47px;width:100%;letter-spacing:0}
+.choice-arrow{display:grid;place-items:center;width:34px;height:34px;flex:0 0 34px;background:#e9e4d8;border:0;border-radius:50%;color:#294a38;font-size:23px;line-height:1;transition:background 160ms,transform 160ms,box-shadow 160ms}
+.choice-arrow:hover{background:#d7e2cb;transform:scale(1.08)}.choice-arrow:active{transform:scale(.92)}.choice-arrow:disabled{opacity:.3;cursor:default;transform:none}
+.choice-value{flex:1;text-align:center;color:#20382f;font-size:14px;font-weight:bold;line-height:1.25;min-width:0;overflow-wrap:anywhere}.choice-switch.locked{background:#f0f0e4;color:#7c8778}
+.ability-select{display:block!important;margin-top:10px;font-size:11px}.ability-select .choice-switch{margin-top:8px;min-height:40px}.ability-select .choice-arrow{width:28px;height:28px;flex-basis:28px;font-size:19px}.ability-select .choice-value{font-size:12px}
+body.online #room-panel{grid-area:room;align-self:start;margin:0;padding:22px;background:#fff8e7f7;border:2px solid #fff;border-radius:20px;box-shadow:0 7px 0 #20382f12;min-width:0;overflow:hidden}
+body.online .room-heading{gap:9px}body.online .room-heading h2{font-size:24px;line-height:1.2;font-weight:bold;letter-spacing:-.6px}
+body.online #copy-code{background:#edf1df;border:1px solid #d2dcc5;font-size:12px;border-radius:9px;color:#456345}
+body.online .room-invite{gap:7px;margin:16px 0 12px}body.online .room-invite button{background:transparent;border:1px solid #cfd7c5;border-radius:9px;padding:8px 11px;color:#456345;transition:background 150ms,transform 150ms}body.online .room-invite button:hover{background:#e3ead8;transform:translateY(-1px)}
+#host-caption{margin:8px 0 12px!important}.room-list{height:68px;max-height:68px!important;overflow-y:auto;scrollbar-width:thin}.room-list>div{padding:7px 2px!important;font-size:13px}.room-list>div b{font-size:11px;font-weight:normal}
+#room-status{margin:12px 0 8px;min-height:30px;line-height:1.45;color:#456345}#connection-status{display:none}
+body.online #room-panel>#room-chat{display:grid!important;grid-template-rows:18px 94px 42px;gap:6px;height:166px;margin:12px 0 18px;padding:12px 0 0;border-top:1px solid #d8dfce;box-sizing:content-box}
+#room-chat h3{margin:0;font-size:12px;color:#526957;letter-spacing:.3px}
+#room-panel #chat-log{grid-row:2;height:94px;max-height:94px;min-height:94px;padding:0 3px 0 0;overflow-y:auto;scrollbar-width:thin;background:transparent;border-radius:0}
+#chat-log p{padding:7px 9px;margin:0 0 5px;font-size:12px;line-height:1.4;background:#fffdf5;border-radius:8px;overflow-wrap:anywhere}
+#chat-form{grid-row:3;display:flex;gap:7px;margin:0;align-items:center}#chat-text{background:#fffdf5;border:1px solid #d8decd;border-radius:10px;outline:none!important;outline-offset:0!important;box-shadow:none!important;height:42px;padding:10px 12px;font-size:12px;transition:border-color 160ms}#chat-text:focus{border-color:#93aa86}
+#room-panel>#start{display:block;width:100%;margin-top:16px}
+body.online #lobby>.card-tools{grid-area:tools;background:#fff8e7f0;padding:13px 17px;margin:0;border:1px solid #fff;border-radius:15px;gap:12px}
+.card-tools #menu{border:0;background:transparent;color:#a44935;order:3;margin-left:auto}.card-tools #mode-button{margin-right:auto}.card-tools #sound{order:4}.card-tools #install-app{order:5}
+body.online #room-browser{width:min(1160px,94vw);padding:30px;border-radius:24px;background:#fff8e7f7;box-shadow:0 12px 35px #20382f20}
+#room-browser .eyebrow{display:none}#room-browser h1{font-size:34px;margin:0 0 8px}#room-browser .room-actions{padding:20px 0;margin:12px 0 8px;border-bottom:1px solid #d8dfce}
+#room-browser .room-group{background:#f8f5e9;border:1px solid #d8dfce;padding:20px;border-radius:17px}#room-browser .room-card{background:#fffdf5;padding:16px;border-radius:12px;transition:transform 160ms,box-shadow 160ms,border-color 160ms}#room-browser .room-card:hover{transform:translateY(-2px);border-color:#97ad86;box-shadow:0 5px 12px #20382f12}
+#room-code{width:220px;height:53px;text-align:center;font-size:25px;font-weight:bold;letter-spacing:9px;border:2px solid #d2dcc5;background:#fffdf5;border-radius:12px;transition:border-color 150ms,color 150ms;outline:none}
+#room-code:focus{border-color:#93aa86}#room-code.code-error{border-color:#cf513b;color:#bf422e;animation:code-shake 340ms ease-in-out}#directory-notice{height:19px;margin:4px 0 14px;color:#bf422e;font-size:12px}
+@keyframes code-shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+body.local .bottom{display:grid;grid-template-columns:160px 1fr 1fr auto;align-items:start}body.local .bottom>#start{align-self:end}.bottom>label:has(#players){align-self:start}
+@media(max-width:1150px){body.online #lobby{grid-template-columns:300px minmax(0,1fr);grid-template-areas:"racer room" "settings settings" "tools tools"}body.online #lobby .bottom{display:grid;grid-template-columns:1fr 1fr}.setting-card{height:100%}body.local .bottom{grid-template-columns:1fr 1fr}body.local .bottom>#start{grid-column:1/-1}}
+@media(max-width:750px),(pointer:coarse){body.online #lobby{width:calc(100% - 24px);grid-template-columns:minmax(0,1fr);grid-template-areas:"racer" "settings" "room" "tools";gap:16px;margin:14px auto 130px}body.online #picks{margin:0}body.online #lobby .bottom{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.setting-card{padding:12px;gap:9px!important;font-size:10px!important;letter-spacing:1px}#world-preview,#vehicle-preview{height:70px}.choice-switch{gap:3px;padding:3px;min-height:46px}.choice-arrow{width:25px;height:25px;flex-basis:25px;font-size:20px}.choice-value{font-size:11px}.vehicle-setting #vehicle-description{font-size:10px!important;min-height:75px!important}.room-heading h2{font-size:21px!important}body.online #room-panel{padding:18px}body.online #room-panel>#room-chat{display:grid!important}body.online #room-browser{padding:20px 16px}#room-code{width:100%}#room-browser .room-actions{padding:12px 0}body.local .bottom{grid-template-columns:1fr 1fr}.card-tools #menu{flex-basis:100%;margin-left:0;text-align:left}.card-tools #sound{order:2}}
+@media(prefers-reduced-motion:reduce){.code-error{animation:none!important}.choice-arrow,.room-card{transition:none!important}}
+#lobby #map-description{display:none!important}#lobby .vehicle-setting #vehicle-description{display:block!important}
+/* Layout follows the three-column sketch: racer, world/car, room. */
+body.online #lobby{grid-template-columns:300px 340px minmax(370px,1fr);grid-template-areas:"racer settings room";align-items:stretch;gap:18px;max-width:1280px}
+#racer-column{min-width:0}body.online #racer-column{grid-area:racer;display:grid;grid-template-rows:440px 142px;gap:18px;height:600px}
+body.online #racer-column #picks{grid-area:auto;height:100%;margin:0}body.online #racer-column .pick{height:100%;display:flex;flex-direction:column;padding:20px}body.online #racer-column .portrait{height:190px;max-height:190px;margin:auto}
+#ability-panel{background:#fff8e7f7;border:2px solid #fff;border-radius:18px;padding:16px;box-shadow:0 7px 0 #20382f12}#ability-panel:empty{display:none}#ability-panel .ability-select{margin:0}
+.choice-tiles{display:flex;gap:8px;margin-top:9px}.choice-tiles button{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:9px 5px;border:1px solid #d7decd;border-radius:10px;background:#fffdf5;color:#526957;transition:background 160ms,transform 160ms,border-color 160ms}.choice-tiles button span{font-size:23px;line-height:1}.choice-tiles button small{font-size:11px}.choice-tiles button.selected{background:#dce8cc;border-color:#73915f;color:#294a38;box-shadow:inset 0 0 0 1px #73915f}.choice-tiles button:hover{transform:translateY(-2px)}.choice-tiles button:disabled{opacity:.45;transform:none}
+body.online #lobby .bottom{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:240px 342px;gap:18px;height:600px}
+.setting-card{height:100%;padding:17px;gap:9px!important}.setting-card .choice-switch{order:1}.world-setting #world-description{order:2;margin:0;min-height:36px;font-size:12px;letter-spacing:0;font-weight:normal;line-height:1.5;color:#526957}.world-setting #world-preview{order:3;height:85px;margin-top:auto}.vehicle-setting #vehicle-preview{order:2;height:103px}.vehicle-setting #vehicle-description{order:3;min-height:48px!important}.vehicle-setting #car-specs{order:4}
+#car-specs{display:grid;grid-template-columns:1fr 1fr 1fr;margin:0;border:1px solid #d8dfce;border-radius:9px;overflow:hidden;letter-spacing:0}#car-specs>div{padding:7px;border-right:1px solid #d8dfce;text-align:center}#car-specs>div:last-child{border:0}#car-specs dt{font-size:9px;color:#718068;font-weight:normal}#car-specs dd{font-size:11px;color:#294a38;margin:4px 0 0;font-weight:bold}
+body.online #room-panel{position:relative;height:600px;display:grid;grid-template-columns:minmax(0,1fr) 98px;grid-template-rows:45px 32px minmax(0,1fr) 39px 58px;gap:13px;padding:20px;align-self:stretch}
+#room-panel .room-heading{grid-column:1/-1;grid-row:1;min-width:0}.room-heading h2{font-size:21px!important}#room-panel .room-invite{position:absolute;bottom:99px;right:20px;margin:0;max-width:98px;font-size:10px}#invite-status{font-size:10px}#room-panel #host-caption,#room-panel #connection-status{display:none}#room-panel #room-status{grid-row:2;grid-column:1;margin:0;font-size:11px;min-height:0}
+#room-panel .room-list{grid-column:1;grid-row:3;height:100%;max-height:none!important;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px;padding:12px;overflow-y:auto}#room-panel .room-list:before{content:'ИГРОКИ';display:block;font-size:11px;font-weight:bold;letter-spacing:1.4px;color:#718068;margin:0 0 10px}#room-panel .room-list>div{gap:6px;flex-wrap:wrap}
+#room-sidebar{grid-column:2;grid-row:2/5;display:flex;flex-direction:column;gap:10px}#room-sidebar button{width:100%;min-height:41px;padding:9px 7px;background:#eef0df;border:1px solid #cfd9c2;border-radius:10px;color:#456345;font-size:12px;transition:background 160ms,transform 160ms}#room-sidebar button:hover{background:#dfe8d2;transform:translateY(-1px)}#room-sidebar #menu{color:#ad4935;background:#f5e9df;border-color:#e4d0c1}
+#room-panel #room-chat-toggle{grid-column:1;grid-row:4;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#456345;font-size:12px}#room-panel>#start{grid-row:5;grid-column:1/-1;margin:0;width:100%;padding:12px;font-size:18px}
+#room-panel>#room-chat[hidden]{display:none!important}body.online #room-panel>#room-chat{grid-column:1;grid-row:3;height:100%;min-height:0;box-sizing:border-box;grid-template-rows:18px minmax(0,1fr) 42px;padding:10px;margin:0;border:1px solid #d8dfce;border-radius:12px;background:#f4f1e5}#room-panel.chat-open .room-list{display:none}#room-panel #chat-log{height:100%;min-height:0;max-height:none}#room-panel #chat-form{min-width:0}#room-panel #chat-text{padding:8px;font-size:11px}
+#room-options{position:absolute;right:20px;top:110px;z-index:10;width:250px;padding:14px;border:2px solid white;border-radius:14px;background:#fff8e7;box-shadow:0 10px 35px #20382f40}#room-options .card-tools{display:flex!important;flex-direction:column;align-items:stretch;padding:0;margin:0;border:0;background:none;gap:9px}#room-options button{margin:0!important;width:100%;text-align:center}body.online #lobby>.card-tools{display:none}
+body.local #racer-column{margin:0;min-width:0}body.local #lobby .bottom{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:stretch;margin-top:18px}body.local .bottom>label:has(#players){grid-column:1/-1;display:flex;flex-direction:row;align-items:center;gap:12px}body.local .bottom>label:has(#players) .choice-tiles{margin:0;width:150px}.bottom>label:has(#players) .choice-tiles button{font-weight:bold;padding:9px}body.local .bottom .setting-card{min-height:310px}body.local .bottom #start{grid-column:1/-1;justify-self:end;width:180px}body.local #picks{grid-template-columns:repeat(var(--local-players,1),minmax(0,1fr));margin-top:18px}body.local[data-players="1"] #picks{max-width:320px}body.local[data-players="2"] #picks{grid-template-columns:repeat(2,minmax(0,1fr))}body.local[data-players="3"] #picks{grid-template-columns:repeat(3,minmax(0,1fr))}
+body.local[data-players="1"] #lobby{display:grid;grid-template-columns:300px minmax(0,1fr);gap:18px}body.local[data-players="1"] #lobby>.eyebrow,body.local[data-players="1"] #lobby>h1,body.local[data-players="1"] #lobby>.intro,body.local[data-players="1"] #lobby>.card-tools{grid-column:1/-1;margin:0}body.local[data-players="1"] #lobby>.hint{display:none}body.local[data-players="1"] #picks,body.local[data-players="1"] #lobby .bottom{margin-top:0}body.local[data-players="1"] #lobby .bottom{grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:1100px){body.online #lobby{grid-template-columns:280px minmax(0,1fr);grid-template-areas:"racer room" "settings settings"}body.online #lobby .bottom{grid-template-columns:1fr 1fr;grid-template-rows:342px;height:342px}.world-setting #world-preview{height:150px}}
+@media(max-width:750px),(pointer:coarse){body.online #lobby{grid-template-columns:minmax(0,1fr);grid-template-areas:"racer" "settings" "room"}body.online #racer-column{height:auto;grid-template-rows:auto auto;gap:14px}body.online #racer-column .portrait{height:130px;max-height:130px;margin:8px auto}body.online #lobby .bottom{height:auto;grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:10px}.setting-card{padding:12px;min-height:280px}.world-setting #world-preview{height:95px}.world-setting #world-description{font-size:11px}.vehicle-setting #car-specs{grid-template-columns:1fr}#car-specs>div{display:flex;justify-content:space-between;border-right:0;border-bottom:1px solid #d8dfce;padding:5px}#car-specs dd{margin:0}#car-specs dt{font-size:10px}body.online #room-panel{height:570px;grid-template-columns:minmax(0,1fr) 82px;padding:16px;gap:10px}.room-heading h2{font-size:18px!important}#room-sidebar button{font-size:11px}#room-options{right:16px;width:220px}body.local[data-players="1"] #lobby{display:block}body.local #picks{max-width:none!important;grid-template-columns:1fr!important}body.local .bottom .setting-card{min-height:300px}body.local .bottom #start{width:100%}}
+body.online #racer-column{height:660px;grid-template-rows:500px 142px}body.online #lobby .bottom{height:660px;grid-template-rows:240px 402px}body.online #room-panel{height:660px}.setting-card{padding:16px;gap:8px!important}.vehicle-setting #vehicle-preview{height:82px}#room-sidebar #copy-link{order:1}#room-sidebar #show-qr{order:2}#room-sidebar #menu{order:3}#room-sidebar #room-settings{order:4}@media(max-width:1100px){body.online #lobby .bottom{height:auto;grid-template-rows:402px}}@media(max-width:750px),(pointer:coarse){body.online #racer-column{height:auto;grid-template-rows:auto auto}body.online #lobby .bottom{height:auto;grid-template-rows:auto}body.online #room-panel{height:600px}}
+body.online #room-panel>#room-chat[hidden]{display:none!important}
+@media(orientation:landscape) and (max-height:600px) and (pointer:coarse){
+ body.online #lobby{width:calc(100% - 20px);max-width:none;grid-template-columns:minmax(160px,.85fr) minmax(180px,1fr) minmax(245px,1.35fr);grid-template-areas:"racer settings room";gap:10px;margin:10px auto 90px}
+ body.online #racer-column{height:450px;grid-template-rows:340px 100px;gap:10px}body.online #racer-column .pick{padding:12px}body.online #racer-column .portrait{height:120px;max-height:120px;margin:auto}.player-name-label{margin:8px 0 4px}.player-name-label input{height:32px;font-size:12px}
+ #ability-panel{padding:10px}.choice-tiles{gap:5px;margin-top:5px}.choice-tiles button{padding:6px 3px}.choice-tiles button span{font-size:18px}.choice-tiles button small{font-size:10px}
+ body.online #lobby .bottom{height:450px;grid-template-columns:minmax(0,1fr);grid-template-rows:160px 280px;gap:10px}.setting-card{padding:10px;min-height:0;gap:6px!important}.choice-switch{min-height:35px}.choice-value{font-size:10px}.choice-arrow{height:24px;width:24px;flex-basis:24px}.world-setting #world-description{font-size:10px;min-height:25px;line-height:1.35}.world-setting #world-preview{height:38px}.vehicle-setting #vehicle-preview{height:52px}#lobby .vehicle-setting #vehicle-description{font-size:10px;min-height:43px!important;line-height:1.35}#car-specs>div{padding:4px}
+ body.online #room-panel{height:450px;padding:12px;grid-template-columns:minmax(0,1fr) 68px;grid-template-rows:34px 28px minmax(0,1fr) 31px 45px;gap:8px}.room-heading{gap:5px}.room-heading h2{font-size:16px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#copy-code{font-size:8px!important;padding:5px!important}.icon-button{width:26px;height:26px;padding:5px}#room-panel .room-list{padding:8px}#room-panel .room-list>div{font-size:11px}#room-sidebar{gap:8px}#room-sidebar button{font-size:10px;padding:6px 3px;min-height:34px}#room-panel #room-status{font-size:10px}#room-panel>#start{font-size:16px;padding:8px}#room-panel .room-invite{right:12px;bottom:78px;max-width:68px}#room-options{right:12px;top:78px;width:210px}
+}
+/* Fit the complete garage between the browser's visible top and bottom edges. */
+button,a{-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}button:focus,button:focus-visible,a:focus,a:focus-visible{outline:none!important;outline-offset:0!important}button::-moz-focus-inner{border:0}
+body[data-screen="race"] #online-bar{display:none!important}
+#fullscreen-button{display:none;padding:6px;line-height:0}html:fullscreen,html:fullscreen body{width:100%;height:100%;margin:0}
+@media(pointer:coarse){
+ #fullscreen-button{display:grid;place-items:center;width:34px;height:34px;min-height:0;padding:6px}
+ body[data-screen="race"] header{z-index:6}
+ #touch-controls{position:fixed;inset:0;z-index:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:stretch;pointer-events:none;touch-action:none}
+ #touch-controls button,#touch-controls button[data-control="ability"]{position:relative;display:block;width:100%;height:100%;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;pointer-events:auto;touch-action:none}
+ #touch-controls button:active{background:transparent;border:0}
+ #touch-controls .touch-hint{position:absolute;left:50%;bottom:calc(12px + env(safe-area-inset-bottom));transform:translateX(-50%);display:grid;place-items:center;width:clamp(80px,26vw,145px);height:48px;padding:8px;border:2px solid #20382f40;border-radius:14px;background:#fff8e7e8;color:#20382f;font-size:13px;font-weight:bold;opacity:1;transition:opacity 700ms ease;pointer-events:none}
+ #touch-controls.hints-faded .touch-hint{opacity:0}
+}
+@media(orientation:landscape) and (max-height:600px) and (pointer:coarse){
+ body.online[data-screen="lobby"] header{height:40px;padding:6px 12px;flex-wrap:nowrap}body.online[data-screen="lobby"] header b{font-size:18px}
+ body.online #lobby{--garage-height:calc(100dvh - 54px - env(safe-area-inset-top) - env(safe-area-inset-bottom));margin:0 auto;padding:0;gap:8px;grid-template-columns:minmax(0,.85fr) minmax(0,1fr) minmax(0,1.35fr)}
+ body.online #racer-column{height:var(--garage-height);grid-template-rows:minmax(0,1fr) 78px;gap:8px}body.online #racer-column .pick{padding:8px 10px;min-height:0}body.online #racer-column .portrait{height:clamp(35px,16dvh,90px);max-height:90px;min-height:0;flex-shrink:1}body.online #racer-column h3{font-size:10px}.player-name-label{font-size:10px;margin:5px 0}.player-name-label input{height:28px;font-size:11px;padding:4px 7px}body.online #racer-column .choose button{width:30px;height:30px}body.online #racer-column .choose b{font-size:12px}
+ #ability-panel{padding:7px 9px;font-size:10px}#ability-panel .ability-select{font-size:10px}.choice-tiles button{padding:5px 3px;gap:3px}.choice-tiles button span{font-size:17px}
+ body.online #lobby .bottom{height:var(--garage-height);grid-template-rows:minmax(0,.38fr) minmax(0,.62fr);gap:8px}.setting-card{padding:8px;gap:4px!important;font-size:9px!important;letter-spacing:1px}.choice-switch{min-height:30px;padding:2px}.choice-value{font-size:11px}.world-setting #world-description{font-size:10px;line-height:1.25;min-height:0}.world-setting #world-preview{display:none}.vehicle-setting #vehicle-preview{height:clamp(20px,8dvh,44px);min-height:0;flex-shrink:1}#lobby .vehicle-setting #vehicle-description{font-size:9px!important;min-height:0!important;line-height:1.2;margin:0}#car-specs>div{padding:2px 4px}#car-specs dt,#car-specs dd{font-size:9px}
+ body.online #room-panel{height:var(--garage-height);padding:9px;gap:6px;grid-template-rows:28px 24px minmax(0,1fr) 28px 38px;grid-template-columns:minmax(0,1fr) 65px}#room-panel .room-heading h2{font-size:14px!important}#room-sidebar{gap:5px}#room-sidebar button{min-height:28px;font-size:10px;padding:5px 3px}#room-panel .room-list{padding:7px}#room-panel .room-list:before{margin-bottom:5px;font-size:9px}#room-panel .room-list>div{font-size:10px}#room-panel>#start{font-size:15px;min-height:0}#room-panel .room-invite{bottom:59px;right:9px}body.online #room-panel>#room-chat{padding:6px;grid-template-rows:14px minmax(0,1fr) 30px}#room-panel #chat-form input,#room-panel #chat-form button{height:30px}#room-panel #chat-form button{width:30px;flex-basis:30px;padding:7px}
+ body.online[data-screen="lobby"] #online-bar{display:none}
+}
+header>b{display:none!important}body[data-screen="race"] #menu{display:none!important}.card-tools #fullscreen-button{width:auto;height:auto;line-height:1.3;padding:9px 12px}#overlay #pause-settings{padding:12px;border:1px solid #cfd9c2;border-radius:12px;background:#eef0df}
+.card-tools{position:relative}#local-options{position:absolute;bottom:48px;right:0;z-index:10;display:flex;flex-direction:column;gap:8px;width:220px;padding:14px;background:#fff8e7;border:2px solid white;border-radius:14px;box-shadow:0 10px 35px #20382f40}#local-options button{width:100%;margin:0}
+/* Shared online parties: racers at one keyboard count as separate race entries. */
+body.online #players{display:none}body.online #lobby[data-party="2"] #racer-column,body.online #lobby[data-party="3"] #racer-column{min-width:0}
+.room-party-controls{display:flex;flex-direction:column;gap:6px;align-items:stretch;margin:4px 0}.room-party-controls button{width:100%;min-height:38px;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;padding:8px 7px;font-weight:bold;font-size:11px}.room-party-controls #add-local-racer{flex:initial}.room-party-controls #remove-local-racer{width:100%;font-size:12px;padding:7px}
+#room-sidebar .room-party-controls:has(#add-local-racer[hidden]):has(#remove-local-racer[hidden]){display:none}
+body.online #racer-column #picks{display:grid;grid-template-columns:repeat(var(--online-seats,1),minmax(0,1fr));gap:8px;min-width:0}
+body.online #racer-column .pick{min-width:0;padding:12px 10px}
+body.online #racer-column .pick h3{font-size:11px}
+body.online #racer-column .pick .portrait{width:100%;height:clamp(75px,17vh,150px);max-height:150px}
+body.online #racer-column .player-name-label{font-size:10px}
+body.online #racer-column .player-name-label input{min-width:0;width:100%;height:34px;font-size:12px;padding:6px}
+body.online #racer-column .pick .choose{gap:3px}
+body.online #racer-column .pick .choose button{flex:0 0 28px;width:28px;height:28px}
+body.online #racer-column .pick .choose b{font-size:11px;line-height:1.2;text-align:center}
+body.online #racer-column .ability-select{font-size:10px;letter-spacing:0}
+body.online #racer-column .ability-select .choice-switch{min-height:36px}
+body.online #racer-column .ability-select .choice-arrow{width:24px;height:24px;flex-basis:24px}
+@media(min-width:1151px) and (pointer:fine){body.online #lobby:has(#add-local-racer:not([hidden])){grid-template-columns:minmax(390px,1.25fr) 320px minmax(360px,1.1fr);max-width:1420px}body.online #racer-column{grid-template-rows:minmax(0,1fr) 142px}body.online #racer-column .pick{padding:10px 8px}.room-list{height:110px;max-height:110px!important}}
+/* The phone UI behaves like a small app: safe areas, scrollable screens, and bottom-sheet dialogs. */
+@media(max-width:750px),(pointer:coarse){
+ body:not([data-screen="race"]){min-height:100dvh;overflow-x:hidden;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+ body:not([data-screen="race"]) header{padding:calc(10px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));min-height:54px;flex-wrap:nowrap}
+ body:not([data-screen="race"]) nav{gap:6px;flex-wrap:nowrap}
+ body:not([data-screen="race"]) main{padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+ #mode-picker{min-height:calc(100dvh - 70px);margin:8px auto 16px!important;padding:20px 16px!important}
+ #mode-picker h1{font-size:clamp(28px,8vw,38px);letter-spacing:-1.2px}
+ .mode-options{grid-template-columns:1fr;gap:12px;margin-top:18px}
+ .mode-card{padding:18px;border-radius:16px;min-height:0}
+ .mode-card>span{font-size:28px}.mode-card h2{font-size:22px;margin:8px 0}.mode-card p{font-size:13px;line-height:1.45;margin:8px 0}.mode-card b{margin-top:10px}
+ body.online #room-browser{min-height:calc(100dvh - 66px);width:calc(100% - 16px);margin:6px auto 12px;padding:18px 14px;border-radius:18px;overflow:visible}
+ #room-browser h1{font-size:28px}
+ #room-browser .room-actions{gap:10px;margin:12px 0;padding:12px 0;align-items:stretch}
+ #join-code label{margin-bottom:5px}#room-code{height:48px;font-size:21px;letter-spacing:7px}
+ #room-browser .room-columns{grid-template-columns:1fr;gap:10px}
+ #room-browser .room-group{padding:12px;border-radius:13px}
+ #room-browser .room-cards{max-height:min(24dvh,190px);overflow:auto}
+ #room-browser .room-card{padding:12px;min-height:62px}
+ body.online #lobby{width:calc(100% - 16px);margin:6px auto 14px;padding:0;gap:10px;grid-template-areas:"racer" "settings" "room";}
+ body.online #racer-column{height:auto;grid-template-rows:auto auto;gap:9px}
+ body.online #racer-column #picks{grid-template-columns:1fr!important}
+ body.online #racer-column .pick{display:grid;grid-template-columns:72px minmax(0,1fr);grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability";align-items:center;column-gap:10px;padding:12px;min-height:0}
+ body.online #racer-column .pick h3{grid-area:title;margin:0 0 6px}
+ body.online #racer-column .player-name-label{grid-area:name;margin:0;min-width:0}
+ body.online #racer-column .pick .portrait{grid-area:portrait;width:72px;height:96px;max-height:96px;margin:0 auto}
+ body.online #racer-column .pick .choose{grid-area:choose}
+ body.online #racer-column .ability-select{grid-area:ability;margin-top:8px}
+ body.online #ability-panel{padding:10px}
+ body.online #lobby .bottom{height:auto;grid-template-columns:1fr 1fr;grid-template-rows:auto;gap:9px}
+ body.online .setting-card{min-height:0;height:auto;padding:11px;gap:7px!important}
+ body.online .world-setting #world-preview{height:62px}
+ body.online .vehicle-setting #vehicle-preview{height:65px}
+ body.online #lobby .vehicle-setting #vehicle-description{min-height:0!important;font-size:10px!important;line-height:1.35}
+ body.online #room-panel{display:flex;flex-direction:column;gap:8px;height:auto;min-height:0;padding:13px;border-radius:16px;overflow:visible}
+ body.online #room-panel .room-heading{min-width:0}
+ body.online #room-panel .room-heading h2{font-size:18px!important}
+ body.online #room-panel .room-invite{display:flex;flex-wrap:wrap;position:static;margin:0;gap:6px}
+ body.online #room-panel #host-caption{margin:0!important;font-size:12px}
+ body.online #room-panel .room-list{height:auto;max-height:150px!important;min-height:40px;overflow:auto;padding:8px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:10px}
+ body.online #room-panel .room-list>div{font-size:12px;padding:5px 2px!important}
+ body.online #room-panel .room-party-controls{margin:0}
+ body.online #room-panel .room-party-controls button{min-height:44px}
+ body.online #room-panel #room-status{margin:0;min-height:0;font-size:12px}
+ body.online #room-panel #room-chat{display:grid!important;position:static;height:auto;min-height:0;grid-template-rows:18px auto 42px;gap:7px;padding:10px;margin:0;border:1px solid #d8dfce;border-radius:12px;background:#f4f1e5}
+ body.online #room-panel #chat-log{height:auto;min-height:0;max-height:25dvh;overflow:auto}
+ body.online #room-panel>#start{position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:4;min-height:52px;margin:0;box-shadow:0 4px 0 #a43a28}
+ #invite-dialog,#chat-dialog,#create-dialog,#install-help{width:min(480px,calc(100vw - 20px));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;margin:auto;padding:18px;border-radius:20px}
+ #invite-qr{width:min(240px,65vw)}#invite-dialog h2{font-size:20px}#invite-url{font-size:11px}
+ #overlay{width:min(440px,calc(100vw - 24px));min-width:0;max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow:auto;padding:22px 16px;border-radius:18px}
+ #overlay h2{font-size:28px}
+ body.local #players option:not(:first-child){display:none}
+ body.local .bottom>label:has(#players) .choice-tiles button:not([data-value="1"]){display:none}
+ body.local[data-players="1"] #lobby>.hint:not(#vehicle-description):not(#vehicle-stats):not(#map-description){display:none}
+}
+@media(max-width:750px) and (orientation:landscape){body.online #lobby{grid-template-columns:minmax(120px,.9fr) minmax(150px,1fr) minmax(200px,1.3fr);grid-template-areas:"racer settings room";gap:7px;margin:4px auto 10px}body.online #racer-column{height:calc(100dvh - 64px);grid-template-rows:minmax(0,1fr) 64px;gap:6px}body.online #racer-column #picks{height:100%}body.online #racer-column .pick{padding:7px}body.online #racer-column .player-name-label{display:none}body.online #racer-column .pick .portrait{height:clamp(35px,17dvh,76px)}body.online #racer-column .ability-select{margin-top:4px;font-size:9px}body.online #racer-column .ability-select .choice-switch{min-height:28px}body.online #lobby .bottom{height:calc(100dvh - 64px);grid-template-columns:1fr;grid-template-rows:1fr 1.3fr;gap:6px}body.online .setting-card{padding:7px;gap:4px!important}body.online .world-setting #world-preview{display:none}body.online .vehicle-setting #vehicle-preview{height:34px}body.online #room-panel{height:calc(100dvh - 64px);overflow:auto;padding:8px;gap:5px}body.online #room-panel #room-chat{grid-template-rows:14px minmax(30px,1fr) 30px;padding:5px}body.online #room-panel #chat-log{max-height:none}body.online #room-panel .room-party-controls button{min-height:30px;font-size:10px;padding:4px}body.online #room-panel>#start{min-height:38px;padding:6px;font-size:14px}}
+@media(prefers-reduced-motion:reduce){.mode-card,.room-card,button{scroll-behavior:auto!important}}
+/* One shared garage entry, with room chat in a keyboard-aware side drawer. */
+#chat-dialog[open]{position:fixed;inset:var(--chat-viewport-top,0px) 0 auto auto;width:min(400px,92vw);height:var(--chat-viewport-height,100dvh);max-height:var(--chat-viewport-height,100dvh);margin:0;box-sizing:border-box;display:flex;flex-direction:column;gap:10px;overflow:hidden;padding:max(14px,env(safe-area-inset-top)) 14px max(14px,env(safe-area-inset-bottom));border:1px solid #d8dfce;border-radius:18px 0 0 18px;background:#fff8e7;color:#20382f;box-shadow:-12px 0 40px #20382f28}
+#chat-dialog #close-chat{flex:0 0 38px;align-self:flex-end;width:38px;height:38px;margin:0;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;font-size:24px;line-height:1;padding:0}
+#chat-dialog #room-chat{display:grid!important;flex:1;min-height:0;grid-template-rows:minmax(0,1fr) auto;gap:8px;margin:0;padding:0;border:0;background:transparent}
+#chat-dialog #chat-log{height:auto;max-height:none;min-height:0;overflow-y:auto;overscroll-behavior:contain;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px;padding:12px}
+#chat-dialog #chat-log:empty::before{content:'Пока нет сообщений. Напишите первым.';color:#718174;font-size:13px}
+#chat-dialog #chat-form{margin:0;min-width:0;padding:4px 0 env(safe-area-inset-bottom)}
+#chat-dialog #chat-text{width:0;min-width:0;flex:1;height:46px;font-size:16px;padding:10px 12px}
+#room-chat-toggle{position:relative}
+.chat-unread{position:absolute;top:-7px;right:-7px;display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border:2px solid #fff8e7;border-radius:999px;background:#d84e37;color:#fff;font-size:10px;font-weight:800;line-height:1}
+.chat-unread[hidden]{display:none!important}
+@media(max-width:750px),(pointer:coarse){#chat-dialog[open]{width:min(420px,100vw);padding-inline:12px}#chat-dialog #chat-log{padding:10px}#chat-dialog #chat-form{padding-bottom:max(8px,env(safe-area-inset-bottom))}}
+#network-toggle{position:relative}
+#network-dialog[open]{position:fixed;inset:0 0 0 auto;width:min(410px,92vw);height:100dvh;max-height:100dvh;box-sizing:border-box;margin:0;display:flex;flex-direction:column;gap:10px;overflow:hidden;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));border:1px solid #d8dfce;border-radius:18px 0 0 18px;background:#fff8e7;color:#20382f;box-shadow:-12px 0 40px #20382f28}
+#network-dialog::backdrop{background:#15251f66;backdrop-filter:blur(2px)}
+#network-dialog #close-network{flex:0 0 38px;align-self:flex-end;width:38px;height:38px;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;font-size:24px;line-height:1;padding:0}
+#network-dialog h2{margin:0;font-size:22px}
+#network-room-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:2px}
+.network-room-card{padding:12px;border:1px solid #d8dfce;border-radius:13px;background:#f4f1e5}
+.network-room-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.network-room-heading b{font-size:14px}.network-room-heading span{padding:4px 7px;border-radius:7px;background:#e6eadb;color:#365b48;font-size:11px;font-weight:800;letter-spacing:1px}
+.network-room-players,.network-room-meta{margin:7px 0 0;color:#687b6b;font-size:11px;line-height:1.4}.network-room-players{color:#365b48;font-weight:600}
+.network-room-card button{width:100%;min-height:38px;margin-top:10px;border:2px solid #fff;border-radius:10px;background:#365b48;color:white;font-weight:700}.network-room-card button:disabled{background:#e5e4d8;color:#687b6b;opacity:1}
+@media(max-width:750px),(pointer:coarse){#network-dialog[open]{width:min(420px,100vw);padding-inline:12px;border-radius:16px 0 0 16px}}
+
+/* Single online garage: four local racers in a balanced 2×2 grid. */
+body.online header>div{display:block!important;font-size:11px;letter-spacing:2px}
+body.online header nav #menu{display:none!important}
+#pause{display:grid;place-items:center;width:40px;height:40px;min-width:40px;padding:0}
+#pause .pause-glyph{display:flex;align-items:center;gap:4px}
+#pause .pause-glyph i{display:block;width:4px;height:16px;border-radius:1px;background:currentColor}
+body.online #online-bar{display:none!important}
+body.online #lobby{width:calc(100% - 48px);max-width:1640px;margin:12px auto 24px;padding:20px 22px;display:grid;grid-template-columns:minmax(270px,.75fr) minmax(500px,1.35fr) minmax(410px,1.1fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "settings racer room";gap:10px 18px;align-items:stretch;max-height:calc(100dvh - 76px);overflow:auto;background:#fff8e7ed;border:2px solid #fff;border-radius:24px;box-shadow:0 12px 35px #20382f20}
+body.online #lobby>.eyebrow{grid-area:eyebrow;margin:0;color:#526957}
+body.online #lobby>h1{grid-area:title;margin:0;font-size:clamp(28px,3vw,42px);letter-spacing:-1.5px}
+body.online #lobby>.intro{grid-area:intro;margin:0 0 4px;font-size:13px}
+body.online #racer-column{grid-area:racer;display:block;height:auto;min-width:0;min-height:0}
+body.online #racer-column #picks{height:auto;margin:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(220px,1fr);gap:12px}
+body.online #racer-column .pick{height:100%;min-width:0;min-height:220px;padding:12px;display:grid;grid-template-rows:auto auto minmax(54px,1fr) auto auto auto;gap:5px;align-content:stretch;border-radius:15px}
+body.online #racer-column .pick h3{font-size:10px;letter-spacing:1px}
+body.online #racer-column .player-name-label{display:block;min-width:0;margin:0;font-size:9px}
+body.online #racer-column .player-name-label input{height:30px;width:100%;min-width:0;font-size:12px;padding:5px 8px}
+body.online #racer-column .pick .portrait{width:100%;height:clamp(54px,8vh,86px);min-height:0;max-height:none;margin:0 auto}
+body.online #racer-column .pick .choose{gap:4px;min-width:0}
+body.online #racer-column .pick .choose button{flex:0 0 27px;width:27px;height:27px}
+body.online #racer-column .pick .choose b{min-width:0;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.online #racer-column .pick .keys{margin:0;font-size:9px;line-height:1.2}
+body.online #racer-column .pick .ability-select{display:flex;align-items:center;justify-content:space-between;gap:4px;margin:0;font-size:9px;letter-spacing:0}
+body.online #racer-column .pick .ability-select select{min-width:0;max-width:62%;height:30px;margin:0;padding:4px 7px;font-size:10px}
+body.online #ability-panel{display:none}
+body.online #lobby .bottom{grid-area:settings;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(195px,.9fr) minmax(245px,1.1fr);gap:10px;height:auto;min-width:0;margin:0;padding:0;align-content:stretch}
+body.online .setting-card{height:auto;min-height:0;min-width:0;padding:12px;gap:7px!important;border-radius:15px}
+body.online .world-setting #world-description{font-size:10px;line-height:1.35;min-height:0}
+body.online .world-setting #world-preview{height:58px;min-height:0;margin-top:auto}
+body.online .vehicle-setting #vehicle-preview{height:68px;min-height:0}
+body.online .vehicle-setting #vehicle-description{min-height:0!important;font-size:10px!important;line-height:1.35}
+body.online #car-specs>div{padding:4px 2px}
+body.online #car-specs dt{font-size:8px}body.online #car-specs dd{font-size:9px}
+body.online #lobby .bottom>#start{grid-column:auto;grid-row:3;width:100%;min-height:54px;margin:0;padding:9px;font-size:16px}
+body.online #room-panel{grid-area:room;position:relative;display:grid;grid-template-columns:minmax(0,1fr) 50px;grid-template-rows:auto auto minmax(190px,1fr) auto auto;gap:10px;height:auto;min-height:0;max-height:none;margin:0;padding:16px;overflow:visible;border:2px solid #fff;border-radius:18px;background:#fff8e7f7;box-shadow:0 7px 0 #20382f12}
+body.online #room-panel .room-heading{grid-column:1;grid-row:1;display:flex;align-items:center;gap:8px;min-width:0}
+body.online #room-panel .room-heading h2{flex:1;min-width:0;margin:0;font-size:20px!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body.online #room-panel .room-heading .icon-button,body.online #room-panel #copy-code{flex:0 0 auto}
+body.online #room-panel #room-status{grid-column:1;grid-row:2;min-height:0;margin:0;font-size:11px;line-height:1.4}
+body.online #room-panel #host-caption,body.online #room-panel #connection-status,body.online #room-panel .room-invite{display:none!important}
+body.online #room-panel .room-list{grid-column:1;grid-row:3;min-height:190px;height:auto;max-height:none!important;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px;overflow:auto}
+body.online #room-panel .room-list:before{margin-bottom:10px}
+body.online #room-panel .room-list>div{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px;padding:7px 2px;font-size:11px}
+body.online #room-sidebar{grid-column:2;grid-row:1/4;display:flex;flex-direction:column;align-items:stretch;gap:8px;min-height:0}
+body.online #room-sidebar>button{display:grid;place-items:center;width:48px;min-width:48px;height:48px;min-height:48px;padding:9px;border:2px solid #fff;border-radius:11px;background:#eef0df;color:#365b48;box-shadow:0 3px 0 #20382f12}
+body.online #room-sidebar>button svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body.online #room-sidebar .room-party-controls{display:none!important}
+body.online #room-sidebar #room-settings{margin-top:auto}
+body.online #room-panel #room-chat-toggle{grid-column:auto;grid-row:auto}
+body.online #room-panel #room-browser{grid-column:1/-1;grid-row:4;width:100%;margin:0;padding:12px;background:#f4f1e5;border:1px solid #d8dfce;border-radius:12px}
+body.online #join-code label{display:block;margin:0 0 7px;font-size:11px;font-weight:bold;letter-spacing:.3px}
+body.online #join-code>div{display:flex;gap:7px;min-width:0}
+body.online #room-code{flex:1;width:0;min-width:0;height:42px;padding:8px 11px;border:1px solid #d8dfce;border-radius:9px;background:#fffdf5;font-size:16px;letter-spacing:3px;text-transform:uppercase}
+body.online #join-code button{min-width:78px;border:1px solid #315b47;border-radius:9px;background:#365b48;color:white;font-weight:bold}
+body.online #directory-notice{min-height:15px;margin:6px 0 0;color:#687b6b;font-size:10px;line-height:1.35}
+body.online #directory-notice:empty{display:none}
+body.online #room-panel>#start{grid-column:1/-1;grid-row:5;position:static;width:100%;min-height:54px;margin:0;padding:9px;font-size:16px;box-shadow:0 4px 0 #a43a28}
+body.online #room-options{top:58px;right:16px}
+body.online #lobby>.hint{display:none!important}
+body.online #lobby>.card-tools{display:none!important}
+body.online #lobby:has(#add-local-racer:not([hidden])){max-width:1640px}
+body.online #room-panel #menu{display:none!important}
+@media(max-width:1250px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(250px,.75fr) minmax(420px,1.25fr) minmax(330px,1fr);gap:10px 12px;padding:16px}body.online #racer-column #picks{gap:8px}body.online #racer-column .pick{padding:9px;min-height:205px}}
+@media(max-width:900px) and (pointer:fine){body.online #lobby{grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-areas:"eyebrow eyebrow" "title title" "intro intro" "settings racer" "room room";max-height:none}body.online #racer-column #picks{grid-auto-rows:minmax(220px,1fr)}body.online #room-panel{min-height:440px}}
+@media(max-width:750px),(pointer:coarse){body.online{overflow-x:hidden;overflow-y:auto}body.online header{min-height:42px;padding:calc(7px + env(safe-area-inset-top)) 12px 6px}body.online header>div{font-size:9px}body.online #lobby{width:calc(100% - 20px);max-width:none;max-height:none;margin:6px auto 14px;padding:12px;grid-template-columns:minmax(0,1fr);grid-template-areas:"eyebrow" "title" "intro" "racer" "settings" "room";gap:10px;border-radius:18px}body.online #lobby>h1{font-size:28px}body.online #lobby>.intro{font-size:12px}body.online #racer-column #picks{grid-template-columns:1fr!important;grid-auto-rows:auto;gap:8px}body.online #racer-column .pick{min-height:0;grid-template-columns:74px minmax(0,1fr);grid-template-rows:auto auto auto auto;grid-template-areas:"title title" "portrait name" "portrait choose" "keys ability";align-items:center;column-gap:10px;padding:10px}body.online #racer-column .pick h3{grid-area:title}body.online #racer-column .player-name-label{grid-area:name}body.online #racer-column .pick .portrait{grid-area:portrait;width:72px;height:88px}body.online #racer-column .pick .choose{grid-area:choose}body.online #racer-column .pick .keys{grid-area:keys}body.online #racer-column .pick .ability-select{grid-area:ability}body.online #lobby .bottom{grid-template-columns:1fr 1fr;grid-template-rows:minmax(150px,auto) minmax(190px,auto);gap:8px}body.online .setting-card{padding:9px}body.online .world-setting #world-preview{height:52px}body.online .vehicle-setting #vehicle-preview{height:56px}body.online #room-panel{gap:8px;padding:12px}body.online #room-panel .room-list{min-height:145px}body.online #room-sidebar{flex-wrap:wrap}body.online #room-sidebar>button{min-height:34px;padding:6px 8px;font-size:10px}body.online #room-panel #start{min-height:48px}body.online #room-options{top:auto;right:10px;bottom:58px}}
+@media(max-width:750px) and (orientation:landscape) and (pointer:coarse){body.online #lobby{grid-template-columns:minmax(145px,.9fr) minmax(150px,1fr) minmax(210px,1.2fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "racer settings room";gap:6px;padding:9px;margin:4px auto 8px}body.online #lobby>h1{font-size:22px}body.online #lobby>.intro{font-size:10px}body.online #racer-column #picks{grid-template-columns:1fr!important}body.online #racer-column .pick{grid-template-columns:54px minmax(0,1fr);padding:6px;column-gap:6px}body.online #racer-column .pick .portrait{width:52px;height:58px}body.online #racer-column .player-name-label{font-size:8px}body.online #racer-column .player-name-label input{height:25px;font-size:10px}body.online #racer-column .pick .keys{font-size:7px}body.online #racer-column .pick .ability-select{font-size:8px}body.online #racer-column .pick .ability-select select{height:25px;font-size:9px}body.online #lobby .bottom{grid-template-columns:1fr;grid-template-rows:minmax(112px,.8fr) minmax(142px,1fr);gap:5px}body.online .setting-card{padding:6px;gap:3px!important}body.online .world-setting #world-preview{display:none}body.online .vehicle-setting #vehicle-preview{height:28px}body.online #room-panel{gap:5px;padding:7px;max-height:calc(100dvh - 76px);overflow:auto}body.online #room-panel .room-heading h2{font-size:14px!important}body.online #room-panel .room-list{min-height:75px;padding:6px}body.online #room-sidebar{gap:4px}body.online #room-sidebar>button{min-width:0;min-height:27px;padding:4px 6px;font-size:8px}body.online #room-panel #room-browser{padding:6px}body.online #join-code label{font-size:8px}body.online #room-code{height:30px;font-size:12px}body.online #join-code button{min-width:52px;font-size:9px}body.online #directory-notice{font-size:8px}body.online #room-panel #start{min-height:34px;font-size:12px}}
+
+/* Final lobby grid: setup cards left, four racers in the center, room actions right. */
+body.local #room-panel{display:none!important}
+@media(min-width:1251px) and (pointer:fine){body.online #lobby{width:min(1640px,calc(100% - 48px));max-width:1640px;grid-template-columns:minmax(300px,.9fr) minmax(520px,1.5fr) minmax(410px,1.1fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "settings racer room";gap:12px 20px;padding:22px 24px}body.online #racer-column{height:auto;min-height:0;display:block}body.online #racer-column #picks{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(225px,1fr);gap:12px}body.online #room-panel{height:auto;min-height:100%;grid-template-rows:45px 32px minmax(225px,1fr) 39px 58px}}
+@media(max-width:1250px) and (min-width:751px) and (pointer:fine){body.online #lobby{width:calc(100% - 32px);max-height:none;grid-template-columns:minmax(250px,.82fr) minmax(420px,1.2fr);grid-template-areas:"eyebrow eyebrow" "title title" "intro intro" "settings racer" "room room";gap:10px 14px}body.online #racer-column{height:auto;min-height:0;display:block}body.online #racer-column #picks{grid-template-columns:repeat(2,minmax(0,1fr))!important;grid-auto-rows:minmax(210px,1fr)}body.online #room-panel{height:auto;min-height:380px}}
+
+#fps-meter{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:48px;z-index:4;padding:6px 9px;border-radius:8px;background:#fff8e7e8;color:#20382f;font:11px/1.5 monospace;font-variant-numeric:tabular-nums;white-space:pre-line;pointer-events:auto}
+@media(pointer:coarse){#fps-meter{bottom:calc(162px + env(safe-area-inset-bottom));font-size:10px}}
+
+/* Reference lobby: track and car at left, four seats in the middle, room at right. */
+body.online:not([data-screen="race"]) header { padding:18px 28px; min-height:64px; }
+body.online:not([data-screen="race"]) header > b { display:block!important; }
+body.online:not([data-screen="race"]) header > div { display:none!important; }
+body.online #lobby {
+ width:min(1600px,calc(100% - 48px)); max-width:1600px; max-height:none;
+ margin:14px auto 150px; padding:0; background:none; border:0; box-shadow:none;
+ grid-template-columns:minmax(230px,.85fr) minmax(340px,1.25fr) minmax(310px,1fr);
+ grid-template-areas:"settings racer room"; gap:18px; align-items:stretch; overflow:visible;
+}
+body.online #lobby > .eyebrow,body.online #lobby > h1,body.online #lobby > .intro { display:none; }
+body.online #lobby .bottom { height:auto; grid-template-columns:1fr; grid-template-rows:1fr 1.25fr; gap:16px; }
+body.online .setting-card { padding:18px; gap:12px!important; border-radius:22px; }
+body.online .setting-card > .choice-switch { order:-1; min-height:50px; }
+body.online .choice-value { font-size:17px; }
+body.online .world-setting #world-preview { width:100%; height:90px; object-fit:cover; margin:0; }
+body.online .world-setting #world-description { margin:0; font-size:12px; line-height:1.5; letter-spacing:0; font-weight:normal; }
+body.online .vehicle-setting #vehicle-preview { height:105px; }
+body.online .vehicle-setting #vehicle-description { min-height:0!important; font-size:12px!important; line-height:1.5; }
+body.online #car-specs { margin:0; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:0; border-radius:12px; }
+body.online #car-specs > div { padding:10px 4px; }
+body.online #car-specs dt { font-size:10px; }
+body.online #car-specs dd { font-size:12px; margin:5px 0 0; }
+body.online #racer-column { height:auto; display:flex; }
+body.online #racer-column #picks { float:none; width:100%; height:100%; grid-template-columns:repeat(2,minmax(0,1fr))!important; grid-auto-rows:minmax(255px,1fr); gap:16px; }
+body.online #racer-column .pick { min-height:255px; padding:14px; grid-template-rows:auto auto minmax(85px,1fr) auto auto auto; border-radius:22px; }
+body.online #racer-column .pick h3 { font-size:11px; }
+body.online #racer-column .pick .portrait { height:115px; }
+body.online #racer-column .player-name-label { font-size:10px; }
+body.online #racer-column .player-name-label input { height:34px; font-size:13px; }
+body.online #racer-column .pick .choose { gap:5px; }
+body.online #racer-column .pick .choose b { font-size:14px; }
+body.online #racer-column .pick .choose button { width:32px; height:32px; flex-basis:32px; }
+body.online #racer-column .pick .ability-select { display:block!important; margin:4px 0 0; font-size:10px; }
+body.online #racer-column .pick .choice-tiles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:6px; }
+body.online #racer-column .pick .choice-tiles button { min-height:47px; padding:4px; border-radius:9px; }
+body.online #racer-column .pick .choice-tiles button span { font-size:22px; }
+body.online #racer-column .pick .choice-tiles button small { font-size:9px; }
+body.online #racer-column .empty-seat { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; color:#70816e; background:#fff8e7df; border:2px dashed #d0dac3; box-shadow:0 6px 0 #21362c17; transition:background .15s,border-color .15s; }
+body.online #racer-column .empty-seat > span { display:grid; place-items:center; width:80px; height:80px; border:2px solid #c1cfb6; border-radius:50%; font-size:58px; line-height:1; font-weight:normal; }
+body.online #racer-column .empty-seat small { font-size:13px; }
+body.online #racer-column .empty-seat:hover:not(:disabled) { background:#fff8e7; border-color:#52724f; color:#365b48; }
+.remove-seat { position:absolute; top:7px; right:7px; width:28px; height:28px; border:0; border-radius:50%; background:#e9e4d8; color:#365b48; font-size:20px; }
+body.online #room-panel { align-self:stretch; min-height:0; height:auto; padding:18px; border-radius:24px; grid-template-columns:minmax(0,1fr) 46px; grid-template-rows:auto auto minmax(150px,1fr) auto auto; gap:12px; }
+body.online #room-panel .room-heading { flex-wrap:wrap; }
+body.online #room-panel .room-heading h2 { flex-basis:calc(100% - 45px); font-size:21px!important; }
+body.online #room-panel #copy-code { font-size:12px; padding:8px 10px; }
+body.online #room-panel #room-status { font-size:12px; line-height:1.5; }
+body.online #room-panel .room-list { min-height:150px; padding:14px; }
+body.online #room-panel .room-list > div { align-items:flex-start; font-size:13px; line-height:1.5; }
+body.online #room-panel .room-list > div b { flex-shrink:0; padding-top:2px; }
+body.online #room-sidebar { gap:10px; }
+body.online #room-sidebar > button { width:44px; height:44px; min-width:44px; min-height:44px; padding:10px; border-radius:12px; }
+body.online #room-panel #room-browser { min-height:0; height:auto; padding:12px; overflow:visible; }
+body.online #join-code label { font-size:11px; }
+body.online #room-code { width:0; height:44px; font-size:16px; letter-spacing:3px; }
+body.online #room-code::placeholder { font-size:11px; letter-spacing:1px; }
+body.online #directory-notice { font-size:11px; line-height:1.45; }
+body.online #room-panel > #start { min-height:62px; font-size:22px; border-radius:14px; }
+body.online #room-panel #rename-form { grid-column:1/-1; grid-row:1; z-index:3; align-self:start; background:#fff8e7; padding:5px; border-radius:12px; }
+body.online #room-options { z-index:5; top:58px; right:18px; }
+@media (max-width:1100px) and (pointer:fine) {
+ body.online #lobby { grid-template-columns:minmax(220px,.75fr) minmax(350px,1.25fr); grid-template-areas:"settings racer" "room room"; }
+ body.online #room-panel { min-height:350px; }
+}
+@media (min-width:1101px) and (max-height:800px) and (pointer:fine) {
+ body.online #lobby { margin-top:6px; gap:12px; }
+ body.online #racer-column #picks { grid-auto-rows:minmax(215px,1fr); gap:12px; }
+ body.online #racer-column .pick { min-height:215px; padding:10px; gap:3px; }
+ body.online #racer-column .pick .portrait { height:72px; }
+ body.online .setting-card { padding:12px; gap:8px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:70px; }
+ body.online .world-setting #world-preview { height:65px; }
+}
+@media (max-width:750px),(pointer:coarse) {
+ body.online:not([data-screen="race"]) header { padding:12px 16px; min-height:50px; }
+ body.online #lobby { width:calc(100% - 24px); margin:8px auto 120px; grid-template-columns:minmax(0,1fr); grid-template-areas:"settings" "racer" "room"; gap:16px; }
+ body.online #lobby .bottom { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:1fr; gap:10px; }
+ body.online .setting-card { padding:10px; gap:8px!important; }
+ body.online .setting-card > .choice-switch { min-height:44px; }
+ body.online .choice-value { font-size:12px; }
+ body.online .world-setting #world-preview { height:62px; }
+ body.online .world-setting #world-description,body.online .vehicle-setting #vehicle-description { font-size:11px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:65px; }
+ body.online #car-specs > div { padding:6px 2px; }
+ body.online #car-specs dt { font-size:8px; }
+ body.online #car-specs dd { font-size:10px; }
+ body.online #racer-column #picks { grid-template-columns:1fr!important; grid-auto-rows:auto; }
+ body.online #racer-column .pick { min-height:0; grid-template-columns:74px minmax(0,1fr); grid-template-rows:auto auto auto auto; grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability"; padding:12px; }
+ body.online #racer-column .pick .portrait { height:100px; }
+ body.online #racer-column .pick .ability-select { grid-area:ability; }
+ body.online #racer-column .pick .choice-tiles { margin-top:6px; }
+ body.online #racer-column .pick .choice-tiles button { min-height:48px; }
+ body.online #racer-column .pick .keys { display:none; }
+ body.online #room-panel { min-height:380px; padding:14px; }
+}
+@media (pointer:coarse) and (orientation:landscape) and (min-width:700px) {
+ body.online #lobby { grid-template-columns:minmax(160px,.8fr) minmax(180px,.9fr) minmax(250px,1.2fr); grid-template-areas:"settings racer room"; gap:10px; }
+ body.online #lobby .bottom { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+ body.online #racer-column .pick { display:flex; flex-direction:column; gap:8px; }
+ body.online #racer-column .pick .portrait { height:90px; }
+ body.online #room-panel { max-height:none; }
+}
+@media (min-width:1101px) and (pointer:fine) {
+ body.online #lobby { height:clamp(530px,calc(100dvh - 290px),650px); }
+ body.online #lobby .bottom { grid-template-rows:minmax(0,.9fr) minmax(0,1.1fr); }
+ body.online .setting-card { padding:14px; gap:8px!important; }
+ body.online .vehicle-setting #vehicle-preview { height:75px; }
+ body.online #car-specs > div { padding:7px 3px; }
+ body.online #racer-column #picks { grid-auto-rows:minmax(0,1fr); }
+ body.online #racer-column .pick { min-height:0; grid-template-rows:auto auto minmax(0,1fr) auto auto auto; gap:4px; }
+ body.online #racer-column .pick .portrait { height:85px; }
+}
+#track-specs { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); margin:0; margin-top:auto; border:1px solid #d8decd; border-radius:12px; overflow:hidden; background:#fffdf570; letter-spacing:0; }
+#track-specs > div { padding:10px 4px; text-align:center; border-right:1px solid #d8decd; }
+#track-specs > div:last-child { border:0; }
+#track-specs dt { font-size:10px; font-weight:normal; }
+#track-specs dd { margin:5px 0 0; font-size:12px; color:#365b48; }
+body.online .world-setting #world-preview { order:0; }
+body.online .world-setting #world-description { order:1; }
+body.online #track-specs { order:2; }
+@media(max-width:750px),(pointer:coarse) { #track-specs > div { padding:7px 2px; } #track-specs dt { font-size:8px; } #track-specs dd { font-size:10px; } }
+body.online #car-specs > div { display:block; min-width:0; border-right:1px solid #d8dfce; }
+body.online #car-specs > div:nth-child(3n) { border-right:0; }
+body.online #car-specs dd { overflow-wrap:anywhere; }
+@media(max-width:750px),(pointer:coarse) { body.online #car-specs { grid-template-columns:repeat(2,minmax(0,1fr)); } body.online #car-specs > div:nth-child(3n) { border-right:1px solid #d8dfce; } body.online #car-specs > div:nth-child(2n) { border-right:0; } }
+/* Tactile controls share the rounded face and deep base of the ready button. */
+.menu-icon { display:block; width:28px; height:28px; fill:none; stroke:currentColor; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+.menu-icon .icon-dot { fill:currentColor; stroke:none; }
+.menu-icon .icon-accent { fill:#eeb454; stroke:#365b48; }
+.icon-shield .icon-accent { fill:#8eb7a9; }
+.icon-jump .icon-accent { fill:#90b6bf; }
+body.online .setting-card > .choice-switch,body.online .setting-card > .choice-switch.locked { background:none; border:0; padding:0; box-shadow:none; gap:12px; }
+body.online .setting-card .choice-value { font-size:20px; font-weight:800; }
+body.online .choice-arrow,body.online #racer-column .pick .choose button,
+body.online #room-sidebar > button,body.online #network-toggle,body.online #rename-room {
+ display:grid; place-items:center; padding:7px; border:2px solid #afbb9d; border-radius:12px;
+ background:linear-gradient(#fff8e7,#e9e7ce); color:#365b48; box-shadow:0 5px 0 #8b9b79;
+ transition:transform .12s,box-shadow .12s,background .12s; transform:none;
+}
+body.online .choice-arrow { width:40px; height:40px; flex-basis:40px; }
+body.online .choice-arrow .menu-icon { width:23px; height:23px; stroke-width:3.2; }
+body.online #racer-column .pick .choose button { width:33px; height:33px; flex-basis:33px; border-radius:10px; padding:6px; box-shadow:0 4px 0 #8b9b79; }
+body.online #racer-column .pick .choose button .menu-icon { width:18px; height:18px; stroke-width:3; }
+body.online #room-sidebar > button { width:48px; height:48px; min-width:48px; min-height:48px; padding:8px; border-radius:13px; }
+body.online #room-sidebar > button svg { width:28px; height:28px; stroke-width:2.5; }
+body.online #room-chat-toggle .menu-icon { width:31px; height:31px; }
+body.online #room-sidebar { gap:14px; }
+body.online #room-panel { grid-template-columns:minmax(0,1fr) 50px; }
+body.online #rename-room { width:34px; height:34px; padding:7px; border-radius:9px; box-shadow:0 3px 0 #8b9b79; }
+body.online #rename-room svg { width:18px; height:18px; }
+body.online #network-toggle { width:48px; height:44px; min-width:48px; min-height:44px; padding:7px; }
+body.online #network-toggle .menu-icon { width:28px; height:28px; }
+body.online #racer-column .pick .choice-tiles { gap:8px; margin-bottom:5px; }
+body.online #racer-column .pick .choice-tiles button {
+ display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+ padding:5px; min-height:51px; border:2px solid #afbb9d; border-radius:11px;
+ background:linear-gradient(#fff8e7,#e9e7ce); color:#365b48; box-shadow:0 5px 0 #8b9b79;
+ transition:transform .12s,box-shadow .12s,background .12s;
+}
+body.online #racer-column .pick .choice-tiles button span { line-height:1; }
+body.online #racer-column .pick .choice-tiles button .menu-icon { width:26px; height:26px; stroke-width:2.2; }
+body.online #racer-column .pick .choice-tiles button small { font-size:10px; font-weight:700; }
+body.online #racer-column .pick .choice-tiles button.selected { border-color:#a43a28; background:linear-gradient(#e26046,#d84e37); color:#fff8e7; box-shadow:0 5px 0 #a43a28; }
+body.online #racer-column .pick .choice-tiles button.selected .icon-accent { fill:#fff0c7; stroke:#713b2d; }
+body.online #racer-column .pick .choice-tiles button.selected .icon-shield path:not(.icon-accent) { stroke:#713b2d; }
+body.online .choice-arrow:hover:not(:disabled),body.online #room-sidebar > button:hover:not(:disabled),body.online #network-toggle:hover:not(:disabled),body.online #rename-room:hover:not(:disabled),body.online #racer-column .pick .choose button:hover:not(:disabled) { background:linear-gradient(#fffdf2,#efecd8); transform:translateY(-1px); }
+body.online .choice-arrow:active:not(:disabled),body.online #room-sidebar > button:active:not(:disabled),body.online #network-toggle:active:not(:disabled),body.online #rename-room:active:not(:disabled),body.online #racer-column .pick .choose button:active:not(:disabled),body.online #racer-column .pick .choice-tiles button:active:not(:disabled) { transform:translateY(4px); box-shadow:0 1px 0 #8b9b79; }
+body.online #racer-column .pick .choice-tiles button.selected:active:not(:disabled) { box-shadow:0 1px 0 #a43a28; }
+body.online #lobby .world-setting #world-description,body.online #lobby .vehicle-setting #vehicle-description { font-size:14px!important; line-height:1.6; color:#3f5a46; }
+body.online #track-specs { background:none; border:0; border-radius:0; overflow:visible; gap:8px; margin-top:auto; }
+body.online #track-specs > div { display:flex; flex-direction:column; align-items:center; gap:5px; border:0; border-radius:12px; background:#e9e7ce70; padding:8px 3px; }
+body.online #track-specs dt { font-size:11px; color:#63745e; }
+body.online #track-specs dd { font-size:22px; font-weight:800; margin:0; }
+body.online #track-specs .menu-icon { width:36px; height:36px; stroke:#647d82; stroke-width:2; }
+body.online #track-specs .icon-sun { stroke:#c98a25; }
+body.online #track-specs .weather-sun { fill:#f4cc60; }
+body.online #track-specs .weather-cloud { fill:#fffdf5; }
+body.online #lobby .bottom { grid-template-rows:minmax(0,.9fr) minmax(0,1.1fr); }
+@media (min-width:1101px) and (pointer:fine) {
+ body.online #racer-column .pick .portrait { height:78px; }
+ body.online #lobby .world-setting #world-description,body.online #lobby .vehicle-setting #vehicle-description { font-size:14px!important; line-height:1.5; }
+}
+@media (max-width:750px),(pointer:coarse) {
+ body.online .setting-card .choice-value { font-size:15px; }
+ body.online .choice-arrow { width:30px; height:32px; flex-basis:30px; padding:4px; border-radius:10px; box-shadow:0 4px 0 #8b9b79; }
+ body.online .setting-card > .choice-switch { gap:5px; }
+ body.online .choice-arrow .menu-icon { width:18px; height:18px; }
+ body.online #lobby .bottom { grid-template-rows:auto; }
+ body.online #lobby .world-setting #world-description,body.online #lobby .vehicle-setting #vehicle-description { font-size:13px!important; line-height:1.5; }
+ body.online #track-specs { gap:4px; }
+ body.online #track-specs > div { padding:8px 1px; }
+ body.online #track-specs dt { font-size:9px; }
+ body.online #track-specs dd { font-size:18px; }
+ body.online #track-specs .menu-icon { width:28px; height:28px; }
+}
+@media (prefers-reduced-motion:reduce) { body.online button { transition:none!important; } }
+body.online #join-code #network-toggle { width:48px; min-width:48px; height:44px; padding:7px; border:2px solid #afbb9d; border-radius:12px; background:linear-gradient(#fff8e7,#e9e7ce); color:#365b48; box-shadow:0 5px 0 #8b9b79; }
+body.online #join-code #network-toggle:hover { background:linear-gradient(#fffdf2,#efecd8); }
+body.online #racer-column .pick .portrait { pointer-events:none; }
+@media (min-width:1101px) and (pointer:fine) {
+ body.online #racer-column .pick { grid-template-rows:auto auto minmax(50px,1fr) auto auto auto; }
+ body.online #racer-column .pick .portrait { height:100%; max-height:80px; min-height:0; object-fit:contain; align-self:center; }
+}
+@media(max-width:450px) {
+ body.online #lobby .bottom { grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto; }
+ body.online .setting-card .choice-value { font-size:18px; overflow-wrap:normal; }
+ body.online .setting-card { padding:14px; }
+ body.online #track-specs { margin-top:10px; gap:8px; }
+ body.online #track-specs > div { padding:10px; }
+ body.online #track-specs .menu-icon { width:32px; height:32px; }
+ body.online #track-specs dt { font-size:11px; }
+ body.online #car-specs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+ body.online #car-specs > div:nth-child(2n) { border-right:1px solid #d8dfce; }
+ body.online #car-specs > div:nth-child(3n) { border-right:0; }
+ body.online .vehicle-setting #vehicle-preview { height:100px; }
+}
+/* One button surface throughout garage, dialogs and pause settings. */
+body.online button:not(.empty-seat):not([data-control]) {
+ --face-top:#fff8e7;--face-bottom:#e9e7ce;--face-edge:#afbb9d;--face-base:#8b9b79;--face-ink:#365b48;
+ background:linear-gradient(var(--face-top),var(--face-bottom))!important;
+ border:2px solid var(--face-edge)!important;border-radius:11px!important;color:var(--face-ink)!important;
+ box-shadow:0 4px 0 var(--face-base)!important;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+}
+body.online button#start,body.online button.selected,body.online .primary {
+ --face-top:#e26046;--face-bottom:#d84e37;--face-edge:#a43a28;--face-base:#a43a28;--face-ink:#fff8e7;
+}
+body.online button:not(.empty-seat):not([data-control]):active:not(:disabled) { transform:translateY(3px)!important;box-shadow:0 1px 0 var(--face-base)!important; }
+body.online button svg,body.online button svg * { pointer-events:none; }
+body.online #racer-column .pick .choice-tiles { gap:6px; margin:4px 0 3px; }
+body.online #racer-column .pick .choice-tiles button { min-height:34px;height:34px;padding:3px 5px;flex-direction:row;gap:4px; }
+body.online #racer-column .pick .choice-tiles button .menu-icon { width:18px;height:18px; }
+body.online #racer-column .pick .choice-tiles button small { font-size:9px; }
+body.online #racer-column .pick .ability-select { font-size:0; }
+body.online #racer-column .pick .keys { display:none; }
+body.online #racer-column .player-name-label { font-size:0; }
+body.online #racer-column .pick .portrait { height:110px;max-height:110px;min-height:0;object-fit:contain; }
+body.online #racer-column .pick { grid-template-rows:auto auto minmax(100px,1fr) auto auto auto;gap:4px;padding:10px; }
+body.online #racer-column .pick .portrait { align-self:center; }
+body.online #room-panel > #start { position:relative;z-index:2;touch-action:manipulation; }
+body.online #join-code #network-toggle { position:relative;z-index:2;touch-action:manipulation; }
+body.online #track-specs > div { gap:7px;padding:10px 3px; }
+@media(min-width:1101px) and (max-height:800px) and (pointer:fine){
+ body.online #racer-column .pick { grid-template-rows:auto auto minmax(80px,1fr) auto auto auto; }
+ body.online #racer-column .pick .portrait { height:90px;max-height:90px; }
+}
+@media(max-width:750px),(pointer:coarse){
+ body.online #lobby { height:auto;grid-template-areas:"racer" "settings" "room";align-items:start; }
+ body.online #racer-column { display:block;height:auto;min-height:0;align-self:start; }
+ body.online #racer-column #picks { height:auto;grid-auto-rows:max-content;align-items:start; }
+ body.online #racer-column .pick { height:auto;min-height:0;max-height:260px;display:grid;grid-template-columns:112px minmax(0,1fr);grid-template-rows:16px 45px 65px 44px;grid-template-areas:"title title" "portrait name" "portrait choose" "ability ability";gap:6px 10px;padding:12px;align-items:center; }
+ body.online #racer-column .pick .portrait { height:124px;max-height:124px;width:112px;max-width:112px;grid-area:portrait;margin:0;align-self:center; }
+ body.online #racer-column .pick h3 { grid-area:title; }
+ body.online #racer-column .player-name-label { grid-area:name; }
+ body.online #racer-column .pick .choose { grid-area:choose; }
+ body.online #racer-column .pick .ability-select { grid-area:ability;width:100%;margin:0; }
+ body.online #racer-column .pick .choice-tiles button { height:36px;min-height:36px; }
+ body.online #room-panel > #start { position:sticky;bottom:calc(8px + env(safe-area-inset-bottom));z-index:3; }
+ body.online #lobby .bottom { height:auto;align-self:start; }
+ body.online #lobby .setting-card { height:auto;min-height:0; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { grid-template-areas:"settings racer room"; }
+ body.online #racer-column .pick { grid-template-columns:1fr;grid-template-rows:auto auto 105px auto auto;grid-template-areas:"title" "name" "portrait" "choose" "ability";max-height:300px;gap:5px; }
+ body.online #racer-column .pick .portrait { height:105px;max-height:105px;width:100%;margin:auto; }
+ body.online #racer-column .pick .choice-tiles button { padding:2px;flex-direction:column;height:38px;min-height:38px;gap:1px; }
+ body.online #racer-column .pick .choice-tiles button small { font-size:8px; }
+}
+body.online button.selected,body.online button.primary { --face-top:#e26046!important;--face-bottom:#d84e37!important;--face-edge:#a43a28!important;--face-base:#a43a28!important;--face-ink:#fff8e7!important; }
+@media(max-width:750px),(pointer:coarse){
+ body.online #lobby { grid-template-areas:"racer" "room" "settings"; }
+ body.online #room-panel > #start { position:relative;bottom:auto; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){body.online #lobby { grid-template-areas:"settings racer room"; }}
+/* Drawers follow Travagram's slide curve; heading, content and composer have separate rows. */
+body.online:not([data-screen="race"]) > header { display:none!important; }
+body.online > header > b { display:none!important; }
+body.online #lobby { margin-top:12px; }
+body.online #chat-dialog[open],body.online #network-dialog[open],body.online #invite-dialog[open] {
+ position:fixed;inset:var(--drawer-top,0px) 0 auto auto;width:min(400px,94vw);height:var(--drawer-height,100dvh);max-height:var(--drawer-height,100dvh);
+ display:flex;flex-direction:column;gap:0;margin:0;padding:0;box-sizing:border-box;overflow:hidden;
+ border:1px solid #d8dfce;border-radius:20px 0 0 20px;background:#fff8e7;color:#20382f;box-shadow:-12px 0 40px #20382f28;
+ transform:translateX(0);animation:drawer-in .4s cubic-bezier(.22,1,.36,1);transition:transform .24s cubic-bezier(.22,1,.36,1);
+}
+body.online #chat-dialog.closing,body.online #network-dialog.closing,body.online #invite-dialog.closing { animation:none;transform:translateX(105%); }
+.game-drawer::backdrop { background:#15251f55;backdrop-filter:blur(2px); }
+.drawer-head { display:flex;align-items:center;justify-content:space-between;gap:14px;flex:0 0 auto;padding:calc(14px + env(safe-area-inset-top)) 16px 14px;background:#fff8e7;border-bottom:1px solid #d8dfce;min-height:68px; }
+.drawer-head h2 { margin:0!important;font-size:22px!important;line-height:1.3;letter-spacing:-.4px;min-width:0; }
+body.online .drawer-head button { flex:0 0 36px;align-self:center;width:36px;height:36px;min-height:36px;margin:0!important;padding:0!important;font-size:24px;line-height:1; }
+.drawer-body { flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;padding:14px 16px calc(16px + env(safe-area-inset-bottom));overflow:hidden; }
+body.online #chat-dialog #room-chat { display:grid!important;flex:1;min-height:0;grid-template-rows:minmax(0,1fr) 48px;gap:12px;margin:0;padding:0;border:0;background:none; }
+body.online #chat-dialog #chat-log { display:flex;flex-direction:column;align-items:flex-start;gap:8px;flex:1;min-height:0;height:auto;max-height:none;overflow-y:auto;overscroll-behavior:contain;padding:16px;background:#ececdd;border:1px solid #d5dac8;border-radius:16px; }
+body.online #chat-dialog #chat-log:empty::before { content:'Пока нет сообщений';color:#72816d;font-size:13px;margin:auto; }
+body.online #chat-log p.chat-bubble { position:relative;width:fit-content;max-width:85%;margin:0;padding:9px 12px 11px;border:0;border-radius:16px 16px 16px 4px;background:#fffdf5;color:#20382f;line-height:1.5;font-size:14px;overflow-wrap:anywhere;white-space:pre-wrap;flex-shrink:0; }
+body.online #chat-log p.mine { margin-left:auto;background:#dde8cd;border-radius:16px 16px 4px 16px; }
+body.online #chat-log p b { display:block;margin-bottom:3px;font-size:11px;color:#65795e; }
+body.online #chat-dialog #chat-form { grid-row:2;display:flex;gap:10px;margin:0;padding:0;height:48px;min-height:48px;align-items:stretch; }
+body.online #chat-dialog #chat-text { display:block;flex:1;width:0;min-width:0;height:48px;min-height:48px;max-height:48px;resize:none;overflow-y:auto;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:16px;line-height:1.4;border:1px solid #d5dac8;border-radius:12px;background:#fffdf5; }
+body.online #chat-dialog #chat-form button { flex:0 0 48px;width:48px;height:48px;min-height:48px;max-height:48px;margin:0;padding:12px;box-sizing:border-box; }
+body.online #chat-form button svg { display:block;width:22px;height:22px; }
+body.online #network-dialog #network-room-list { flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain; }
+body.online #invite-dialog .drawer-body { justify-content:center;align-items:center;overflow-y:auto; }
+body.online #invite-dialog #invite-qr { width:min(100%,320px,calc(var(--drawer-height,100dvh) - 115px));max-width:100%;flex-shrink:0;aspect-ratio:1;padding:0;margin:0;background:white;border-radius:16px;overflow:hidden; }
+body.online #invite-qr svg { display:block;width:100%;height:100%; }
+body.online #room-code.code-error { color:#be3f2c;border-color:#be3f2c;animation:code-shake .34s ease-in-out; }
+body.online #directory-notice { height:auto;min-height:0;margin:6px 0 0;line-height:1.4; }
+body.online #directory-notice.code-error { color:#be3f2c;animation:code-shake .34s ease-in-out; }
+body.online #join-code label { font-size:0; }
+body.online #join-code label::after { content:'Подключиться к комнате';font-size:12px; }
+@keyframes drawer-in { from{transform:translateX(105%)}to{transform:translateX(0)} }
+@media(max-width:750px),(pointer:coarse){
+ body.online #lobby { width:calc(100% - 20px);margin:10px auto 90px;gap:10px; }
+ body.online #chat-dialog[open],body.online #network-dialog[open],body.online #invite-dialog[open] { width:min(400px,94vw); }
+ .drawer-head { padding:calc(10px + env(safe-area-inset-top)) 12px 12px;min-height:60px; }
+ .drawer-body { padding:12px 12px calc(12px + env(safe-area-inset-bottom)); }
+ body.online #room-panel .room-list>div { font-size:12px; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { height:calc(100dvh - 20px);grid-template-columns:minmax(180px,.95fr) minmax(190px,1fr) minmax(250px,1.25fr);grid-template-areas:"settings racer room";gap:8px;margin-bottom:10px;align-items:stretch; }
+ body.online #lobby .bottom { height:100%;grid-template-rows:minmax(0,.47fr) minmax(0,.53fr);gap:8px; }
+ body.online #lobby .setting-card { height:100%;padding:8px;gap:5px!important;overflow:hidden; }
+ body.online .setting-card .choice-value { font-size:14px; }
+ body.online .setting-card > .choice-switch { min-height:34px; }
+ body.online #lobby #world-description,body.online #lobby #vehicle-description { font-size:11px!important;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden; }
+ body.online #track-specs { margin-top:auto;gap:4px; }
+ body.online #track-specs > div { padding:4px 2px;gap:2px; }
+ body.online #track-specs .menu-icon { width:23px;height:23px; }
+ body.online #track-specs dd { font-size:15px; }
+ body.online #car-specs { grid-template-columns:repeat(3,minmax(0,1fr));margin-top:auto; }
+ body.online #car-specs > div { padding:3px 1px; }
+ body.online #car-specs dt { font-size:8px; }
+ body.online #car-specs dd { font-size:10px;margin:3px 0 0; }
+ body.online #racer-column { align-self:start; }
+ body.online #room-panel { height:100%;min-height:0;grid-template-columns:minmax(0,1fr) 36px;grid-template-rows:auto auto minmax(0,1fr) auto 42px;gap:6px;padding:9px; }
+ body.online #room-panel .room-heading h2 { font-size:17px!important; }
+ body.online #room-panel #room-status { font-size:10px;line-height:1.35;margin:0; }
+ body.online #room-panel .room-list { min-height:0;padding:8px; }
+ body.online #room-panel .room-list>div { min-height:0;font-size:11px!important;padding:4px 0!important; }
+ body.online #room-sidebar { gap:10px; }
+ body.online #room-sidebar>button { width:34px;height:34px;min-width:34px;min-height:34px;padding:5px; }
+ body.online #room-sidebar>button svg { width:22px;height:22px; }
+ body.online #room-panel #room-browser { padding:7px; }
+ body.online #room-code { height:36px; }
+ body.online #join-code #network-toggle { width:36px;min-width:36px;height:36px;min-height:36px;padding:5px; }
+ body.online #join-code label::after { font-size:10px; }
+ body.online #directory-notice { font-size:9px; }
+ body.online #room-panel>#start { min-height:40px;font-size:17px;padding:5px; }
+}
+@media(prefers-reduced-motion:reduce){body.online dialog.game-drawer[open] {animation:none!important;transition:none!important;}body.online .code-error {animation:none!important;}}
+body.online #chat-dialog #chat-log:empty { display:flex!important; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby .setting-card #world-description,body.online #lobby .setting-card #vehicle-description { font-size:11px!important;line-height:1.3!important;display:-webkit-box!important;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex-shrink:0; }
+ body.online #lobby .setting-card #car-specs { flex-shrink:0; }
+}
+/* Never wrap the room toolbar into extra columns when browser chrome changes height. */
+body.online #room-panel { isolation:isolate; }
+body.online #room-sidebar { display:flex;flex-direction:column;flex-wrap:nowrap!important;align-self:stretch;min-width:0;min-height:0;overflow:visible; }
+body.online #room-sidebar>button { flex:0 0 auto; }
+body.online #room-sidebar #room-settings { margin-top:auto; }
+body.online #lobby { animation:none!important;transform:none!important;overflow-anchor:none; }
+body.online #room-panel .room-heading { min-width:0; }
+body.online #room-panel .room-heading h2 { min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+body.online button:hover:not(:disabled),body.online button:active:not(:disabled) { transform:none!important; }
+body.online #room-options[open] {
+ position:fixed;inset:var(--drawer-top,0px) 0 auto auto;width:min(400px,94vw);height:var(--drawer-height,100dvh);max-height:var(--drawer-height,100dvh);
+ display:flex;flex-direction:column;gap:0;margin:0;padding:0;box-sizing:border-box;overflow:hidden;border:1px solid #d8dfce;border-radius:20px 0 0 20px;
+ background:#fff8e7;box-shadow:-12px 0 40px #20382f28;transform:translateX(0);animation:drawer-in .4s cubic-bezier(.22,1,.36,1);transition:transform .24s cubic-bezier(.22,1,.36,1);
+}
+body.online #room-options.closing { animation:none;transform:translateX(105%); }
+body.online #room-options .drawer-body { justify-content:flex-start;overflow-y:auto; }
+body.online #room-options .card-tools { flex:0 0 auto;width:100%;display:flex;flex-direction:column;gap:12px; }
+body.online #room-options .card-tools button { min-height:44px;padding:10px 16px; }
+body.online #room-options .drawer-head button { width:36px;margin:0!important; }
+body.online #room-sidebar>button { position:relative;display:flex!important;align-items:center;justify-content:center;line-height:0; }
+body.online #room-sidebar>button>.menu-icon { position:static!important;inset:auto!important;display:block;flex:none;margin:0!important;transform:none!important; }
+body.online #room-sidebar { gap:8px; }
+body.online #room-sidebar>button { width:44px;height:44px;min-width:44px;min-height:44px;padding:7px; }
+body.online #room-sidebar>button>.menu-icon { width:24px;height:24px; }
+body.online #room-sidebar #network-toggle { width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:7px; }
+body.online #room-panel .room-list .kick-player { flex:0 0 26px;width:26px;height:26px;min-width:26px;min-height:26px;margin:0;padding:4px;border:1px solid #bf806e;border-radius:8px;background:#fbe6dc;color:#963c2d;box-shadow:none; }
+body.online #room-panel .room-list .kick-player>.menu-icon { width:16px;height:16px; }
+body.online #room-panel .room-list .kick-player:hover:not(:disabled) { background:#f5d7c9;color:#7e2d21;box-shadow:none;transform:none; }
+/* Room tools and connection code occupy separate columns; inline editing stays in the title row. */
+body.online #room-panel #room-browser { grid-column:1;grid-row:4;width:100%;min-width:0; }
+body.online #room-panel .room-heading #room-title[contenteditable="true"] { min-width:0;outline:2px solid #93aa86;outline-offset:3px;border-radius:4px;white-space:nowrap; }
+body.online #room-panel .room-heading #rename-room { width:44px;height:44px;min-width:44px;min-height:44px;padding:9px; }
+body.online #room-panel .room-heading #rename-room>.menu-icon { width:24px;height:24px; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-panel .room-heading #rename-room { width:34px;height:34px;min-width:34px;min-height:34px;padding:5px; }
+ body.online #room-panel #room-browser { grid-column:1;grid-row:4;padding:6px; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #racer-column { align-self:stretch;height:350px;min-height:350px;display:block; }
+ body.online #racer-column #picks { height:100%;grid-auto-rows:minmax(0,1fr); }
+ body.online #racer-column .pick { height:100%;max-height:none;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto auto; }
+ body.online #racer-column .pick .portrait { width:100%;height:clamp(90px,34dvh,150px);max-height:none; }
+}
+@media(pointer:coarse),(max-width:750px){
+ body.online #chat-dialog.keyboard-open #room-chat { grid-template-rows:minmax(0,1fr); }
+ body.online #chat-dialog.keyboard-open #chat-log { display:none!important; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-sidebar>button { width:34px;height:34px;min-width:34px;min-height:34px;flex:0 0 34px;padding:5px; }
+ body.online #room-sidebar>button>.menu-icon { width:22px;height:22px; }
+ body.online #room-sidebar #network-toggle { width:34px;height:34px;min-width:34px;min-height:34px; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { height:350px;min-height:350px;max-height:none; }
+ body.online #room-panel { height:350px;min-height:350px;max-height:none;overflow:visible;grid-template-columns:minmax(0,1fr) 36px; }
+ body.online #room-sidebar { grid-column:2;grid-row:1/4;min-height:164px; }
+ body.online #room-sidebar>button { width:34px;height:34px;min-width:34px;min-height:34px;flex:0 0 34px; }
+ body.online #room-panel .room-heading { display:grid;grid-template-columns:minmax(0,1fr) 30px;gap:5px; }
+ body.online #room-panel .room-heading h2 { grid-column:1;grid-row:1;font-size:16px!important; }
+ body.online #room-panel #rename-room { grid-column:2;grid-row:1;width:28px;height:28px;padding:5px; }
+ body.online #room-panel #copy-code { grid-column:1;grid-row:2;justify-self:start; }
+ body.online #room-panel #room-status { min-height:28px;height:28px;overflow:hidden; }
+ body.online #room-options[open] { width:min(400px,94vw); }
+}
+body.online #room-panel .room-list>div { display:flex!important;flex-wrap:nowrap!important;align-items:center;gap:8px; }
+body.online #room-panel .room-player-name { display:block;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+body.online #room-panel .room-list>div>b { flex:0 0 auto;white-space:nowrap; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #lobby { width:1000px!important;max-width:none;height:350px;min-height:350px;margin:10px auto;zoom:var(--garage-fit,1); }
+ body.online #room-panel { height:350px;min-height:350px; }
+ body.online #room-panel .room-list>div { height:26px;min-height:26px; }
+}
+/* Put readiness next to the room code; the other rows reclaim the old status row. */
+body.online #room-panel { grid-template-rows:auto minmax(110px,1fr) auto 58px!important; }
+body.online #room-panel .room-heading { grid-column:1;grid-row:1;display:grid;grid-template-columns:max-content minmax(0,1fr) 44px;grid-template-rows:auto auto;align-items:center;gap:6px 10px; }
+body.online #room-panel .room-heading h2 { grid-column:1/3;grid-row:1;min-width:0; }
+body.online #room-panel .room-heading #rename-room { grid-column:3;grid-row:1; }
+body.online #room-panel .room-heading #copy-code { grid-column:1;grid-row:2;justify-self:start; }
+body.online #room-panel .room-heading #room-status { grid-column:2/4;grid-row:2;min-width:0;min-height:0;height:auto;margin:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:1.3; }
+body.online #room-panel .room-list { grid-column:1;grid-row:2; }
+body.online #room-panel #room-browser { grid-column:1;grid-row:3; }
+body.online #room-panel>#start { grid-column:1/-1;grid-row:4; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-panel { grid-template-rows:auto minmax(75px,1fr) auto 42px!important; }
+ body.online #room-panel .room-heading { grid-template-columns:max-content minmax(0,1fr) 30px; }
+ body.online #room-panel .room-heading #rename-room { grid-column:3;grid-row:1;width:28px;height:28px;padding:5px; }
+ body.online #room-panel .room-heading #room-status { font-size:9px; }
+ body.online #room-panel .room-list { grid-row:2; }
+ body.online #room-panel #room-browser { grid-row:3; }
+ body.online #room-panel>#start { grid-row:4; }
+}
+/* Keep the desktop room UI inside the window instead of scrolling the document. */
+@media (pointer:fine){
+ body.online{position:fixed;inset:0;width:100%;height:100dvh;min-height:0;overflow:hidden!important;overscroll-behavior:none}
+ body.online:not([data-screen="race"]) #lobby{max-height:calc(100dvh - 88px);margin-bottom:0;overscroll-behavior:contain}
+}
+/* Fullscreen locks the page to the display; only a too-tall lobby can scroll inside itself. */
+:fullscreen{width:100%;height:100%;overflow:hidden!important}
+:fullscreen body, :-webkit-full-screen body{position:fixed;inset:0;width:100%;height:100%;min-height:0;overflow:hidden!important;overscroll-behavior:none}
+:fullscreen body.online:not([data-screen="race"]), :-webkit-full-screen body.online:not([data-screen="race"]){display:grid;grid-template-rows:auto minmax(0,1fr)}
+:fullscreen body.online:not([data-screen="race"]) #lobby, :-webkit-full-screen body.online:not([data-screen="race"]) #lobby{min-height:0;max-height:100%;margin-bottom:0;overscroll-behavior:contain}
+/* Keep room cards at their full height and make the join action compact. */
+body.online #network-dialog #network-room-list{scroll-padding-block:12px;overflow-anchor:none;padding:8px 10px 22px;border:1px solid #d8dfce;border-radius:14px;scrollbar-width:thin;scrollbar-color:#8b9b79 #e8e9da}
+body.online #network-dialog #network-room-list::-webkit-scrollbar{width:10px}
+body.online #network-dialog #network-room-list::-webkit-scrollbar-track{margin-block:8px;border-radius:8px;background:#e8e9da}
+body.online #network-dialog #network-room-list::-webkit-scrollbar-thumb{border:2px solid #e8e9da;border-radius:8px;background:#8b9b79}
+body.online #network-dialog #network-room-list .network-room-card{flex:0 0 auto;min-width:0}
+body.online #network-dialog #network-room-list .network-room-card>button{display:block;width:100%;height:52px;min-height:52px;max-height:52px;flex:0 0 52px;margin-top:10px;padding:8px 12px;line-height:1.2;box-sizing:border-box}
+/* One visible scroll area for the entire directory; avoid nested invisible clipping. */
+body.online #network-dialog .drawer-body{overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#8b9b79 #e8e9da;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+body.online #network-dialog .drawer-body::-webkit-scrollbar{width:10px}
+body.online #network-dialog .drawer-body::-webkit-scrollbar-track{margin-block:8px;border-radius:8px;background:#e8e9da}
+body.online #network-dialog .drawer-body::-webkit-scrollbar-thumb{border:2px solid #e8e9da;border-radius:8px;background:#8b9b79}
+body.online #network-dialog #network-room-list{flex:0 0 auto;min-height:0;overflow:visible;padding:4px 4px 12px;border:0;border-radius:0;scrollbar-width:auto}
+/* Personal wheel alignment editor: fixed body, draggable visual wheel centres. */
+#wheel-editor-open{margin-top:6px;padding:6px 10px;min-height:30px;font-size:11px;flex-shrink:0;}
+#wheel-editor{box-sizing:border-box;width:min(860px,calc(100vw - 24px));max-width:860px;max-height:calc(100dvh - 24px);padding:22px;border:2px solid #627b59;border-radius:20px;background:#fff8e7;color:#20382f;overflow:auto;box-shadow:0 20px 90px #142a3570;}
+#wheel-editor::backdrop{background:#142a3599;}
+.wheel-editor-head{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.wheel-editor-head h2{margin:0;font-size:24px;}
+#wheel-editor-close{padding:0;min-width:40px;height:40px;font-size:26px;}
+#wheel-editor p{font-size:13px;line-height:1.5;letter-spacing:0;}
+#wheel-editor button{touch-action:manipulation;}
+#wheel-editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:bold;letter-spacing:0;}
+#wheel-editor select,#wheel-editor input{box-sizing:border-box;width:100%;padding:10px;border:1px solid #aab99c;border-radius:8px;background:#fffdf6;color:#20382f;font:inherit;font-size:15px;min-height:42px;}
+#wheel-editor-preview{position:static;inset:auto;display:block;width:100%;height:auto;margin:16px 0;border:1px solid #bdcbb2;border-radius:12px;touch-action:none;cursor:grab;}
+#wheel-editor-preview:active{cursor:grabbing;}
+.wheel-editor-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;}
+.wheel-editor-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;position:sticky;bottom:-22px;background:#fff8e7;padding:12px 0;z-index:1;border-top:1px solid #d8dfce;}
+.wheel-editor-actions button{padding:10px 14px;font-size:13px;}
+#wheel-editor-save{background:#365b48;color:#fff8e7;}
+#wheel-editor-status{min-height:40px;}
+#wheel-editor.testing>.wheel-editor-fields,#wheel-editor.testing>label{display:none;}
+#wheel-test-controls label{margin:10px 0;}
+.wheel-test-pedals{display:flex;gap:10px;flex-wrap:wrap;}
+.wheel-test-pedals button{flex:1;padding:12px 16px;touch-action:none;user-select:none;}
+.wheel-test-pedals [data-pedal="gas"]{background:#365b48;color:#fff8e7;}
+.wheel-test-pedals button:active{transform:translateY(3px);}
+@media(max-width:550px){#wheel-editor{padding:14px;}.wheel-editor-head h2{font-size:20px;}.wheel-editor-fields{gap:6px;}#wheel-editor label{font-size:11px;}.wheel-editor-actions button{flex:1 1 100%;}}

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "node scripts/build-client.mjs",
     "start": "node server/index.js",
     "test": "node --test test/*.test.js",
     "test:mobile": "node test/mobile.mjs",

@@ -8,6 +8,8 @@ try{
  assert.equal(Number(response.headers.get('content-length')),body.byteLength);assert.ok(response.headers.get('etag'));
  const unchanged=await fetch(url,{headers:{'If-None-Match':response.headers.get('etag')}});assert.equal(unchanged.status,304);assert.equal((await unchanged.arrayBuffer()).byteLength,0);
  const head=await fetch(url,{method:'HEAD'});assert.equal(head.status,200);assert.equal((await head.arrayBuffer()).byteLength,0);assert.equal(head.headers.get('content-length'),String(body.byteLength));
+ const scriptURL='http://127.0.0.1:3148/game.bundle.js',compressed=await fetch(scriptURL,{headers:{'Accept-Encoding':'gzip'}}),decoded=await compressed.text(),plain=await fetch(scriptURL,{headers:{'Accept-Encoding':'identity'}});
+ assert.equal(compressed.headers.get('content-encoding'),'gzip');assert.equal(compressed.headers.get('vary'),'Accept-Encoding');assert.equal(decoded,await plain.text());assert.ok(Number(compressed.headers.get('content-length'))<Buffer.byteLength(decoded)*.5,'startup script should transfer less than half its uncompressed size');
  browser=await chromium.launch({channel:process.env.TEST_BROWSER_CHANNEL||undefined});const page=await browser.newPage({serviceWorkers:'block'}),requests=[],errors=[];let allow=false;
  page.on('pageerror',error=>errors.push(error.message));page.on('request',request=>{if(request.url().includes('/assets/'))requests.push(request.url());});
  await page.route('**/assets/hills-far-0.webp*',route=>allow?route.continue():route.fulfill({status:503,body:'temporary failure'}));
