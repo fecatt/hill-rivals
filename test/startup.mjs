@@ -1,0 +1,9 @@
+import {chromium} from 'playwright';
+import {spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
+const server=spawn(process.execPath,['server/index.js'],{cwd:new URL('../',import.meta.url),env:{...process.env,PORT:'3149'},windowsHide:true,stdio:['ignore','pipe','inherit']});let browser;
+try{await new Promise(r=>server.stdout.once('data',r));browser=await chromium.launch({channel:'msedge'});const page=await browser.newPage({viewport:{width:1440,height:900},serviceWorkers:'block'});let release;const gate=new Promise(r=>release=r);let pending=0,max=0;const errors=[];page.on('pageerror',e=>errors.push(e.message));await page.route('**/assets/**',async route=>{pending++;max=Math.max(max,pending);await gate;pending--;await route.continue();});
+await page.goto('http://127.0.0.1:3149/',{waitUntil:'domcontentloaded'});await page.waitForFunction(()=>document.querySelector('#room-status')?.textContent.includes('Готовы'));
+assert.equal(await page.locator('#wheel-editor-open').isVisible(),true);assert.equal(await page.locator('#room-title').isVisible(),true);assert.equal(await page.locator('#start').isDisabled(),true);assert.equal(await page.locator('body').evaluate(n=>n.classList.contains('booting')),false);
+const box=await page.locator('#loading-screen').boundingBox();assert.ok(box.width<500&&box.height<250,'loading does not cover the garage');assert.ok(max<=4,'three artwork requests plus displayed portrait');release();await page.waitForFunction(()=>assetsLoaded);await page.waitForFunction(()=>!document.querySelector('#start').disabled);assert.deepEqual(errors,[]);await page.locator('#wheel-editor-open').click();assert.equal(await page.locator('#wheel-editor').isVisible(),true);console.log('PASS stalled artwork: online room and modern garage usable; racing waits for decoded images; bounded requests; editor opens.');
+}finally{await browser?.close();server.kill();}

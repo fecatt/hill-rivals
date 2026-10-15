@@ -1,4 +1,4 @@
-const CACHE='hill-rivals-app-v49';
+const CACHE='hill-rivals-app-v50';
 const FILES=['/','/game.bundle.js','/game.css','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png',...['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'].map(n=>'/assets/'+encodeURIComponent(n)+'.webp')];
 FILES.push(...['environment-atlas','hills-atlas','hills-oak-clean','hills-birch-clean','hills-crest-sun','hills-cloud-clean','car-jeep-open-arches','car-buggy','car-pickup','car-rally','car-monster','car-hotrod','car-rocket','car-van','car-evo'].map(name=>'/assets/'+name+'.webp'));
 FILES.push(...['far','middle','near'].flatMap(layer=>[0,1,2].map(index=>'/assets/hills-'+layer+'-'+index+'.webp')));

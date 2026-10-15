@@ -389,6 +389,11 @@ body.local #room-panel{display:none!important}
 #fps-meter{position:fixed;right:max(12px,env(safe-area-inset-right));bottom:48px;z-index:4;padding:6px 9px;border-radius:8px;background:#fff8e7e8;color:#20382f;font:11px/1.5 monospace;font-variant-numeric:tabular-nums;white-space:pre-line;pointer-events:auto}
 @media(pointer:coarse){#fps-meter{bottom:calc(162px + env(safe-area-inset-bottom));font-size:10px}}
 
+/* Loading artwork must not cover or block the initialized garage. */
+#loading-screen.asset-status{inset:auto 12px 12px auto;width:min(360px,calc(100vw - 24px));padding:12px;background:#fff9e9f5;border:1px solid #b0bf9e;border-radius:16px;box-shadow:0 3px 16px #20382f20}
+#loading-screen.asset-status h2{font-size:16px;margin:0 0 4px}
+#loading-screen.asset-status p{font-size:13px;margin:4px 0}
+
 /* Reference lobby: track and car at left, four seats in the middle, room at right. */
 body.online:not([data-screen="race"]) header { padding:18px 28px; min-height:64px; }
 body.online:not([data-screen="race"]) header > b { display:block!important; }

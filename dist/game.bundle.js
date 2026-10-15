@@ -1,6 +1,8 @@
 
 // maps.js
 'use strict';
+// The loader owns network concurrency; constructing artwork must not start 31 requests.
+function queuedGameImage(src){const im=new Image();im.assetSource=src;return im;}
 const MAPS=[
  {name:'Зелёные холмы',biome:'hills',gravity:420,description:'Большие деревья, плавные холмы и деревянные мосты.'},
  {name:'Горы',biome:'mountains',gravity:420,description:'Высокие перевалы, скалы и мосты над ущельями.'},
@@ -20,7 +22,7 @@ const PALETTES={
 };
 const BIOME_LENGTH=30000,BRIDGE_CHUNK=3200;
 const ENV_CROPS=[[8,5,405,380],[425,5,220,380],[654,5,280,380],[936,5,320,380],[48,390,310,320],[338,390,310,320],[636,390,326,320],[965,390,290,320],[48,715,310,300],[358,715,290,300],[650,715,315,300],[970,715,285,300],[8,1020,332,220],[348,1020,320,220],[680,1020,300,220],[990,1020,270,220]];
-const environmentAtlas=new Image();environmentAtlas.src='assets/environment-atlas.webp';
+const environmentAtlas=queuedGameImage('assets/environment-atlas.webp');
 let worldSeed=1,biomeOrder=['hills','mountains','highway','city','winter'];
 function hash(n,salt=0){let v=(Math.floor(n)^worldSeed^Math.imul(salt,0x9e3779b9))>>>0;v=Math.imul(v^(v>>>16),0x7feb352d);v=Math.imul(v^(v>>>15),0x846ca68b);return ((v^(v>>>16))>>>0)/4294967296}
 function setWorldSeed(seed){worldSeed=seed>>>0;biomeOrder=['hills','mountains','highway','city','winter'];for(let j=4;j>0;j--){let k=Math.floor(hash(j,71)*(j+1));[biomeOrder[j],biomeOrder[k]]=[biomeOrder[k],biomeOrder[j]]}}
@@ -240,18 +242,18 @@ function seatedDriver(c,lift){
 // hills.js
 'use strict';
 // Hills art and bridge simulation are deliberately isolated from the other maps.
-const hillArt=new Image(),hillSprites=[];
+const hillArt=queuedGameImage('assets/hills-atlas.webp'),hillSprites=[];
 // tops retain placement after trimming transparent rows from the small textures.
 const hillLandscapeLayers=[
  {name:'far',sourceHeight:724,tops:[154,291,246],speed:.08,vertical:.055,top:.05,height:.8},
  {name:'middle',sourceHeight:724,tops:[173,255,233],speed:.22,vertical:.16,top:.27,height:.62},
  {name:'near',sourceHeight:724,tops:[153,181,191],speed:.46,vertical:.32,top:.44,height:.5}
-].map(layer=>({...layer,images:[0,1,2].map(index=>{const im=new Image();im.src='assets/hills-'+layer.name+'-'+index+'.webp';return im;})}));
-const hillTrees=['hills-oak-clean.webp','hills-birch-clean.webp'].map(name=>{const im=new Image();im.src='assets/'+name;return im});
+].map(layer=>({...layer,images:[0,1,2].map(index=>{return queuedGameImage('assets/hills-'+layer.name+'-'+index+'.webp');})}));
+const hillTrees=['hills-oak-clean.webp','hills-birch-clean.webp'].map(name=>{return queuedGameImage('assets/'+name)});
 const hillTreeBounds=[[109,98,1062,1107],[26,13,970,1500]];
-const hillCrestSun=new Image();hillCrestSun.src='assets/hills-crest-sun.webp';
+const hillCrestSun=queuedGameImage('assets/hills-crest-sun.webp');
 const hillSunBounds=[108,55,1095,1093];
-const hillCloud=new Image();hillCloud.src='assets/hills-cloud-clean.webp';
+const hillCloud=queuedGameImage('assets/hills-cloud-clean.webp');
 const hillCloudBounds=[127,82,1918,557];
 hillArt.onload=()=>{
  // Explicit crop bounds also work in file:// browsers, without reading a tainted canvas.
@@ -261,7 +263,7 @@ hillArt.onload=()=>{
   const [x,y,w,h]=crops[i];hillSprites[i]=[x*sx,y*sy,w*sx,h*sy];
  }
 };
-hillArt.src='assets/hills-atlas.webp';
+
 // Upload small, reusable textures instead of resampling multi-megapixel PNGs each frame.
 const hillTextureCache=new WeakMap();
 function hillTexture(im,crop,height){
@@ -407,7 +409,7 @@ const TIRE_DRAW_SCALE=1;
 const BODY_ART_SCALE=1.18;
 const BODY_BOUNDS={"jeep":[22,144,1497,648],"buggy":[30,169,1488,608],"pickup":[12,177,1514,567],"rally":[43,119,1712,634],"monster":[6,157,1527,610],"hotrod":[28,263,1486,469],"rocket":[43,160,1717,538],"van":[44,124,1684,708]};
 BODY_BOUNDS.evo=[43,119,1712,634];
-for(const kind of Object.keys(BODY_BOUNDS)){const im=new Image();im.src=kind==='jeep'?'assets/car-jeep-open-arches.webp':'assets/car-'+kind+'.webp';paintedBodies[kind]=im}
+for(const kind of Object.keys(BODY_BOUNDS)){const im=queuedGameImage(kind==='jeep'?'assets/car-jeep-open-arches.webp':'assets/car-'+kind+'.webp');paintedBodies[kind]=im}
 // Source anchors are wheel-arch centres in each original painting.
 const BODY_ANCHORS={
  jeep:{axles:[355,1240],y:710,seat:710,floor:620,size:.48,seatDrop:4},
@@ -582,7 +584,7 @@ function drawCrate(b){
 // game.js
 'use strict';
 const canvas=document.querySelector('canvas'),$=s=>document.querySelector(s);let ctx=canvas.getContext('2d');
-const assetNames=['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'],names=assetNames.map(n=>({'Голубой':'Гейнинзя','Комунистичкий':'Комунинзя'}[n]||n)),images=assetNames.map(n=>{let i=new Image;i.src='assets/'+n+'.webp';return i}),colors=['#e64d36','#418acb','#e5b83d','#72a85a'],chosen=[0,1,2,3],abilities=['turbo','jump','shield','turbo'],keys={};
+const assetNames=['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'],names=assetNames.map(n=>({'Голубой':'Гейнинзя','Комунистичкий':'Комунинзя'}[n]||n)),images=assetNames.map(n=>{return queuedGameImage('assets/'+n+'.webp')}),colors=['#e64d36','#418acb','#e5b83d','#72a85a'],chosen=[0,1,2,3],abilities=['turbo','jump','shield','turbo'],keys={};
 let playerCount=1;
 let W=innerWidth,H=innerHeight,mode='lobby',cars=[],cam=0,zoom=1,cameraY=0,time=0,count=3,bonus=[],particles=[],nextDrop=6,track=0,paused=false,winner=null,audio=null,sound=false,engineAudio,snowStart=Infinity,snowEnd=0,nextSnow=8;
 const checkpoint=1500,baseScale=()=>Math.min(1.3,Math.max(.7,W/1250)),scale=()=>baseScale()*(mode==='lobby'?1:zoom);
@@ -967,7 +969,7 @@ window.gameDebug={getPerformance:getPerformanceStats,getState:()=>({mode,playerC
 // Wait for the actual images used by the renderer, including browser decoding.
 // Keep the same Image objects so the renderer never starts with empty textures.
 let assetsLoaded=false;
-const loadingScreen=document.createElement('div');loadingScreen.id='loading-screen';
+const loadingScreen=document.createElement('div');loadingScreen.id='loading-screen';loadingScreen.className='asset-status';
 loadingScreen.innerHTML='<section><h2>Загрузка игры</h2><p id="loading-status" role="status" aria-live="polite">Загружаем машины, персонажей и трассы…</p><progress id="loading-progress" max="1" value="0"></progress><button id="retry-loading" hidden>Повторить загрузку</button></section>';
 document.body.append(loadingScreen);
 const gameImages=[...new Set([...images,environmentAtlas,hillArt,...(typeof hillLandscapeLayers==='undefined'?[]:hillLandscapeLayers.flatMap(layer=>layer.images)),...hillTrees,hillCrestSun,hillCloud,...Object.values(paintedBodies)])];
@@ -981,6 +983,7 @@ function decodeAsset(im,reload=false){
   if((!reload||typeof im.src!=='string'||!im.src)&&im.complete&&im.naturalWidth){loaded();return;}
   im.addEventListener('load',loaded,{once:true});im.addEventListener('error',failed,{once:true});
   if(reload&&typeof im.src==='string'&&im.src){const url=new URL(im.src,location.href);url.searchParams.set('_asset_retry',String(Date.now()));im.src=url.href;return;}
+  if(im.assetSource&&!im.getAttribute('src')){im.src=im.assetSource;return;}
   if(im.complete){const src=im.src;im.src='';im.src=src;}
  });
 }
@@ -991,7 +994,10 @@ async function loadGameAssets(){
  $('#retry-loading').hidden=true;$('#retry-loading').disabled=true;
  let done=decodedAssets.size;const previousFailures=failedAssets;failedAssets=new Set();
  $('#loading-status').textContent=`Текстуры: ${done} / ${gameImages.length}`;
- await Promise.allSettled(gameImages.filter(im=>!decodedAssets.has(im)).map(async im=>{try{await decodeAsset(im,previousFailures.has(im));decodedAssets.add(im);}catch(error){failedAssets.add(im);}finally{$('#loading-progress').value=++done/gameImages.length;$('#loading-status').textContent=`Текстуры: ${decodedAssets.size} / ${gameImages.length}`;}}));
+ const preferred=[images[0],paintedBodies.jeep,...(typeof hillLandscapeLayers==='undefined'?[]:hillLandscapeLayers.flatMap(layer=>layer.images))];
+ const pending=[...new Set([...preferred,...gameImages])].filter(im=>im&&!decodedAssets.has(im));
+ const worker=async()=>{while(pending.length){const im=pending.shift();try{await decodeAsset(im,previousFailures.has(im));decodedAssets.add(im);}catch(error){failedAssets.add(im);}finally{$('#loading-progress').value=++done/gameImages.length;$('#loading-status').textContent=`Текстуры: ${decodedAssets.size} / ${gameImages.length}`;}}};
+ await Promise.allSettled(Array.from({length:3},worker));
  if(failedAssets.size){const names=[...failedAssets].slice(0,3).map(im=>{try{return decodeURIComponent((im.src||'изображение').split('/').pop().split('?')[0]);}catch{return 'изображение';}});$('#loading-status').textContent=`Не загрузились: ${names.join(', ')}${failedAssets.size>3?' и ещё '+(failedAssets.size-3):''}. Повторная загрузка скачает только недостающие файлы.`;$('#retry-loading').hidden=false;$('#retry-loading').disabled=false;loadingAssets=false;return;}
  // Build the reusable scenery textures before racing rather than on the first frame.
  for(let i=0;i<hillTrees.length;i++)hillTexture(hillTrees[i],hillTreeBounds[i],512);
@@ -3895,10 +3901,10 @@ function renderRoom(state){
   $('#picks').querySelectorAll('[data-add-seat]').forEach(control=>control.disabled=state.phase!=='lobby'||state.players.length>=8);
   $('#picks').querySelectorAll('.remove-seat').forEach(control=>control.disabled=state.phase!=='lobby');
   updateMapDescription();describeVehicle();
-  $('#start').disabled=state.phase==='race';
+  $('#start').disabled=!assetsLoaded||state.phase==='race';
   $('#start').onclick=readyOnline;
   const myReady=state.players.find(p=>playerOwner(p)===state.you)?.ready;
-  $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
+  $('#start').textContent=!assetsLoaded?'ЗАГРУЗКА ТЕКСТУР…':state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
   if(state.phase==='lobby'){
     onlineRound=-1;localCar=null;localCars.clear();
@@ -3917,6 +3923,7 @@ function renderRoom(state){
   }
   oldPhase=state.phase;
 }
+window.assetsReady.then(()=>{if(window.onlineActive&&roomState)renderRoom(roomState);});
 function connect(){
   if(!window.onlineActive)return;
   if(socket&&[0,1].includes(socket.readyState))return;
@@ -3958,7 +3965,7 @@ function connect(){
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 window.onlineSession={
- enter(){selfRoomRequested=false;const url=new URL(location.href);if(url.searchParams.has('room')&&url.searchParams.get('mode')!=='online'){url.searchParams.delete('room');history.replaceState({},'',url);}roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;window.assetsReady.then(connect);},
+ enter(){selfRoomRequested=false;const url=new URL(location.href);if(url.searchParams.has('room')&&url.searchParams.get('mode')!=='online'){url.searchParams.delete('room');history.replaceState({},'',url);}roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;connect();},
  leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };

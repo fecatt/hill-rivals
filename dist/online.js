@@ -320,10 +320,10 @@ function renderRoom(state){
   $('#picks').querySelectorAll('[data-add-seat]').forEach(control=>control.disabled=state.phase!=='lobby'||state.players.length>=8);
   $('#picks').querySelectorAll('.remove-seat').forEach(control=>control.disabled=state.phase!=='lobby');
   updateMapDescription();describeVehicle();
-  $('#start').disabled=state.phase==='race';
+  $('#start').disabled=!assetsLoaded||state.phase==='race';
   $('#start').onclick=readyOnline;
   const myReady=state.players.find(p=>playerOwner(p)===state.you)?.ready;
-  $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
+  $('#start').textContent=!assetsLoaded?'ЗАГРУЗКА ТЕКСТУР…':state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
   if(state.phase==='lobby'){
     onlineRound=-1;localCar=null;localCars.clear();
@@ -342,6 +342,7 @@ function renderRoom(state){
   }
   oldPhase=state.phase;
 }
+window.assetsReady.then(()=>{if(window.onlineActive&&roomState)renderRoom(roomState);});
 function connect(){
   if(!window.onlineActive)return;
   if(socket&&[0,1].includes(socket.readyState))return;
@@ -383,7 +384,7 @@ function connect(){
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 window.onlineSession={
- enter(){selfRoomRequested=false;const url=new URL(location.href);if(url.searchParams.has('room')&&url.searchParams.get('mode')!=='online'){url.searchParams.delete('room');history.replaceState({},'',url);}roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;window.assetsReady.then(connect);},
+ enter(){selfRoomRequested=false;const url=new URL(location.href);if(url.searchParams.has('room')&&url.searchParams.get('mode')!=='online'){url.searchParams.delete('room');history.replaceState({},'',url);}roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;connect();},
  leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };

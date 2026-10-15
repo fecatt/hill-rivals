@@ -1,6 +1,6 @@
 'use strict';
 const canvas=document.querySelector('canvas'),$=s=>document.querySelector(s);let ctx=canvas.getContext('2d');
-const assetNames=['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'],names=assetNames.map(n=>({'Голубой':'Гейнинзя','Комунистичкий':'Комунинзя'}[n]||n)),images=assetNames.map(n=>{let i=new Image;i.src='assets/'+n+'.webp';return i}),colors=['#e64d36','#418acb','#e5b83d','#72a85a'],chosen=[0,1,2,3],abilities=['turbo','jump','shield','turbo'],keys={};
+const assetNames=['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'],names=assetNames.map(n=>({'Голубой':'Гейнинзя','Комунистичкий':'Комунинзя'}[n]||n)),images=assetNames.map(n=>{return queuedGameImage('assets/'+n+'.webp')}),colors=['#e64d36','#418acb','#e5b83d','#72a85a'],chosen=[0,1,2,3],abilities=['turbo','jump','shield','turbo'],keys={};
 let playerCount=1;
 let W=innerWidth,H=innerHeight,mode='lobby',cars=[],cam=0,zoom=1,cameraY=0,time=0,count=3,bonus=[],particles=[],nextDrop=6,track=0,paused=false,winner=null,audio=null,sound=false,engineAudio,snowStart=Infinity,snowEnd=0,nextSnow=8;
 const checkpoint=1500,baseScale=()=>Math.min(1.3,Math.max(.7,W/1250)),scale=()=>baseScale()*(mode==='lobby'?1:zoom);
