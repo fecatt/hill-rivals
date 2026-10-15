@@ -148,3 +148,10 @@ test('slow drawing reduces backing resolution without changing the world or simu
  assert.ok(result.ratio<result.before.ratio);assert.equal(result.width,result.before.width);assert.equal(result.height,result.before.height);
  assert.equal(result.car,result.before.car);assert.equal(result.hz,120);assert.equal(result.backing,Math.round(result.width*result.ratio));
 });
+
+test('FPS estimate measures frame work independently of display intervals and clears on pause',()=>{
+ const run=fixture();const fast=run(`(()=>{mode='race';paused=false;recordFramePerformance(2,1000);for(let i=0;i<60;i++){frameTimes.push(1000/60);recordFramePerformance(2,1017+i*1000/60);}return {stats:window.gameDebug.getPerformance(),text:$('#fps-meter').textContent};})()`);
+ assert.equal(fast.stats.estimatedFps,500);assert.ok(Math.abs(fast.stats.fps-60)<1e-8);assert.match(fast.text,/500 FPS/);
+ const resumed=run(`(()=>{paused=true;recordFramePerformance(0,2200);paused=false;recordFramePerformance(25,2300);return window.gameDebug.getPerformance();})()`);
+ assert.equal(resumed.estimatedFps,40);assert.equal(resumed.frameWorkMs,25);
+});

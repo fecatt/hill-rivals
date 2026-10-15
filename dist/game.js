@@ -295,7 +295,21 @@ function drawScene(){resetDrawingSurface();background();if(mode==='lobby'){drawG
 function draw(){window.sceneLayers?.begin();try{drawScene()}finally{window.sceneLayers?.end()}}
 let last=performance.now(),lastDraw=0,acc=0,previousCamera=null;
 const previousPoses=new WeakMap(),renderFields=['x','y','a','wheel'];
-const frameTimes=[];
+const frameTimes=[],frameWorkTimes=[];
+let performanceNext=0,performanceWasRunning=false;
+function getPerformanceStats(){
+ const sorted=[...frameTimes].sort((a,b)=>a-b),mean=values=>values.length?values.reduce((sum,n)=>sum+n,0)/values.length:0,workMs=mean(frameWorkTimes);
+ return {fps:frameTimes.length?1000/mean(frameTimes):0,estimatedFps:workMs>0?1000/workMs:0,frameWorkMs:workMs,p95FrameMs:sorted[Math.floor(sorted.length*.95)]||0,renderRatio,canvasWidth:canvas.width,canvasHeight:canvas.height,physicsHz:120,frameCap:null};
+}
+function recordFramePerformance(cost,now){
+ const running=mode==='race'&&!paused,meter=$('#fps-meter');meter.hidden=mode!=='race';
+ if(running!==performanceWasRunning){frameWorkTimes.length=0;frameTimes.length=0;performanceNext=0;performanceWasRunning=running;}
+ if(!running){meter.textContent='FPS · пауза';return;}
+ frameWorkTimes.push(cost);if(frameWorkTimes.length>120)frameWorkTimes.shift();
+ if(now<performanceNext)return;performanceNext=now+500;
+ const stats=getPerformanceStats();meter.textContent='≈ '+(stats.estimatedFps?Math.round(stats.estimatedFps):'—')+' FPS · расчётный\n'+Math.round(stats.fps)+' FPS фактически · '+stats.frameWorkMs.toFixed(2)+' мс';
+}
+
 function drawInterpolated(alpha){
  const camera=[cam,cameraY,zoom],saved=[];
  if(previousCamera&&mode==='race'&&!paused){
@@ -319,6 +333,7 @@ function frame(now){
  if(now-lastDraw<interval-.5)return;
  if(mode==='race'&&lastDraw){frameTimes.push(now-lastDraw);if(frameTimes.length>240)frameTimes.shift();}
  lastDraw=now;
+ const frameStarted=performance.now();
  const dt=Math.min(.05,(now-last)/1000);last=now;
  acc+=dt;while(acc>=1/120){
   previousCamera=[cam,cameraY,zoom];
@@ -334,10 +349,11 @@ function frame(now){
   engineAudio.update(dt,{active:sound&&mode==='race'&&!paused&&count<=0,car:c,spec:c?carSpec(c):null,gas:controls[0],brake:controls[1]});
  }
  if(mode==='race'&&!paused)adaptRenderQuality(performance.now()-renderingStarted);
+ recordFramePerformance(performance.now()-frameStarted,now);
 }
 requestAnimationFrame(frame);
-document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;if(document.hidden)engineAudio?.silence();});
-window.gameDebug={getPerformance:()=>{const sorted=[...frameTimes].sort((a,b)=>a-b);return {fps:frameTimes.length?1000/(frameTimes.reduce((a,b)=>a+b,0)/frameTimes.length):0,p95FrameMs:sorted[Math.floor(sorted.length*.95)]||0,renderRatio,canvasWidth:canvas.width,canvasHeight:canvas.height,physicsHz:120,frameCap:null};},getState:()=>({mode,playerCount,count,cam,zoom,time,renderRatio,cars:cars.map(c=>({...c})),bonus:bonus.length,seed:worldSeed,vehicle:VEHICLES[vehicleModel].name,track,biome:mapBiome(track,cam+W/scale()*.5),snowing:snowing()}),activateAbility,start,step:n=>{for(let j=0;j<n;j++)update(1/120)},setInput:(i,g,b)=>{const k=[['KeyD','KeyA'],['ArrowRight','ArrowLeft'],['Mouse2','Mouse0']][i];keys[k[0]]=g;keys[k[1]]=b}};
+document.addEventListener('visibilitychange',()=>{keysClear();last=performance.now();acc=0;frameTimes.length=0;frameWorkTimes.length=0;lastDraw=0;performanceNext=0;if(document.hidden)engineAudio?.silence();});
+window.gameDebug={getPerformance:getPerformanceStats,getState:()=>({mode,playerCount,count,cam,zoom,time,renderRatio,cars:cars.map(c=>({...c})),bonus:bonus.length,seed:worldSeed,vehicle:VEHICLES[vehicleModel].name,track,biome:mapBiome(track,cam+W/scale()*.5),snowing:snowing()}),activateAbility,start,step:n=>{for(let j=0;j<n;j++)update(1/120)},setInput:(i,g,b)=>{const k=[['KeyD','KeyA'],['ArrowRight','ArrowLeft'],['Mouse2','Mouse0']][i];keys[k[0]]=g;keys[k[1]]=b}};
 
 
 
