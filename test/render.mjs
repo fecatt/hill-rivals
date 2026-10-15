@@ -8,7 +8,7 @@ try{
  await page.goto('http://127.0.0.1:3120/?mode=online');await page.waitForFunction(()=>assetsLoaded&&roomState?.room);await page.locator('#start').click();await page.waitForFunction(()=>mode==='race');
  const result=await page.evaluate(()=>{
   const failures=[];let states=0;
-  for(let t=0;t<7;t++)for(let m=0;m<7;m++)for(let character=0;character<7;character++){
+  for(let t=0;t<7;t++)for(let m=0;m<8;m++)for(let character=0;character<7;character++){
    track=t;vehicleModel=m;chosen[0]=character;cars=[Object.assign(newCar(0),{boost:5,mud:6,shield:12,noticeTime:1})];cam=0;cameraY=0;zoom=1;bonus=[0,1,2,3].map(type=>newCrate(300+type*90,type));
    try{draw();const matrix=ctx.getTransform();if(matrix.e||matrix.f||ctx.globalAlpha!==1)failures.push({t,m,character,matrix:matrix.toString(),alpha:ctx.globalAlpha});states++;}catch(e){failures.push({t,m,character,error:e.stack});resize();}
   }
@@ -20,6 +20,6 @@ try{
   const actualDraw=carDraw;carDraw=()=>{ctx.save();ctx.translate(100,300);throw Error('test interrupted vehicle');};try{draw();}catch{}finally{carDraw=actualDraw;}car.model=vehicleModel;draw();const afterFailure=canvas.toDataURL()===clean;
   chosen[0]=undefined;draw();return {failures,states,recovered,suspension,afterFailure};
  });
- assert.deepEqual(result.failures,[]);assert.equal(result.states,343);assert.ok(result.recovered,'opacity, transform and clip cannot corrupt following frames');assert.ok(result.afterFailure,'an interrupted vehicle draw cannot corrupt following frames');assert.ok(result.suspension,'new vehicle rebuilds cached suspension');assert.deepEqual(errors,[]);
+ assert.deepEqual(result.failures,[]);assert.equal(result.states,392);assert.ok(result.recovered,'opacity, transform and clip cannot corrupt following frames');assert.ok(result.afterFailure,'an interrupted vehicle draw cannot corrupt following frames');assert.ok(result.suspension,'new vehicle rebuilds cached suspension');assert.deepEqual(errors,[]);
  console.log('PASS: 343 map/vehicle/character states with effects; pixel-identical recovery from dirty or interrupted draw; vehicle change; absent portrait.');
 }finally{await browser?.close();server.kill();}

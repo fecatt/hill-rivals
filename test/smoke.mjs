@@ -4,7 +4,7 @@ const base=process.env.TEST_URL||'http://127.0.0.1:3107';
 const sockets=[],latest=[],updates=[[],[]],directory=[];
 try {
   assert.equal((await fetch(base+'/health')).status,200);
-  for(const asset of ['/','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/assets/hills-panorama.png','/assets/car-jeep-open-arches.png','/assets/'+encodeURIComponent('Егерь')+'.png'])assert.equal((await fetch(base+asset)).status,200,asset+' must load');
+  for(const asset of ['/','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/assets/hills-panorama.png','/assets/car-jeep-open-arches.png','/assets/car-van.png','/assets/'+encodeURIComponent('Егерь')+'.png'])assert.equal((await fetch(base+asset)).status,200,asset+' must load');
   for(let i=0;i<2;i++){
     const ws=new WebSocket(base.replace(/^http/,'ws')+'/ws');sockets.push(ws);
     ws.on('message',data=>{const state=JSON.parse(data);if(state.type==='state')latest[i]=state;if(state.type==='directory')directory[i]=state;updates[i].push(state);});

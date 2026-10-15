@@ -24,6 +24,25 @@ test('world scale matches the actual classic jeep drawing, independent of camera
  assert.ok(Math.abs(result.length-112.592)<1e-9);
  assert.ok(Math.abs(result.original-3.33)<1e-9);assert.equal(result.original,result.zoomed);
 });
+test('Ozon van uses Gazelle dimensions, true 130 km/h cap, heavy mass and rear drive',()=>{
+ const run=fixture();const result=run(`(()=>{
+  const v=VEHICLES[7],a=BODY_ANCHORS.van,b=BODY_BOUNDS.van;
+  const unit=(v.wheels.at(-1)-v.wheels[0])/(a.axles.at(-1)-a.axles[0])*BODY_ART_SCALE;
+  const length=v.wheels.at(-1)-v.wheels[0]+((a.axles[0]-b[0])+(b[0]+b[2]-a.axles.at(-1)))*unit;
+  return {kind:v.kind,wheelbase:worldMetres(v.wheels.at(-1)-v.wheels[0]),length:worldMetres(length),speed:speedKph(v.maxSpeed),mass:v.mass,driveAxles:v.driveAxles};
+ })()`);
+ assert.equal(result.kind,'van');assert.ok(Math.abs(result.wheelbase-3.14)<.02);assert.ok(Math.abs(result.length-5.3)<.3);
+ assert.ok(Math.abs(result.speed-130)<.2);assert.equal(result.mass,2725);assert.deepEqual([...result.driveAxles],[1]);
+});
+test('Ozon van physics accelerates on flat ground and reaches its 130 km/h cap',()=>{
+ const run=fixture();const result=run(`(()=>{
+  terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=7;track=3;input=()=>[true,false];
+  const c=newCar(0);c.y=-VEHICLES[7].mount-VEHICLES[7].radius;
+  let oneSecond=0;for(let n=0;n<1680;n++){c.fuel=100;physics(c,1/120);if(n===119)oneSecond=speedKph(c.vx)}
+  return {oneSecond,top:speedKph(c.vx),angle:c.a};
+ })()`);
+ assert.ok(result.oneSecond>15&&result.oneSecond<30);assert.ok(Math.abs(result.top-130)<.2);assert.ok(Math.abs(result.angle)<.15);
+});
 test('speed and race distance share the same metre conversion',()=>{
  const run=fixture();const r=run(`(()=>{
   const c={startX:100,x:100};const before=raceMetres(c);c.x+=680;

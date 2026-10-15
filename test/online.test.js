@@ -75,10 +75,10 @@ test('opponents interpolate and briefly coast, with bounded extrapolation during
  c.advance(100);c.run('update(1/120)');assert.ok(c.run('cars[1].x')>200);
  c.advance(5000);c.run('update(1/120)');assert.equal(c.run('cars[1].x'),215);
 });
-test('local physics stays finite under incoming snapshots for all seven vehicles',()=>{
- for(let model=0;model<7;model++){
+test('local physics stays finite under incoming snapshots for all eight vehicles',()=>{
+ for(let model=0;model<8;model++){
   const c=client(),profiles=[{id:'a',character:0,ability:'turbo',color:'red',gas:true}];
-  const sim=createSimulation(profiles,model,model),base=state();
+  const sim=createSimulation(profiles,model%7,model),base=state();
   c.run('keys.KeyD=true');
   for(let packet=0;packet<40;packet++){
    for(let i=0;i<4;i++)sim.step();
