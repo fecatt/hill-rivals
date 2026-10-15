@@ -1,13 +1,18 @@
 'use strict';
 // Hills art and bridge simulation are deliberately isolated from the other maps.
-const hillArt=new Image(),hillPanorama=new Image(),hillSprites=[];
+const hillArt=new Image(),hillSprites=[];
+// tops retain placement after trimming transparent rows from the small textures.
+const hillLandscapeLayers=[
+ {name:'far',sourceHeight:724,tops:[154,291,246],speed:.08,vertical:.055,top:.05,height:.8},
+ {name:'middle',sourceHeight:724,tops:[173,255,233],speed:.22,vertical:.16,top:.27,height:.62},
+ {name:'near',sourceHeight:724,tops:[153,181,191],speed:.46,vertical:.32,top:.44,height:.5}
+].map(layer=>({...layer,images:[0,1,2].map(index=>{const im=new Image();im.src='assets/hills-'+layer.name+'-'+index+'.webp';return im;})}));
 const hillTrees=['hills-oak-clean.png','hills-birch-clean.png'].map(name=>{const im=new Image();im.src='assets/'+name;return im});
 const hillTreeBounds=[[109,98,1062,1107],[26,13,970,1500]];
 const hillCrestSun=new Image();hillCrestSun.src='assets/hills-crest-sun.png';
 const hillSunBounds=[108,55,1095,1093];
 const hillCloud=new Image();hillCloud.src='assets/hills-cloud-clean.png';
 const hillCloudBounds=[127,82,1918,557];
-hillPanorama.src='assets/hills-panorama.png';
 hillArt.onload=()=>{
  // Explicit crop bounds also work in file:// browsers, without reading a tainted canvas.
  const crops=[[13,182,321,600],[334,176,242,597],[576,244,364,526],[940,195,304,575],[16,906,311,178],[327,887,356,197],[683,857,215,244],[911,875,329,256]];
@@ -57,17 +62,13 @@ function paintHillSun(){
  }
  ctx.restore();
 }
-// Firefox's software Canvas2D path is expensive when a full-screen panorama
-// is filtered every frame. Rasterise it once at the backing-store resolution.
+// The sky stays in screen space; landscape assets are independent opaque cutouts.
 let hillBackdrop=null,hillSunRaster=null;
 function prepareHillBackground(){
- const ratio=renderRatio,key=W+':'+H+':'+ratio+':'+hillPanorama.naturalWidth+':'+hillPanorama.naturalHeight+':'+hillPanorama.complete;
- if(hillBackdrop?.key===key)return hillBackdrop;
+ const ratio=renderRatio,key=W+':'+H+':'+ratio;if(hillBackdrop?.key===key)return hillBackdrop;
  const sky=document.createElement('canvas');sky.width=Math.ceil(W*ratio);sky.height=Math.ceil(H*ratio);
- const skyPaint=sky.getContext('2d'),gradient=skyPaint.createLinearGradient(0,0,0,sky.height);gradient.addColorStop(0,'#71bce1');gradient.addColorStop(1,'#d7ecd0');skyPaint.fillStyle=gradient;skyPaint.fillRect(0,0,sky.width,sky.height);
- let panorama=null,tileWidth=Math.max(W,H*hillPanorama.naturalWidth/hillPanorama.naturalHeight);
- if(hillPanorama.complete&&hillPanorama.naturalWidth){panorama=document.createElement('canvas');panorama.width=Math.ceil(tileWidth*ratio);panorama.height=Math.ceil(H*ratio);tileWidth=panorama.width/ratio;const p=panorama.getContext('2d');p.imageSmoothingEnabled=true;p.imageSmoothingQuality='medium';p.drawImage(hillPanorama,0,0,panorama.width,panorama.height);}
- hillBackdrop={key,sky,panorama,tileWidth};return hillBackdrop;
+ const paint=sky.getContext('2d'),gradient=paint.createLinearGradient(0,0,0,sky.height);gradient.addColorStop(0,'#73c5ed');gradient.addColorStop(1,'#eaf3df');paint.fillStyle=gradient;paint.fillRect(0,0,sky.width,sky.height);
+ hillBackdrop={key,sky};return hillBackdrop;
 }
 function drawHillSun(){
  const ratio=renderRatio,radius=Math.max(34,Math.min(43,W*.036)),pad=Math.ceil(radius*3.5),x=W*.82,y=Math.max(82,H*.17),key=W+':'+H+':'+ratio;
@@ -75,53 +76,36 @@ function drawHillSun(){
   const surface=hillSunRaster?.key===key?hillSunRaster.surface:document.createElement('canvas');surface.width=Math.ceil(pad*2*ratio);surface.height=Math.ceil(pad*2*ratio);
   const p=surface.getContext('2d');p.setTransform(ratio,0,0,ratio,(pad-x)*ratio,(pad-y)*ratio);withDrawingContext(p,paintHillSun);hillSunRaster={key,time,surface};
  }
- const dx=Math.round((x-pad)*ratio)/ratio,dy=Math.round((y-pad)*ratio)/ratio,dw=hillSunRaster.surface.width/ratio,dh=hillSunRaster.surface.height/ratio;if(!window.sceneLayers?.bitmap(hillSunRaster.surface,dx,dy,dw,dh,hillSunRaster.time))ctx.drawImage(hillSunRaster.surface,dx,dy,dw,dh);
+ const dx=Math.round((x-pad)*ratio)/ratio,dy=Math.round((y-pad)*ratio)/ratio,dw=hillSunRaster.surface.width/ratio,dh=hillSunRaster.surface.height/ratio;if(!window.sceneLayers?.bitmap(hillSunRaster.surface,dx,dy,dw,dh,hillSunRaster.time,'sky:sun'))ctx.drawImage(hillSunRaster.surface,dx,dy,dw,dh);
 }
-// Small repeating silhouettes provide two independent plans behind the road.
-const hillDepthRasters=new Map();
-function hillDepthTexture(layer){
- const key=layer+':'+worldSeed;let surface=hillDepthRasters.get(key);if(surface)return surface;
- const width=1200,height=260;surface=document.createElement('canvas');surface.width=width;surface.height=height;const paint=surface.getContext('2d'),ridge=x=>68+Math.sin(x/width*Math.PI*2+layer)*24+Math.sin(x/width*Math.PI*6-layer)*9;
- const color=layer===0?'#628f91':'#447c73';paint.fillStyle=color;paint.beginPath();paint.moveTo(0,height);for(let x=0;x<=width;x+=4)paint.lineTo(x,ridge(x));paint.lineTo(width,height);paint.closePath();paint.fill();
- // Trees are baked once; the frame loop only translates each complete plan.
- for(let j=0;j<80;j++){const x=j*width/80,base=ridge(x)+5,h=12+hash(j,1100+layer)*28,w=h*.28;paint.fillRect(x-1,base-h*.7,2,h*.7);paint.beginPath();paint.moveTo(x,base-h);paint.lineTo(x-w,base-4);paint.lineTo(x+w,base-4);paint.closePath();paint.fill();}
- if(hillDepthRasters.size>=4)hillDepthRasters.clear();hillDepthRasters.set(key,surface);return surface;
-}
-function drawHillDepth(){
- for(let layer=0;layer<2;layer++){
-  const surface=hillDepthTexture(layer),speed=layer===0?.16:.32,height=H*(layer===0?.32:.38),width=height*surface.width/surface.height,offset=cam*speed,top=H*(layer===0?.48:.57)-cameraY*scale()*speed;
-  ctx.save();ctx.globalAlpha=layer===0?.35:.48;
-  for(let cell=Math.floor(offset/width);cell<=Math.floor((offset+W)/width);cell++){
-   const x=cell*width-offset;if(!window.sceneLayers?.bitmap(surface,x,top,width,height,0,'depth:'+layer+':'+cell))ctx.drawImage(surface,x,top,width,height);
+function drawHillLandscape(){
+ for(const layer of hillLandscapeLayers){
+  if(layer.images.some(im=>!im.complete||!im.naturalWidth))continue;
+  const unit=H*layer.height/layer.sourceHeight,total=layer.images.reduce((sum,im)=>sum+im.naturalWidth*unit,0),offset=cam*layer.speed,top=H*layer.top-cameraY*scale()*layer.vertical;
+  // Each cycle contains the original panorama plus its generated connecting scene.
+  // Chunks are exact neighbouring crops. Every copy faces the same direction.
+  for(let cycle=Math.floor(offset/total);cycle<=Math.floor((offset+W)/total);cycle++){
+   let x=cycle*total-offset;
+   for(let j=0;j<layer.images.length;j++){
+    const image=layer.images[j],width=image.naturalWidth*unit,height=image.naturalHeight*unit,y=top+layer.tops[j]*unit;
+    if(x+width>=0&&x<=W&&!window.sceneLayers?.bitmap(image,x,y,width+.25,height,0,'landscape:'+layer.name+':'+cycle+':'+j))ctx.drawImage(image,x,y,width+.25,height);
+    x+=width;
+   }
   }
-  ctx.restore();
  }
 }
 function drawHillBackground(){
- document.body.dataset.biome='hills';
- const backdrop=prepareHillBackground();if(!window.sceneLayers?.sky(backdrop.sky))ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
- ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
- if(backdrop.panorama){
-  const tileWidth=backdrop.tileWidth,offset=cam*.055,y=-cameraY*scale()*.055;
-  for(let i=Math.floor(offset/tileWidth);i<=Math.floor((offset+W)/tileWidth);i++){
-   ctx.save();ctx.translate(i*tileWidth-offset,y);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
-   if(!window.sceneLayers?.bitmap(hillPanorama,0,0,tileWidth,H,0,'panorama:'+i))ctx.drawImage(backdrop.panorama,0,0,tileWidth,backdrop.panorama.height/renderRatio);ctx.restore();
-  }
- }
+ document.body.dataset.biome='hills';const backdrop=prepareHillBackground();
+ if(!window.sceneLayers?.sky(backdrop.sky))ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
+ ctx.save();ctx.globalAlpha=1;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
  drawHillSun();
- const cloudOffset=cam*.14-time*4;
- for(let cell=Math.floor(cloudOffset/380)-1;cell<Math.ceil((cloudOffset+W)/380)+1;cell++){
-  const x=cell*380+hash(cell,941)*130-cloudOffset,y=H*(.14+hash(cell,943)*.17);
-  ctx.globalAlpha=1;hillSprite(4+cell%2+(cell%2<0?2:0),x,y,35+hash(cell,944)*38,0,false,'cloud:'+cell);
+ // Sun and cloud positions depend on the viewport only, never the camera or clock.
+ const count=W<700?3:5;
+ for(let j=0;j<count;j++){
+  const x=W*((j+.15)/count),y=H*(.14+(j%3)*.055),height=Math.max(26,Math.min(66,H*(.045+(j%2)*.015)));
+  hillSprite(4+j%2,x,y,height,0,false,'sky:cloud:'+j);
  }
- ctx.globalAlpha=1;
- drawHillDepth();
- ctx.globalAlpha=.7;
- for(let cell=Math.floor(cam*.2/620)-1;cell<Math.ceil((cam*.2+W)/620)+1;cell++){
-  const x=cell*620-cam*.2+hash(cell,953)*180,y=H*(.26+hash(cell,954)*.19);
-  ctx.strokeStyle='#3d6473';ctx.lineWidth=2;ctx.beginPath();for(let j=0;j<3;j++){const bx=x+j*18,by=y+Math.sin(time*.8+cell+j)*3;ctx.moveTo(bx-4,by-2);ctx.lineTo(bx,by);ctx.lineTo(bx+4,by-2)}ctx.stroke();
- }
- ctx.restore();
+ drawHillLandscape();ctx.restore();
 }
 function drawHillTree(cell,x,angle){
  // Broad clearings alternate with dense groves, determined by the world seed.

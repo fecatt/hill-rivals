@@ -60,7 +60,7 @@ function mapCloudTexture(b,w,h){
 function mapBackground(t,x){if(t===0){drawHillBackground();return}
  const b=mapBiome(t,x),p=PALETTES[b];if(document.body&&document.body.dataset.biome!==b)document.body.dataset.biome=b;
  const sky=mapSkyTexture(b);if(!window.sceneLayers?.sky(sky))ctx.drawImage(sky,0,0,sky.width/renderRatio,sky.height/renderRatio);
- if(b!=='moon')for(let j=0;j<6;j++){const cx=((j*305-cam*.12)%(W+360)+W+360)%(W+360)-150,cy=92+(j%3)*43,w=118+(j%3)*23,h=42+(j%2)*10,cloud=mapCloudTexture(b,w,h);const dx=Math.round((cx-cloud.left)*renderRatio)/renderRatio,dy=Math.round((cy-cloud.top)*renderRatio)/renderRatio,dw=cloud.surface.width/renderRatio,dh=cloud.surface.height/renderRatio;if(!window.sceneLayers?.bitmap(cloud.surface,dx,dy,dw,dh))ctx.drawImage(cloud.surface,dx,dy,dw,dh);}
+ if(b!=='moon')for(let j=0;j<6;j++){const cx=W*(j+.15)/6,cy=92+(j%3)*43,w=118+(j%3)*23,h=42+(j%2)*10,cloud=mapCloudTexture(b,w,h);const dx=Math.round((cx-cloud.left)*renderRatio)/renderRatio,dy=Math.round((cy-cloud.top)*renderRatio)/renderRatio,dw=cloud.surface.width/renderRatio,dh=cloud.surface.height/renderRatio;if(!window.sceneLayers?.bitmap(cloud.surface,dx,dy,dw,dh))ctx.drawImage(cloud.surface,dx,dy,dw,dh);}
  const ridge=layer=>{const speed=.075+layer*.075,base=H*(.37+layer*.15),step=18,pts=[];for(let sx=-step;sx<=W+step;sx+=step){const wx=sx+cam*speed;let y=base;
   if(b==='mountains'||b==='winter'){y-=mountainHeight(wx,layer);y+=smoothNoise(wx/(115+layer*32),layer+901)*7}
   else if(b==='highway')y+=Math.sin(wx/(370-layer*30))*13+smoothNoise(wx/(270+layer*18),layer+911)*11;

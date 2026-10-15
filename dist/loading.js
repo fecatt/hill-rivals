@@ -5,7 +5,7 @@ let assetsLoaded=false;
 const loadingScreen=document.createElement('div');loadingScreen.id='loading-screen';
 loadingScreen.innerHTML='<section><h2>Загрузка игры</h2><p id="loading-status" role="status" aria-live="polite">Загружаем машины, персонажей и трассы…</p><progress id="loading-progress" max="1" value="0"></progress><button id="retry-loading" hidden>Повторить загрузку</button></section>';
 document.body.append(loadingScreen);
-const gameImages=[...images,environmentAtlas,hillArt,hillPanorama,...hillTrees,hillCrestSun,hillCloud,...Object.values(paintedBodies)];
+const gameImages=[...images,environmentAtlas,hillArt,...(typeof hillLandscapeLayers==='undefined'?[]:hillLandscapeLayers.flatMap(layer=>layer.images)),...hillTrees,hillCrestSun,hillCloud,...Object.values(paintedBodies)];
 function decodeAsset(im){
  return new Promise((resolve,reject)=>{
   const timeout=setTimeout(()=>finish(Error('Время загрузки истекло')),45000);
