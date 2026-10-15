@@ -7,7 +7,7 @@ import {Lobby} from './lobby.js';
 const root=path.resolve(fileURLToPath(new URL('../dist/',import.meta.url)));
 const version=process.env.APP_VERSION||'development';
 const lobby=new Lobby({storeFile:process.env.ROOM_STORE_FILE});
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.webmanifest':'application/manifest+json','.svg':'image/svg+xml'};
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.webp':'image/webp','.webmanifest':'application/manifest+json','.svg':'image/svg+xml'};
 const server=http.createServer((req,res)=>{
   if(req.url==='/health'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify({ok:true,version,online:lobby.clients.size,rooms:lobby.rooms.size}));return;}
   let file;
