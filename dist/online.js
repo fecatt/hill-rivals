@@ -342,7 +342,7 @@ function renderRoom(state){
   }
   oldPhase=state.phase;
 }
-window.assetsReady.then(()=>{if(window.onlineActive&&roomState)renderRoom(roomState);});
+window.assetsReady.then(()=>{if(window.onlineActive&&roomState?.room&&mode==='lobby')renderRoom(roomState);});
 function connect(){
   if(!window.onlineActive)return;
   if(socket&&[0,1].includes(socket.readyState))return;
@@ -423,3 +423,4 @@ setInterval(async()=>{
     }deployedVersion=state.version;
   }catch{}
 },5000);
+
