@@ -1,4 +1,4 @@
-const CACHE='hill-rivals-app-v46';
+const CACHE='hill-rivals-app-v47';
 const FILES=['/','/app.js','/loading.js','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/lobby.css','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png',...['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'].map(n=>'/assets/'+encodeURIComponent(n)+'.png')];
 FILES.push('/scene-layers.js','/wheel-editor.js','/mobile-screen.js','/ui-controls.js','/qrcode.js','/rooms.js','/menu-icons.js','/drawers.js','/peers.js',...['environment-atlas','hills-atlas','hills-oak-clean','hills-birch-clean','hills-crest-sun','hills-cloud-clean','car-jeep-open-arches','car-buggy','car-pickup','car-rally','car-monster','car-hotrod','car-rocket','car-van','car-evo'].map(name=>'/assets/'+name+'.png'));
 FILES.push(...['far','middle','near'].flatMap(layer=>[0,1,2].map(index=>'/assets/hills-'+layer+'-'+index+'.webp')));

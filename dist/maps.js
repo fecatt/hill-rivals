@@ -27,7 +27,13 @@ function biomeRegion(region){return biomeOrder[((region%5)+5)%5]}
 function mapBiome(t,x){return t===6?biomeRegion(Math.max(0,Math.floor(x/BIOME_LENGTH))):MAPS[t].biome}
 function ease(t){return t*t*(3-2*t)}
 function smoothNoise(x,salt){const i=Math.floor(x),f=ease(x-i);return (hash(i,salt)*(1-f)+hash(i+1,salt)*f)*2-1}
-function profile(b,x){const i=['hills','mountains','moon','highway','city','winter'].indexOf(b),amplitudes=[[65,26,8],[120,38,12],[76,32,12],[25,10,3],[34,12,4],[70,28,8]][i],wavelengths=[[230,115,65],[350,160,80],[300,145,85],[480,200,110],[410,185,95],[265,140,75]][i];let v=0;for(let j=0;j<3;j++){const phase=hash(i,j+19)*Math.PI*2,freq=.62+hash(i,j+31)*.78,amp=.62+hash(i,j+47)*.82;v+=amplitudes[j]*amp*Math.sin(x*freq/wavelengths[j]+phase)}return v+smoothNoise(x/520,i+91)*(b==='highway'?12:28)+smoothNoise(x/175,i+211)*amplitudes[0]*.19}
+const BIOME_NAMES=['hills','mountains','moon','highway','city','winter'],PROFILE_AMPLITUDES=[[65,26,8],[120,38,12],[76,32,12],[25,10,3],[34,12,4],[70,28,8]],PROFILE_WAVELENGTHS=[[230,115,65],[350,160,80],[300,145,85],[480,200,110],[410,185,95],[265,140,75]],profileParameters=new Map();
+let profileSeed=null;
+function profile(b,x){
+ if(profileSeed!==worldSeed){profileParameters.clear();profileSeed=worldSeed;}
+ let parameters=profileParameters.get(b);if(!parameters){const i=BIOME_NAMES.indexOf(b),amplitudes=PROFILE_AMPLITUDES[i],wavelengths=PROFILE_WAVELENGTHS[i];parameters={i,amplitudes,wavelengths,waves:amplitudes.map((amplitude,j)=>({phase:hash(i,j+19)*Math.PI*2,freq:.62+hash(i,j+31)*.78,amp:amplitude*(.62+hash(i,j+47)*.82)}))};profileParameters.set(b,parameters);}
+ const {i,amplitudes,wavelengths,waves}=parameters;let v=0;for(let j=0;j<3;j++){const wave=waves[j];v+=wave.amp*Math.sin(x*wave.freq/wavelengths[j]+wave.phase)}return v+smoothNoise(x/520,i+91)*(b==='highway'?12:28)+smoothNoise(x/175,i+211)*amplitudes[0]*.19;
+}
 function terrainShape(b,x){const i=['hills','mountains','moon','highway','city','winter'].indexOf(b),ranges=[155,260,190,30,58,170],step=2600,at=x/step,n=Math.floor(at),f=ease(at-n),scale=ranges[i];const point=k=>(hash(k,i+401)*2-1)*scale;return (point(n)*(1-f)+point(n+1)*f)*.8+smoothNoise(x/730,i+431)*scale*.18}
 function rawTerrain(t,x){const ramp=ease(Math.min(1,Math.max(0,(x-800)/650)));let b=mapBiome(t,x),v=profile(b,x)+terrainShape(b,x);if(t===6){const boundary=Math.round(x/BIOME_LENGTH)*BIOME_LENGTH;if(boundary>0&&Math.abs(x-boundary)<600){const region=boundary/BIOME_LENGTH,f=ease((x-boundary+600)/1200),before=biomeRegion(region-1),after=biomeRegion(region);v=(profile(before,x)+terrainShape(before,x))*(1-f)+(profile(after,x)+terrainShape(after,x))*f}}return ramp*v*(1+Math.min(.15,Math.max(0,x-3000)/80000))}
 function bridgeForChunk(t,chunk){
@@ -75,7 +81,7 @@ function mapBackground(t,x){if(t===0){drawHillBackground();return}
 const envSpriteRasters=new Map();let envSpriteRasterPixels=0;
 function drawEnvSprite(index,x,bottom,height,flip=false,angle=0){
  if(!environmentAtlas.complete||!environmentAtlas.naturalWidth)return false;
- if(window.sceneLayers?.active){const crop=ENV_CROPS[index],width=height*crop[2]/crop[3];ctx.save();ctx.translate(x,bottom);ctx.rotate(angle);if(flip)ctx.scale(-1,1);window.sceneLayers.bitmap(hillTexture(environmentAtlas,crop,512),-width/2,-height,width,height);ctx.restore();return true;}
+ if(window.sceneLayers?.active&&(mode==='lobby'?+$('#track').value:track)===0){const crop=ENV_CROPS[index],width=height*crop[2]/crop[3];ctx.save();ctx.translate(x,bottom);ctx.rotate(angle);if(flip)ctx.scale(-1,1);window.sceneLayers.bitmap(hillTexture(environmentAtlas,crop,512),-width/2,-height,width,height,0,'env:'+index+':'+x+':'+bottom);ctx.restore();return true;}
  const matrix=ctx.getTransform(),pixelScale=Math.hypot(matrix.a,matrix.b),factor=Math.max(.25,Math.abs(zoom-1)<1e-6?pixelScale:Math.round(pixelScale*20)/20),pixels=Math.max(1,Math.round(height*factor)),rotation=Math.round(angle*1000)/1000,key=index+':'+pixels+':'+factor+':'+flip+':'+rotation;
  let raster=envSpriteRasters.get(key);
  if(!raster){
@@ -127,7 +133,29 @@ function drawSuspensionBridge(a,b,biome){if(track===0){drawHillBridge(a,b);retur
 }
 function drawCityBridge(a,b){const mid=(a+b)*.5,deck=x=>groundHeight(track,x),level=mapTerrain(track,mid)+145;drawWater(track,a,b,a-150,b+150,level+360);ctx.strokeStyle='#59636a';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(a,deck(a)+3);ctx.quadraticCurveTo(mid,deck(mid)+34,b,deck(b)+3);ctx.stroke();ctx.strokeStyle='#bac0bd';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(a,deck(a));ctx.quadraticCurveTo(mid,deck(mid)+28,b,deck(b));ctx.stroke();for(const x of [a+(b-a)*.25,a+(b-a)*.75]){ctx.fillStyle='#66747b';ctx.fillRect(x-9,deck(x)+8,18,level-deck(x)-2);ctx.fillStyle='#9ba6a7';ctx.fillRect(x-20,deck(x)+5,40,8)}for(let x=a+12;x<b;x+=30){ctx.strokeStyle='#68777b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,deck(x)-2);ctx.lineTo(x,deck(x)-24);ctx.stroke()}}
 
+// Cache only static banks. Loaded bridges remain live physics and live geometry.
+// Fixed world-space tiles also stop soil detail from shimmering as the camera moves.
+const groundTiles=new Map();let groundTilePixels=0,groundTileSeed=null;
 function drawGround(t,left,right,bottom,flat=false){
+ if(flat||bridgesInRange(t,left-600,right+600).length||t===6&&biomeBoundaries(left-600,right+600).length){drawGroundRaw(t,left,right,bottom,flat);return;}
+ if(groundTileSeed!==worldSeed){groundTiles.clear();groundTilePixels=0;groundTileSeed=worldSeed;}
+ const transform=ctx.getTransform(),pixelScale=Math.hypot(transform.a,transform.b),factor=Math.abs(zoom-1)<1e-6?pixelScale:Math.max(.25,Math.round(pixelScale*20)/20),size=512;
+ for(let tile=Math.floor(left/size);tile<=Math.floor(right/size);tile++){
+  const x=tile*size,key=t+':'+tile+':'+factor;let raster=groundTiles.get(key);
+  if(!raster){
+   let high=Infinity,low=-Infinity;for(let wx=x-24;wx<=x+size+24;wx+=4){const y=rawTerrain(t,wx);high=Math.min(high,y);low=Math.max(low,y);}
+   const top=Math.floor(high)-20,end=Math.ceil(low)+230,height=end-top,surface=document.createElement('canvas');surface.width=Math.ceil(size*factor);surface.height=Math.ceil(height*factor);
+   const paint=surface.getContext('2d');paint.setTransform(factor,0,0,factor,-x*factor,-top*factor);withDrawingContext(paint,()=>drawGroundRaw(t,x-24,x+size+24,end));
+   const pixels=surface.width*surface.height;while(groundTiles.size&&(groundTilePixels+pixels>24000000||groundTiles.size>=32)){const old=groundTiles.keys().next().value;groundTilePixels-=groundTiles.get(old).pixels;groundTiles.delete(old);}
+   raster={surface,top,end,pixels};groundTiles.set(key,raster);groundTilePixels+=pixels;
+  }else{groundTiles.delete(key);groundTiles.set(key,raster);}
+  // The raster covers all detail; the remaining underground is a solid colour.
+  ctx.fillStyle=PALETTES[mapBiome(t,x+size/2)].soil;if(bottom>raster.end)ctx.fillRect(x,raster.end-1,size,bottom-raster.end+1);
+  const px=transform.b===0&&transform.c===0?(Math.round(transform.a*x+transform.e)-transform.e)/transform.a:x,py=transform.b===0&&transform.c===0?(Math.round(transform.d*raster.top+transform.f)-transform.f)/transform.d:raster.top;
+  ctx.drawImage(raster.surface,px,py,raster.surface.width/factor,raster.surface.height/factor);
+ }
+}
+function drawGroundRaw(t,left,right,bottom,flat=false){
  const surfaceHeight=flat?()=>0:x=>groundHeight(t,x);
  ctx.save();if(t===0&&!flat){clipHillBanks(left,right,bottom)}
  const bounds=[left,...(t===6?biomeBoundaries(left,right):[]),right];

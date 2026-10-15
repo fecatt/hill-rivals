@@ -149,9 +149,26 @@ test('slow drawing reduces backing resolution without changing the world or simu
  assert.equal(result.car,result.before.car);assert.equal(result.hz,120);assert.equal(result.backing,Math.round(result.width*result.ratio));
 });
 
-test('FPS estimate measures frame work independently of display intervals and clears on pause',()=>{
+test('FPS meter displays actual cadence while work estimate remains diagnostic and clears on pause',()=>{
  const run=fixture();const fast=run(`(()=>{mode='race';paused=false;recordFramePerformance(2,1000);for(let i=0;i<60;i++){frameTimes.push(1000/60);recordFramePerformance(2,1017+i*1000/60);}return {stats:window.gameDebug.getPerformance(),text:$('#fps-meter').textContent};})()`);
- assert.equal(fast.stats.estimatedFps,500);assert.ok(Math.abs(fast.stats.fps-60)<1e-8);assert.match(fast.text,/500 FPS/);
+ assert.equal(fast.stats.estimatedFps,500);assert.ok(Math.abs(fast.stats.fps-60)<1e-8);assert.match(fast.text,/60 FPS/);assert.doesNotMatch(fast.text,/500 FPS/);
  const resumed=run(`(()=>{paused=true;recordFramePerformance(0,2200);paused=false;recordFramePerformance(25,2300);return window.gameDebug.getPerformance();})()`);
  assert.equal(resumed.estimatedFps,40);assert.equal(resumed.frameWorkMs,25);
+});
+
+test('wheel cache follows preview edits, in-place dragging, save and model changes',()=>{
+ const run=fixture(),result=run(`(()=>{
+  const v=VEHICLES[8],original=wheelSpecs(v),same=original===wheelSpecs(v),car={model:8,vx:0,vy:0};const pose=visualPose(car);
+  wheelAlignmentPreview={evo:validWheelAlignment(v,[])};wheelAlignmentPreview.evo[0].x=9;const moved=wheelSpecs(v),rebuilt=visualPose(car)!==pose;
+  wheelAlignmentPreview.evo[0].scale=1.4;const scaled=wheelSpecs(v);wheelAlignmentPreview=null;const restored=wheelSpecs(v);
+  car.model=4;return {same,moved:moved[0].x,scaled:scaled[0].r,restored:restored[0].x,rebuilt,axles:visualPose(car).wheels.length};
+ })()`);
+ assert.equal(result.same,true);assert.equal(result.moved,-35.8);assert.ok(Math.abs(result.scaled-16.1)<1e-9);assert.equal(result.restored,-44.8);assert.equal(result.rebuilt,true);assert.equal(result.axles,4);
+});
+
+test('adaptive quality responds to missed presentation deadlines even with fast JavaScript',()=>{
+ const run=fixture(),result=run(`(()=>{targetFrameMs=1000/120;for(let i=0;i<60;i++)frameTimes.push(1000/80);const before=renderRatio;for(let i=0;i<30;i++)adaptRenderQuality(2);return {before,after:renderRatio};})()`);
+ assert.ok(result.after<result.before);
+ const stable=fixture()(`(()=>{targetFrameMs=1000/60;for(let i=0;i<60;i++)frameTimes.push(1000/60);for(let i=0;i<300;i++)adaptRenderQuality(2);return renderQuality;})()`);
+ assert.equal(stable,1,'a 60 Hz screen must not trigger a quality reduction');
 });

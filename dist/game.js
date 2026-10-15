@@ -8,9 +8,13 @@ const abilityNames={turbo:'Турбо',jump:'Прыжок',shield:'Щит'},abil
 // Bound the backing store on dense phone screens; physics stays in CSS pixels.
 const mobileInput=matchMedia('(pointer: coarse), (max-width: 750px)');
 let renderRatio=1,renderQuality=1,renderCostTotal=0,renderCostSamples=0,renderCostAverage=0,renderQualityCooldown=0,renderQualityGoodFrames=0;
+const refreshIntervals=[];let refreshLast=0,targetFrameMs=1000/60;
+function measureRefresh(now){
+ if(refreshLast){const interval=now-refreshLast;if(interval>=4&&interval<40){refreshIntervals.push(interval);if(refreshIntervals.length>180)refreshIntervals.shift();if(refreshIntervals.length>=30){const sorted=[...refreshIntervals].sort((a,b)=>a-b);const measured=Math.max(1000/120,sorted[Math.floor(sorted.length*.1)]);targetFrameMs=mode==='lobby'||paused?measured:Math.min(targetFrameMs,measured);}}}refreshLast=now;
+}
 function resize(){
  W=innerWidth;H=innerHeight;
- const pixelBudget=mobileInput.matches?2400000:Math.max(W*H,8300000);
+ const pixelBudget=mobileInput.matches?2400000:8300000;
  renderRatio=Math.min(devicePixelRatio||1,mobileInput.matches?1.5:2,Math.sqrt(pixelBudget/(W*H)))*renderQuality;
  canvas.width=Math.round(W*renderRatio);canvas.height=Math.round(H*renderRatio);
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
@@ -20,8 +24,9 @@ function adaptRenderQuality(cost){
  if(renderQualityCooldown>0){renderQualityCooldown--;return;}
  renderCostTotal+=cost;if(++renderCostSamples<30)return;
  renderCostAverage=renderCostTotal/renderCostSamples;renderCostTotal=0;renderCostSamples=0;
- if(renderCostAverage>13&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.85);renderQualityCooldown=45;renderQualityGoodFrames=0;resize();}
- else if(renderCostAverage<4&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=300){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=90;resize();}}
+ const recent=frameTimes.slice(-60).sort((a,b)=>a-b),cadence=recent[Math.floor(recent.length*.75)]||targetFrameMs,meanFrame=recent.length?recent.reduce((sum,n)=>sum+Math.min(n,targetFrameMs*2),0)/recent.length:targetFrameMs;
+ if((renderCostAverage>targetFrameMs*.85||cadence>targetFrameMs*1.35||recent.length>=30&&meanFrame>targetFrameMs*1.08)&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.9);renderQualityCooldown=90;renderQualityGoodFrames=0;resize();}
+ else if(renderCostAverage<targetFrameMs*.45&&cadence<targetFrameMs*1.12&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=600){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=180;resize();}}
  else renderQualityGoodFrames=0;
 }
 addEventListener('resize',resize);mobileInput.addEventListener('change',resize);resize();
@@ -308,7 +313,7 @@ function recordFramePerformance(cost,now){
  if(!running){meter.textContent='FPS · пауза';return;}
  frameWorkTimes.push(cost);if(frameWorkTimes.length>120)frameWorkTimes.shift();
  if(now<performanceNext)return;performanceNext=now+500;
- const stats=getPerformanceStats();meter.textContent='≈ '+(stats.estimatedFps?Math.round(stats.estimatedFps):'—')+' FPS · расчётный\n'+Math.round(stats.fps)+' FPS фактически · '+stats.frameWorkMs.toFixed(2)+' мс';
+ const stats=getPerformanceStats();meter.textContent=Math.round(stats.fps)+' FPS\nКадр 95%: '+stats.p95FrameMs.toFixed(1)+' мс';
 }
 
 function drawInterpolated(alpha){
@@ -333,7 +338,8 @@ function drawInterpolated(alpha){
 }
 function frame(now){
  requestAnimationFrame(frame);
- if(document.hidden){last=now;acc=0;return;}
+ if(document.hidden){last=now;acc=0;refreshLast=0;return;}
+ measureRefresh(now);
  // Avoid rendering a static lobby at 120 Hz on high-refresh phones.
  const interval=mode==='lobby'||paused?1000/15:0;
  if(now-lastDraw<interval-.5)return;
@@ -349,7 +355,7 @@ function frame(now){
  }
  const renderingStarted=performance.now();
  if(mode==='lobby')time+=dt;syncGameScreen();window.updateTouchHints?.(dt);animateSuspension(dt);drawInterpolated(acc*120);
- if(mode==='lobby'){window.refreshChoices?.();window.renderSettingPreviews?.();}
+ if(mode==='lobby'){window.refreshChoices?.();window.renderSettingPreviews?.();warmSelectedVehicle();}
  if(engineAudio){
   const ownIndex=window.onlineIndex??0,c=cars[ownIndex],controls=c?input(c.i):[false,false];
   engineAudio.updateEnvironment({enabled:sound&&!paused&&!document.hidden,active:mode==='race'&&!paused&&count<=0,car:c,mode,count});

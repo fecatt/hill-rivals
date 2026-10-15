@@ -28,7 +28,7 @@ async function loadGameAssets(){
  hillTexture(hillCloud,hillCloudBounds,128);
  for(const crop of (typeof ENV_CROPS==='undefined'?[]:ENV_CROPS))hillTexture(environmentAtlas,crop,512);
  if(typeof prepareHillBackground==='function')prepareHillBackground();
- assetsLoaded=true;loadingScreen.remove();resolveAssets();
+ assetsLoaded=true;if(typeof warmSelectedVehicle==='function')warmSelectedVehicle();loadingScreen.remove();resolveAssets();
 }
 $('#retry-loading').onclick=loadGameAssets;
 loadGameAssets();

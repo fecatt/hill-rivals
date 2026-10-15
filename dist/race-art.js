@@ -23,10 +23,11 @@ const WHEEL_ALIGNMENT_KEY='hill-rivals-wheel-alignment-v1';
 const DEFAULT_WHEEL_ALIGNMENTS={},DEFAULT_DRIVER_ALIGNMENTS={};
 let wheelAlignments={...DEFAULT_WHEEL_ALIGNMENTS},wheelAlignmentPreview=null,driverAlignments={...DEFAULT_DRIVER_ALIGNMENTS},driverAlignmentPreview=null;
 function validDriverAlignment(raw){const limit=(n,lo,hi,fallback)=>typeof n==='number'&&Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):fallback;return {x:limit(raw?.x,-60,60,0),y:limit(raw?.y,-60,60,0),scale:limit(raw?.scale,.3,2.5,1)}}
-function driverAppearance(v){return driverAlignmentPreview?.[v.kind]??driverAlignments[v.kind]??{x:0,y:0,scale:1}}
+const DEFAULT_APPEARANCE=Object.freeze({x:0,y:0,scale:1});
+function driverAppearance(v){return driverAlignmentPreview?.[v.kind]??driverAlignments[v.kind]??DEFAULT_APPEARANCE}
 function validWheelAlignment(v,raw){return v.wheels.map((_,i)=>{const w=raw?.[i]||{};const limit=(n,lo,hi,fallback)=>typeof n==='number'&&Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):fallback;return {x:limit(w.x,-35,35,0),y:limit(w.y,-35,35,0),scale:limit(w.scale,.4,1.8,1)}})}
 try{if(typeof localStorage!=='undefined'){const saved=JSON.parse(localStorage.getItem(WHEEL_ALIGNMENT_KEY)||'{}');for(const v of VEHICLES){if(Array.isArray(saved?.[v.kind]))wheelAlignments[v.kind]=validWheelAlignment(v,saved[v.kind]);if(saved?.__drivers?.[v.kind])driverAlignments[v.kind]=validDriverAlignment(saved.__drivers[v.kind]);}}}catch{}
-function wheelAppearance(v,index,alignment=wheelAlignmentPreview?.[v.kind]??wheelAlignments[v.kind]){return alignment?.[index]??{x:0,y:0,scale:1}}
+function wheelAppearance(v,index,alignment=wheelAlignmentPreview?.[v.kind]??wheelAlignments[v.kind]){return alignment?.[index]??DEFAULT_APPEARANCE}
 function saveAllWheelAlignments(raw,rawDrivers=driverAlignments){const next=Object.fromEntries(VEHICLES.map(v=>[v.kind,validWheelAlignment(v,raw[v.kind])])),drivers=Object.fromEntries(VEHICLES.map(v=>[v.kind,validDriverAlignment(rawDrivers[v.kind])]));try{localStorage.setItem(WHEEL_ALIGNMENT_KEY,JSON.stringify({...next,__drivers:drivers}));}catch{return false}wheelAlignments=next;driverAlignments=drivers;return true}
 function exportWheelAlignments(raw=wheelAlignments,rawDrivers=driverAlignments){return {format:'hill-rivals-wheel-alignment',version:2,vehicles:VEHICLES.map(v=>({kind:v.kind,name:v.name,wheels:validWheelAlignment(v,raw[v.kind]),driver:validDriverAlignment(rawDrivers[v.kind])}))}}
 function vehicleBodyRaw(c,v,bob,paint=ctx,wheelYOverride=null){
@@ -59,28 +60,43 @@ function vehicleBodyRaw(c,v,bob,paint=ctx,wheelYOverride=null){
  paint.restore();
 }
 // Bake the unchanged body and driver once; suspension only moves the bitmap.
-const bodyRasterCache=new Map();
+const bodyRasterCache=new Map();let bodyRasterPixels=0;
 function vehicleBody(c,v,bob,paint=ctx){
  const im=paintedBodies[v.kind],driver=images[chosen[c.i]];
  if(!im?.complete||!im.naturalWidth)return;
- const m=paint.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)))),key=[v.kind,chosen[c.i],driver?.naturalWidth||0,!!c.emptyCabin,JSON.stringify(driverAppearance(v)),density].join('|');
+ const m=paint.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)-1e-6))),appearance=driverAppearance(v),key=[v.kind,chosen[c.i],driver?.naturalWidth||0,!!c.emptyCabin,appearance.x,appearance.y,appearance.scale,density].join('|');
  let raster=bodyRasterCache.get(key);
  if(!raster){
-  const surface=document.createElement('canvas'),left=-260,top=-280,width=520,height=460;surface.width=width*density;surface.height=height*density;
+  // Derive bounds from the authored crop and driver clip. Never read GPU pixels
+  // back to the CPU or scan a multi-megapixel canvas during a race.
+  const crop=BODY_BOUNDS[v.kind],anchor=BODY_ANCHORS[v.kind],base=baseWheelSpecs(v),unit=(base.at(-1).x-base[0].x)/(anchor.axles.at(-1)-anchor.axles[0])*BODY_ART_SCALE;
+  const bodyLeft=base[0].x-(anchor.axles[0]-crop[0])*unit,bodyRight=base.at(-1).x+(crop[0]+crop[2]-anchor.axles.at(-1))*unit;
+  let seat=0;const source=[crop[0],...anchor.axles,crop[0]+crop[2]],dest=[bodyLeft,...base.map(w=>w.x),bodyRight];
+  if(v.kind==='monster'){const j=anchor.seat<anchor.axles[1]?0:1;seat=base[j===0?0:2].x+(anchor.seat-anchor.axles[j])/(anchor.axles[j+1]-anchor.axles[j])*(base[j===0?1:3].x-base[j===0?0:2].x);}else for(let j=0;j<source.length-1;j++)if(anchor.seat>=source[j]&&anchor.seat<=source[j+1]){seat=dest[j]+(anchor.seat-source[j])/(source[j+1]-source[j])*(dest[j+1]-dest[j]);break;}
+  seat+=appearance.x;const bodyTop=(crop[1]-anchor.y)*unit,bodyBottom=(crop[1]+crop[3]-anchor.y)*unit;
+  let minX=bodyLeft,maxX=bodyRight,minY=bodyTop,maxY=bodyBottom;
+  if(!c.emptyCabin&&driver?.complete&&driver.naturalWidth){const open=['jeep','buggy','hotrod','rocket'].includes(v.kind),baseSize=anchor.size*(open?1.32:1.15),driverSize=baseSize*appearance.scale,floor=(anchor.floor-anchor.y)*unit+(anchor.seatDrop||0),driverFloor=floor+79*(baseSize-anchor.size)+(open?3:0)+appearance.y,halfWidth=42*driver.naturalWidth/driver.naturalHeight*driverSize;
+   minX=Math.min(minX,Math.max(seat-40*appearance.scale,seat-halfWidth));maxX=Math.max(maxX,Math.min(seat+40*appearance.scale,seat+halfWidth));minY=Math.min(minY,Math.max(bodyTop-80,driverFloor-79*driverSize));maxY=Math.max(maxY,Math.min(floor+100,driverFloor+5*driverSize));}
+  const left=Math.floor(minX/v.bodyScale)-2,top=Math.floor(minY)-2,right=Math.ceil(maxX/v.bodyScale)+2,bottom=Math.ceil(maxY)+2;
+  const width=right-left,height=bottom-top,surface=document.createElement('canvas');surface.width=width*density;surface.height=height*density;
   const target=surface.getContext('2d');target.scale(density,density);target.translate(-left,-top);
   withDrawingContext(target,()=>vehicleBodyRaw(c,v,0,target,0));
-  // Trim transparent padding so moving a small car never copies a large rectangle.
-  const pixels=target.getImageData(0,0,surface.width,surface.height);let x0=surface.width,y0=surface.height,x1=-1,y1=-1;
-  for(let y=0;y<surface.height;y++)for(let x=0;x<surface.width;x++)if(pixels.data[(y*surface.width+x)*4+3]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
-  if(x1<0)return;
-  const trimmed=document.createElement('canvas');trimmed.width=x1-x0+1;trimmed.height=y1-y0+1;trimmed.getContext('2d').drawImage(surface,x0,y0,trimmed.width,trimmed.height,0,0,trimmed.width,trimmed.height);
-  raster={canvas:trimmed,x:left+x0/density,y:top+y0/density,w:trimmed.width/density,h:trimmed.height/density};
-  if(bodyRasterCache.size>=16)bodyRasterCache.delete(bodyRasterCache.keys().next().value);bodyRasterCache.set(key,raster);
- }
+  raster={canvas:surface,x:left,y:top,w:width,h:height,pixels:surface.width*surface.height};
+  while(bodyRasterCache.size&&(bodyRasterCache.size>=48||bodyRasterPixels+raster.pixels>12000000)){const oldest=bodyRasterCache.keys().next().value;bodyRasterPixels-=bodyRasterCache.get(oldest).pixels;bodyRasterCache.delete(oldest);}bodyRasterCache.set(key,raster);bodyRasterPixels+=raster.pixels;
+ }else{bodyRasterCache.delete(key);bodyRasterCache.set(key,raster);}
  const base=baseWheelSpecs(v),physical=wheelSpecs(v),pose=visualPose(c),wheelY=pose.wheels.reduce((sum,y,j)=>sum+y-(physical[j].y-v.mount)+base[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
  paint.drawImage(raster.canvas,raster.x,raster.y+wheelY,raster.w,raster.h);
 }
 function withDrawingContext(paint,action){const previous=ctx;try{ctx=paint;return action()}finally{ctx=previous}}
+let warmedVehicleKey='';
+function warmSelectedVehicle(){
+ if(typeof assetsLoaded!=='undefined'&&!assetsLoaded)return;
+ const model=+$('#vehicle').value,v=VEHICLES[model],appearance=driverAppearance(v),key=[model,...chosen,appearance.x,appearance.y,appearance.scale].join('|');
+ if(key===warmedVehicleKey)return;warmedVehicleKey=key;
+ const surface=document.createElement('canvas');surface.width=surface.height=1;const paint=surface.getContext('2d');
+ // Populate the tiny car rasters in the garage, before the race camera moves.
+ for(let i=0;i<chosen.length;i++)for(let density=1;density<=3;density++){paint.setTransform(density,0,0,density,0,0);vehicleBody({i,model,vx:0,vy:0},v,0,paint);}
+}
 function drawVehicleOn(paint,c){return withDrawingContext(paint,()=>drawVehicle(c))}
 function drawTurboFlame(x,y,power=1){
  ctx.save();ctx.translate(x,y);const pulse=1+Math.sin(time*39)*.12+Math.sin(time*67)*.08,length=(36+power*24)*pulse;
@@ -93,7 +109,7 @@ function drawTurboFlame(x,y,power=1){
 }
 const wheelRasterCache=new Map();
 function drawWheelRaster(r,muddy){
- const m=ctx.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)))),key=[r,muddy,density].join('|');let image=wheelRasterCache.get(key);
+ const m=ctx.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)-1e-6))),key=[r,muddy,density].join('|');let image=wheelRasterCache.get(key);
  if(!image){
   const size=Math.ceil((r+2)*2),surface=document.createElement('canvas');surface.width=surface.height=size*density;const target=surface.getContext('2d');target.scale(density,density);target.translate(size/2,size/2);
   withDrawingContext(target,()=>{  const tire=ctx.createRadialGradient(-r*.3,-r*.35,2,0,0,r);tire.addColorStop(0,'#536271');tire.addColorStop(.65,'#293946');tire.addColorStop(1,'#142431');circle(0,0,r,tire,'#122230');circle(0,0,r*.62,'#bdd0d9','#354d5d');circle(0,0,r*.43,'#617b8e');for(let k=0;k<6;k++){ctx.rotate(Math.PI/3);strokeLine([[r*.17,0],[r*.49,0]],'#e3eef0',2.3)}circle(0,0,3,'#e7efef');

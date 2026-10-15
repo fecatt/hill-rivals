@@ -46,7 +46,11 @@ function chooseMode(next,push=true,afterApply=null,transition=true){
   if(push){const url=new URL(location.href);url.searchParams.delete('room');url.searchParams.set('mode',next);history.pushState({},'',url);}
   afterApply?.();
  };
- if(transition&&document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
+ if(transition&&document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
+  const view=document.startViewTransition(apply);
+  // Rotation/fullscreen may cancel the snapshot animation after the UI updates.
+  view.ready.catch(()=>{});
+ }else apply();
 }
 window.startOfflineSolo=()=>{
  const setup=window.getOfflineSoloSetup?.()||{};
