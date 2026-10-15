@@ -41,7 +41,9 @@ function spring(ax,ay,bx,by){strokeLine([[ax,ay],[bx,by]],'#26312d',5);strokeLin
 function seatedDriver(c,lift){
  const im=images[chosen[c.i]],mirror=[0,5].includes(chosen[c.i]);if(!im?.complete||!im.naturalWidth)return;
  const iw=im.naturalWidth,ih=im.naturalHeight;ctx.save();ctx.translate(-6,lift);ctx.imageSmoothingEnabled=true;
- // Head and torso have separate scales: a smaller head and a full visible upper body.
- ctx.save();if(mirror)ctx.scale(-1,1);ctx.drawImage(im,iw*.27,0,iw*.44,ih*.43,-14,-66,28,27);ctx.drawImage(im,iw*.18,ih*.41,iw*.64,ih*.31,-20,-40,40,44);ctx.restore();
+ // Keep the original big-head, short-body character proportions. The car body
+ // hides the lower half naturally instead of rebuilding a thin driver from crops.
+ const height=84,width=height*iw/ih;
+ ctx.save();if(mirror)ctx.scale(-1,1);ctx.drawImage(im,-width/2,-66,width,height);ctx.restore();
  ctx.restore();
 }
