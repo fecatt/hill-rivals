@@ -18,7 +18,7 @@ const PALETTES={
 };
 const BIOME_LENGTH=30000,BRIDGE_CHUNK=3200;
 const ENV_CROPS=[[8,5,405,380],[425,5,220,380],[654,5,280,380],[936,5,320,380],[48,390,310,320],[338,390,310,320],[636,390,326,320],[965,390,290,320],[48,715,310,300],[358,715,290,300],[650,715,315,300],[970,715,285,300],[8,1020,332,220],[348,1020,320,220],[680,1020,300,220],[990,1020,270,220]];
-const environmentAtlas=new Image();environmentAtlas.src='assets/environment-atlas.png';
+const environmentAtlas=new Image();environmentAtlas.src='assets/environment-atlas.webp';
 let worldSeed=1,biomeOrder=['hills','mountains','highway','city','winter'];
 function hash(n,salt=0){let v=(Math.floor(n)^worldSeed^Math.imul(salt,0x9e3779b9))>>>0;v=Math.imul(v^(v>>>16),0x7feb352d);v=Math.imul(v^(v>>>15),0x846ca68b);return ((v^(v>>>16))>>>0)/4294967296}
 function setWorldSeed(seed){worldSeed=seed>>>0;biomeOrder=['hills','mountains','highway','city','winter'];for(let j=4;j>0;j--){let k=Math.floor(hash(j,71)*(j+1));[biomeOrder[j],biomeOrder[k]]=[biomeOrder[k],biomeOrder[j]]}}

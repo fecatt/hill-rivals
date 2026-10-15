@@ -66,7 +66,7 @@ installButton.onclick=async()=>{
 };
 if(matchMedia('(display-mode: standalone)').matches)installButton.hidden=true;
 addEventListener('appinstalled',()=>{installButton.hidden=true;installPrompt=null;});
-if('serviceWorker' in navigator&&location.protocol!=='file:')navigator.serviceWorker.register('/sw.js').then(reg=>reg.update()).catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol!=='file:')window.assetsReady.then(()=>navigator.serviceWorker.register('/sw.js').then(reg=>reg.update())).catch(()=>{});
 let appVersion;
 setInterval(async()=>{if(window.onlineActive||location.protocol==='file:')return;try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}appVersion=health.version;}catch{}},5000);
 currentMode=undefined;chooseMode(selectedMode,false);

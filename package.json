@@ -12,6 +12,7 @@
     "test:room-toolbar": "node test/room-toolbar.mjs",
     "test:render": "node test/render.mjs",
     "test:performance": "node test/performance.mjs",
+    "test:loading-network": "node test/loading-network.mjs",
     "test:wheels": "node test/wheel-editor.mjs",
     "test:menu": "node test/menu.mjs"
   },

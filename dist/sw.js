@@ -1,6 +1,6 @@
-const CACHE='hill-rivals-app-v47';
-const FILES=['/','/app.js','/loading.js','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/lobby.css','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png',...['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'].map(n=>'/assets/'+encodeURIComponent(n)+'.png')];
-FILES.push('/scene-layers.js','/wheel-editor.js','/mobile-screen.js','/ui-controls.js','/qrcode.js','/rooms.js','/menu-icons.js','/drawers.js','/peers.js',...['environment-atlas','hills-atlas','hills-oak-clean','hills-birch-clean','hills-crest-sun','hills-cloud-clean','car-jeep-open-arches','car-buggy','car-pickup','car-rally','car-monster','car-hotrod','car-rocket','car-van','car-evo'].map(name=>'/assets/'+name+'.png'));
+const CACHE='hill-rivals-app-v48';
+const FILES=['/','/app.js','/loading.js','/game.js','/online.js','/maps.js','/vehicles.js','/hills.js','/race-art.js','/style.css','/lobby.css','/manifest.webmanifest','/icons/icon-192.png','/icons/icon-512.png',...['Егерь','Вышня','Голубой','Комунистичкий','Нинглеб','Рэп_зеленный','Синяк'].map(n=>'/assets/'+encodeURIComponent(n)+'.webp')];
+FILES.push('/scene-layers.js','/wheel-editor.js','/mobile-screen.js','/ui-controls.js','/qrcode.js','/rooms.js','/menu-icons.js','/drawers.js','/peers.js',...['environment-atlas','hills-atlas','hills-oak-clean','hills-birch-clean','hills-crest-sun','hills-cloud-clean','car-jeep-open-arches','car-buggy','car-pickup','car-rally','car-monster','car-hotrod','car-rocket','car-van','car-evo'].map(name=>'/assets/'+name+'.webp'));
 FILES.push(...['far','middle','near'].flatMap(layer=>[0,1,2].map(index=>'/assets/hills-'+layer+'-'+index+'.webp')));
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(FILES)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('hill-rivals-app-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
@@ -11,7 +11,7 @@ self.addEventListener('fetch',event=>{
     const cache=await caches.open(CACHE);
     const key=event.request.mode==='navigate'?'/':event.request;
     // Decoded assets have already been preloaded; reuse the persistent cache.
-    if(url.pathname.startsWith('/assets/')){const cached=await cache.match(event.request);if(cached)return cached;}
+    if(url.pathname.startsWith('/assets/')&&!url.searchParams.has('_asset_retry')){const cached=await cache.match(event.request);if(cached)return cached;}
     try{
       const response=await fetch(event.request);
       if(response.ok)await cache.put(key,response.clone());

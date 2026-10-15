@@ -16,7 +16,10 @@ const server=http.createServer((req,res)=>{
   if(!file.startsWith(root+path.sep)){res.writeHead(403);res.end();return;}
   fs.stat(file,(error,stat)=>{
     if(error||!stat.isFile()){res.writeHead(404);res.end('Not found');return;}
-    res.writeHead(200,{'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});
+    const etag='W/"'+stat.size.toString(16)+'-'+Math.trunc(stat.mtimeMs).toString(16)+'"',headers={'Content-Type':types[path.extname(file)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff','ETag':etag,'Last-Modified':stat.mtime.toUTCString()};
+    if(req.headers['if-none-match']===etag){res.writeHead(304,headers);res.end();return;}
+    res.writeHead(200,{...headers,'Content-Length':stat.size});
+    if(req.method==='HEAD'){res.end();return;}
     fs.createReadStream(file).pipe(res);
   });
 });

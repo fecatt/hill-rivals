@@ -7,11 +7,11 @@ const hillLandscapeLayers=[
  {name:'middle',sourceHeight:724,tops:[173,255,233],speed:.22,vertical:.16,top:.27,height:.62},
  {name:'near',sourceHeight:724,tops:[153,181,191],speed:.46,vertical:.32,top:.44,height:.5}
 ].map(layer=>({...layer,images:[0,1,2].map(index=>{const im=new Image();im.src='assets/hills-'+layer.name+'-'+index+'.webp';return im;})}));
-const hillTrees=['hills-oak-clean.png','hills-birch-clean.png'].map(name=>{const im=new Image();im.src='assets/'+name;return im});
+const hillTrees=['hills-oak-clean.webp','hills-birch-clean.webp'].map(name=>{const im=new Image();im.src='assets/'+name;return im});
 const hillTreeBounds=[[109,98,1062,1107],[26,13,970,1500]];
-const hillCrestSun=new Image();hillCrestSun.src='assets/hills-crest-sun.png';
+const hillCrestSun=new Image();hillCrestSun.src='assets/hills-crest-sun.webp';
 const hillSunBounds=[108,55,1095,1093];
-const hillCloud=new Image();hillCloud.src='assets/hills-cloud-clean.png';
+const hillCloud=new Image();hillCloud.src='assets/hills-cloud-clean.webp';
 const hillCloudBounds=[127,82,1918,557];
 hillArt.onload=()=>{
  // Explicit crop bounds also work in file:// browsers, without reading a tainted canvas.
@@ -21,7 +21,7 @@ hillArt.onload=()=>{
   const [x,y,w,h]=crops[i];hillSprites[i]=[x*sx,y*sy,w*sx,h*sy];
  }
 };
-hillArt.src='assets/hills-atlas.png';
+hillArt.src='assets/hills-atlas.webp';
 // Upload small, reusable textures instead of resampling multi-megapixel PNGs each frame.
 const hillTextureCache=new WeakMap();
 function hillTexture(im,crop,height){
