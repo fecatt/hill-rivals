@@ -116,3 +116,25 @@ test('Evo is a separate ninth car with European GSR specs and reaches its advert
  assert.ok(result.alive&&Math.abs(result.speed-240)<.2,JSON.stringify(result));
  assert.ok(result.to100>4&&result.to100<8,JSON.stringify(result));
 });
+
+test('custom wheels change actual ride height without changing spring, damper or suspension travel',()=>{
+ const run=fixture(),result=run(`(()=>{
+  terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;input=()=>[false,false];mode='race';count=0;vehicleModel=8;track=3;
+  const v=VEHICLES[8],settings=[v.spring,v.damper,v.travel];
+  function settle(layout){wheelAlignmentPreview={evo:layout};const c=newCar(0);for(let n=0;n<1200;n++)physics(c,1/120);return {y:c.y,alive:c.alive};}
+  const original=settle(validWheelAlignment(v,[])),changed=settle(v.wheels.map(()=>({x:0,y:6,scale:1.4})));
+  wheelAlignmentPreview=null;return {original,changed,settings,after:[v.spring,v.damper,v.travel]};
+ })()`);
+ assert.ok(result.original.alive&&result.changed.alive);assert.ok(Math.abs((result.original.y-result.changed.y)-(6+11.5*.4))<.05,JSON.stringify(result));
+ assert.deepEqual([...result.settings],[...result.after]);
+});
+
+test('driver placement does not alter physical wheel geometry and exported settings include every driver',()=>{
+ const run=fixture(),result=run(`(()=>{
+  const before=JSON.stringify(wheelSpecs(VEHICLES[8]));driverAlignmentPreview={evo:{x:10,y:-12,scale:1.7}};
+  const after=JSON.stringify(wheelSpecs(VEHICLES[8]));const payload=exportWheelAlignments({},driverAlignmentPreview);driverAlignmentPreview=null;
+  return {before,after,payload};
+ })()`);
+ assert.equal(result.before,result.after);assert.equal(result.payload.version,2);assert.equal(result.payload.vehicles.length,9);
+ assert.deepEqual({...result.payload.vehicles.find(v=>v.kind==='evo').driver},{x:10,y:-12,scale:1.7});
+});

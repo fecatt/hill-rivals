@@ -14,11 +14,23 @@ try{
  await page.mouse.move(target.x,target.y);await page.mouse.down();await page.mouse.move(target.x+22,target.y-10,{steps:5});await page.mouse.up();
  assert.ok(Number(await page.locator('#wheel-editor-x').inputValue())>1);assert.ok(Number(await page.locator('#wheel-editor-y').inputValue())<0);
  await page.locator('#wheel-editor-x').fill('4.5');await page.locator('#wheel-editor-y').fill('-2');await page.locator('#wheel-editor-scale').fill('115');
- await page.locator('#wheel-editor-save').click();assert.equal(await page.evaluate(()=>JSON.stringify(wheelSpecs(VEHICLES[8]))),original,'visual edits must not change physics');
+ await page.locator('#wheel-editor-part').selectOption('driver');
+ await page.mouse.move(target.x,target.y);await page.mouse.down();await page.mouse.move(target.x+15,target.y-10,{steps:3});await page.mouse.up();assert.ok(Number(await page.locator('#wheel-editor-driver-x').inputValue())>1,'driver can be moved by dragging');
+ await page.locator('#wheel-editor-driver-x').fill('3');await page.locator('#wheel-editor-driver-y').fill('-4');await page.locator('#wheel-editor-driver-scale').fill('120');
+ await page.locator('#wheel-editor-test').click();
+ let trial=await page.evaluate(()=>window.gameDebug.getWheelTest());assert.equal(trial.car.model,8);
+ assert.equal(trial.wheels[0].x,-44.8+4.5);assert.equal(trial.wheels[0].y,10);assert.equal(trial.wheels[0].r,11.5*1.15);assert.deepEqual(trial.driver,{x:3,y:-4,scale:1.2});
+ assert.equal(await page.evaluate(()=>JSON.stringify(wheelSpecs(VEHICLES[8]))),original,'unsaved trial geometry must not leak to the active room');
+ await page.keyboard.down('KeyD');await page.waitForFunction(()=>window.gameDebug.getWheelTest()?.car.vx>20);await page.keyboard.up('KeyD');
+ trial=await page.evaluate(()=>window.gameDebug.getWheelTest());assert.ok(trial.car.x>trial.car.startX);assert.ok(trial.car.alive);
+ await page.locator('#wheel-editor-test').click();assert.equal(await page.evaluate(()=>window.gameDebug.getWheelTest()),null);
+ await page.locator('#wheel-editor-save').click();assert.notEqual(await page.evaluate(()=>JSON.stringify(wheelSpecs(VEHICLES[8]))),original,'saved geometry must change physical wheel contacts');
  const downloadPromise=page.waitForEvent('download');await page.locator('#wheel-editor-export').click();const download=await downloadPromise;
- const payload=JSON.parse(fs.readFileSync(await download.path(),'utf8'));assert.equal(payload.format,'hill-rivals-wheel-alignment');assert.equal(payload.version,1);assert.equal(payload.vehicles.length,9);
+ const payload=JSON.parse(fs.readFileSync(await download.path(),'utf8'));assert.equal(payload.format,'hill-rivals-wheel-alignment');assert.equal(payload.version,2);assert.equal(payload.vehicles.length,9);
+ assert.deepEqual(payload.vehicles.find(v=>v.kind==='evo').driver,{x:3,y:-4,scale:1.2});
  assert.deepEqual(payload.vehicles.find(v=>v.kind==='evo').wheels[0],{x:4.5,y:-2,scale:1.15});assert.ok(payload.vehicles.every(v=>v.wheels.length>=2));
  await page.reload();await page.waitForFunction(()=>assetsLoaded);await page.locator('#wheel-editor-open').click();await page.locator('#wheel-editor-car').selectOption('8');assert.equal(await page.locator('#wheel-editor-x').inputValue(),'4.5');
+ await page.locator('#wheel-editor-part').selectOption('driver');assert.equal(await page.locator('#wheel-editor-driver-scale').inputValue(),'120');await page.locator('#wheel-editor-part').selectOption('wheels');
  if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/wheel-editor.png'});
  await page.locator('#wheel-editor-reset').click();assert.equal(await page.locator('#wheel-editor-x').inputValue(),'0');await page.locator('#wheel-editor-save').click();assert.equal(await page.evaluate(()=>wheelAppearance(VEHICLES[8],0).scale),1);
  await page.locator('#wheel-editor-car').selectOption('4');assert.equal(await page.locator('#wheel-editor-axle option').count(),4);
@@ -27,6 +39,11 @@ try{
  const phoneTarget=await phone.evaluate(()=>{const v=VEHICLES[8],z=Math.min(4.5,850/(v.wheels.at(-1)-v.wheels[0]+140)),r=document.querySelector('#wheel-editor-preview').getBoundingClientRect();return {x:r.left+(500+v.wheels[0]*z)*r.width/1000,y:r.top+(290+v.mount*z)*r.height/480};});
  const cdp=await phoneContext.newCDPSession(phone);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:phoneTarget.x,y:phoneTarget.y,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:phoneTarget.x+15,y:phoneTarget.y+5,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  assert.ok(Number(await phone.locator('#wheel-editor-x').inputValue())>1,'touch drag moves the wheel');
+ await phone.locator('#wheel-editor-test').tap();
+ await phone.waitForFunction(()=>!!window.gameDebug.getWheelTest(),{},{timeout:5000});
+ const gas=phone.locator('#wheel-test-controls [data-pedal="gas"]');await gas.scrollIntoViewIfNeeded();const gasBox=await gas.boundingBox();
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:gasBox.x+gasBox.width/2,y:gasBox.y+gasBox.height/2,id:2}]});await phone.waitForFunction(()=>window.gameDebug.getWheelTest()?.car.vx>20);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await phone.locator('#wheel-editor-test').tap();assert.equal(await phone.evaluate(()=>window.gameDebug.getWheelTest()),null);
  assert.equal(await phone.evaluate(()=>document.querySelector('#wheel-editor').scrollWidth>document.querySelector('#wheel-editor').clientWidth),false,'editor fits a phone');
- assert.deepEqual(errors,[]);console.log('PASS: mouse/touch placement, numeric size and coordinates, save/reload, reset, all-car export, four axles, mobile fit, unchanged physics.');
+ assert.deepEqual(errors,[]);console.log('PASS: mouse/touch placement, physical contact geometry, unsaved test drive, driver position/size, save/reload, reset, all-car export and mobile fit.');
 }finally{await browser?.close();server.kill();}

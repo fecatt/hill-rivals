@@ -18,23 +18,25 @@ const BODY_ANCHORS={
  evo:{axles:[335,1440],y:690,seat:930,floor:420,size:.25,seatDrop:9},
  van:{axles:[400,1464],y:730,seat:1260,floor:510,size:.38}
 };
-// Personal wheel alignment changes rendering only; wheelSpecs remains the physics geometry.
+// Wheel alignment is shared by contact physics, suspension and drawing.
 const WHEEL_ALIGNMENT_KEY='hill-rivals-wheel-alignment-v1';
-const DEFAULT_WHEEL_ALIGNMENTS={};
-let wheelAlignments={...DEFAULT_WHEEL_ALIGNMENTS};
+const DEFAULT_WHEEL_ALIGNMENTS={},DEFAULT_DRIVER_ALIGNMENTS={};
+let wheelAlignments={...DEFAULT_WHEEL_ALIGNMENTS},wheelAlignmentPreview=null,driverAlignments={...DEFAULT_DRIVER_ALIGNMENTS},driverAlignmentPreview=null;
+function validDriverAlignment(raw){const limit=(n,lo,hi,fallback)=>typeof n==='number'&&Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):fallback;return {x:limit(raw?.x,-60,60,0),y:limit(raw?.y,-60,60,0),scale:limit(raw?.scale,.3,2.5,1)}}
+function driverAppearance(v){return driverAlignmentPreview?.[v.kind]??driverAlignments[v.kind]??{x:0,y:0,scale:1}}
 function validWheelAlignment(v,raw){return v.wheels.map((_,i)=>{const w=raw?.[i]||{};const limit=(n,lo,hi,fallback)=>typeof n==='number'&&Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):fallback;return {x:limit(w.x,-35,35,0),y:limit(w.y,-35,35,0),scale:limit(w.scale,.4,1.8,1)}})}
-try{if(typeof localStorage!=='undefined'){const saved=JSON.parse(localStorage.getItem(WHEEL_ALIGNMENT_KEY)||'{}');for(const v of VEHICLES)if(Array.isArray(saved?.[v.kind]))wheelAlignments[v.kind]=validWheelAlignment(v,saved[v.kind]);}}catch{}
-function wheelAppearance(v,index,alignment=wheelAlignments[v.kind]){return alignment?.[index]??{x:0,y:0,scale:1}}
-function saveAllWheelAlignments(raw){const next=Object.fromEntries(VEHICLES.map(v=>[v.kind,validWheelAlignment(v,raw[v.kind])]));try{localStorage.setItem(WHEEL_ALIGNMENT_KEY,JSON.stringify(next));}catch{return false}wheelAlignments=next;return true}
-function exportWheelAlignments(raw=wheelAlignments){return {format:'hill-rivals-wheel-alignment',version:1,vehicles:VEHICLES.map(v=>({kind:v.kind,name:v.name,wheels:validWheelAlignment(v,raw[v.kind])}))}}
+try{if(typeof localStorage!=='undefined'){const saved=JSON.parse(localStorage.getItem(WHEEL_ALIGNMENT_KEY)||'{}');for(const v of VEHICLES){if(Array.isArray(saved?.[v.kind]))wheelAlignments[v.kind]=validWheelAlignment(v,saved[v.kind]);if(saved?.__drivers?.[v.kind])driverAlignments[v.kind]=validDriverAlignment(saved.__drivers[v.kind]);}}}catch{}
+function wheelAppearance(v,index,alignment=wheelAlignmentPreview?.[v.kind]??wheelAlignments[v.kind]){return alignment?.[index]??{x:0,y:0,scale:1}}
+function saveAllWheelAlignments(raw,rawDrivers=driverAlignments){const next=Object.fromEntries(VEHICLES.map(v=>[v.kind,validWheelAlignment(v,raw[v.kind])])),drivers=Object.fromEntries(VEHICLES.map(v=>[v.kind,validDriverAlignment(rawDrivers[v.kind])]));try{localStorage.setItem(WHEEL_ALIGNMENT_KEY,JSON.stringify({...next,__drivers:drivers}));}catch{return false}wheelAlignments=next;driverAlignments=drivers;return true}
+function exportWheelAlignments(raw=wheelAlignments,rawDrivers=driverAlignments){return {format:'hill-rivals-wheel-alignment',version:2,vehicles:VEHICLES.map(v=>({kind:v.kind,name:v.name,wheels:validWheelAlignment(v,raw[v.kind]),driver:validDriverAlignment(rawDrivers[v.kind])}))}}
 function vehicleBody(c,v,bob,paint=ctx){
  const im=paintedBodies[v.kind],crop=BODY_BOUNDS[v.kind],a=BODY_ANCHORS[v.kind];if(!im?.complete||!im.naturalWidth)return;
  // Undo the old model-wide horizontal stretch. The painting's vertical scale comes
  // from its real axle spacing, never an arbitrary rectangular height.
  paint.save();paint.scale(1/v.bodyScale,1);paint.imageSmoothingEnabled=true;
- const specs=wheelSpecs(v),pose=visualPose(c),first=specs[0].x,last=specs[specs.length-1].x;
+ const specs=baseWheelSpecs(v),pose=visualPose(c),physical=wheelSpecs(v),first=specs[0].x,last=specs[specs.length-1].x;
  const unit=(last-first)/(a.axles[a.axles.length-1]-a.axles[0])*BODY_ART_SCALE;
- const wheelY=pose.wheels.reduce((sum,y,j)=>sum+y+specs[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
+ const wheelY=pose.wheels.reduce((sum,y,j)=>sum+y-(physical[j].y-v.mount)+specs[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
  const top=wheelY+(crop[1]-a.y)*unit,height=crop[3]*unit;
  let strips=[];
  if(v.kind==='monster'){
@@ -45,17 +47,19 @@ function vehicleBody(c,v,bob,paint=ctx){
   for(let j=0;j<source.length-1;j++)strips.push([source[j],source[j+1],dest[j],dest[j+1]]);
  }
  const mapX=x=>{for(const [s1,s2,x1,x2] of strips)if(x>=s1&&x<=s2)return x1+(x-s1)/(s2-s1)*(x2-x1);return 0};
- const seatX=mapX(a.seat),floor=wheelY+(a.floor-a.y)*unit+(a.seatDrop||0);
+ const driver=driverAppearance(v),seatX=mapX(a.seat)+driver.x,floor=wheelY+(a.floor-a.y)*unit+(a.seatDrop||0);
  // Enlarge the seated figure while keeping its head at the same cabin height.
  const openCabin=['jeep','buggy','hotrod','rocket'].includes(v.kind);
- const driverSize=a.size*(openCabin?1.32:1.15),driverFloor=floor+79*(driverSize-a.size)+(openCabin?3:0);
+ const baseDriverSize=a.size*(openCabin?1.32:1.15),driverSize=baseDriverSize*driver.scale,driverFloor=floor+79*(baseDriverSize-a.size)+(openCabin?3:0)+driver.y;
  // Draw the complete seated figure FIRST; the entire body is then in front of it.
- if(!c.emptyCabin){paint.save();paint.beginPath();paint.rect(seatX-24,top-20,48,Math.max(20,driverFloor-top+20));paint.clip();paint.translate(seatX+6*driverSize,driverFloor-13*driverSize);paint.scale(driverSize,driverSize);seatedDriver(c,0);paint.restore();}
+ if(!c.emptyCabin){paint.save();paint.beginPath();paint.rect(seatX-40*driver.scale,top-80,80*driver.scale,Math.max(20,driverFloor-top+100));paint.clip();paint.translate(seatX+6*driverSize,driverFloor-13*driverSize);paint.scale(driverSize,driverSize);seatedDriver(c,0);paint.restore();}
  // Wheels are drawn first. Use the painting's own transparent wheel wells;
  // never erase the foreground fenders with a circular wheel mask.
  for(const [s1,s2,x1,x2] of strips)paint.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,top,x2-x1+.15,height);
  paint.restore();
 }
+function withDrawingContext(paint,action){const previous=ctx;try{ctx=paint;return action()}finally{ctx=previous}}
+function drawVehicleOn(paint,c){return withDrawingContext(paint,()=>drawVehicle(c))}
 function drawTurboFlame(x,y,power=1){
  ctx.save();ctx.translate(x,y);const pulse=1+Math.sin(time*39)*.12+Math.sin(time*67)*.08,length=(36+power*24)*pulse;
  const glow=ctx.createRadialGradient(-length*.4,0,1,-length*.4,0,length*.65);glow.addColorStop(0,'#ffae4266');glow.addColorStop(1,'#ff842000');ctx.fillStyle=glow;ctx.fillRect(-length*1.2,-length*.65,length*1.4,length*1.3);
@@ -68,7 +72,7 @@ function drawTurboFlame(x,y,power=1){
 function drawVehicle(c){
  const v=carSpec(c),p=visualPose(c),wheels=wheelSpecs(v);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.a);if(!c.alive)ctx.globalAlpha=.4;
  if(c.alive&&(c.boost>0||v.rocket&&c.rocketOn)){ctx.save();ctx.scale(v.bodyScale,1);drawTurboFlame(v.rocket?-70:-54,v.rocket?-17:7,c.boost>0?1.25:.65);ctx.restore()}
- for(let j=0;j<wheels.length;j++){const {x:rx,r:physicalR}=wheels[j],adjustment=wheelAppearance(v,j),r=physicalR*TIRE_DRAW_SCALE*adjustment.scale,yy=p.wheels[j]+adjustment.y;ctx.save();ctx.translate(rx+adjustment.x,yy);ctx.rotate(c.wheel*18/r);
+ for(let j=0;j<wheels.length;j++){const {x:rx,r:physicalR}=wheels[j],r=physicalR*TIRE_DRAW_SCALE,yy=p.wheels[j];ctx.save();ctx.translate(rx,yy);ctx.rotate(c.wheel*18/r);
   const tire=ctx.createRadialGradient(-r*.3,-r*.35,2,0,0,r);tire.addColorStop(0,'#536271');tire.addColorStop(.65,'#293946');tire.addColorStop(1,'#142431');circle(0,0,r,tire,'#122230');circle(0,0,r*.62,'#bdd0d9','#354d5d');circle(0,0,r*.43,'#617b8e');for(let k=0;k<6;k++){ctx.rotate(Math.PI/3);strokeLine([[r*.17,0],[r*.49,0]],'#e3eef0',2.3)}circle(0,0,3,'#e7efef');
   if(c.mud>0){for(let k=0;k<7;k++){const a=k*.9;circle(Math.cos(a)*r*.62,Math.sin(a)*r*.62,r*(k%2?.21:.28),k%2?'#9b713f':'#674b30')}circle(-r*.18,r*.1,r*.25,'#886039')}
   ctx.restore();
@@ -87,7 +91,7 @@ function drawGarageRoad(){
  // A level garage road keeps the parked vehicle clear of the menu.
  const roadWidth=W/size,roadHeight=(H-roadY)/size;
  drawGround(t,0,roadWidth,roadHeight+300,true);
- const parked={i:0,model,x,y:ground-v.mount-Math.max(...wheelSpecs(v).map(w=>w.r)),vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
+ const parked={i:0,model,x,y:ground-Math.max(...wheelSpecs(v).map(w=>w.y+w.r)),vx:0,vy:0,a:0,wheel:0,alive:true,contacts:[],shield:0,boost:0,mud:0,noticeTime:0,emptyCabin:true};
  drawVehicle(parked);ctx.restore();
 }
 let crateSerial=0;
