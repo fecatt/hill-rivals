@@ -295,7 +295,7 @@ body.online #chat-log p.chat-bubble { position:relative;width:fit-content;max-wi
 body.online #chat-log p.mine { margin-left:auto;background:#dde8cd;border-radius:16px 16px 4px 16px; }
 body.online #chat-log p b { display:block;margin-bottom:3px;font-size:11px;color:#65795e; }
 body.online #chat-dialog #chat-form { grid-row:2;display:flex;gap:10px;margin:0;padding:0;height:48px;min-height:48px;align-items:stretch; }
-body.online #chat-dialog #chat-text { flex:1;width:0;min-width:0;height:48px;max-height:48px;box-sizing:border-box;padding:10px 12px;font-size:16px;border:1px solid #d5dac8;border-radius:12px;background:#fffdf5; }
+body.online #chat-dialog #chat-text { display:block;flex:1;width:0;min-width:0;height:48px;min-height:48px;max-height:48px;resize:none;overflow-y:auto;box-sizing:border-box;padding:10px 12px;font:inherit;font-size:16px;line-height:1.4;border:1px solid #d5dac8;border-radius:12px;background:#fffdf5; }
 body.online #chat-dialog #chat-form button { flex:0 0 48px;width:48px;height:48px;min-height:48px;max-height:48px;margin:0;padding:12px;box-sizing:border-box; }
 body.online #chat-form button svg { display:block;width:22px;height:22px; }
 body.online #network-dialog #network-room-list { flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain; }
