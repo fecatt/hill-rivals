@@ -14,7 +14,7 @@ const BODY_ANCHORS={
  monster:{axles:[210,545,1230],y:710,seat:850,floor:540,size:.58},
  hotrod:{axles:[310,1340],y:710,seat:645,floor:520,size:.38,seatDrop:12},
  rocket:{axles:[440,1390],y:690,seat:860,floor:470,size:.35,seatDrop:16},
- van:{axles:[400,1464],y:730,seat:1260,floor:655,size:.38}
+ van:{axles:[400,1464],y:730,seat:1260,floor:510,size:.38}
 };
 function vehicleBody(c,v,bob){
  const im=paintedBodies[v.kind],crop=BODY_BOUNDS[v.kind],a=BODY_ANCHORS[v.kind];if(!im?.complete||!im.naturalWidth)return;
