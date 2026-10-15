@@ -299,7 +299,6 @@ body.online #chat-dialog #chat-text { flex:1;width:0;min-width:0;height:48px;max
 body.online #chat-dialog #chat-form button { flex:0 0 48px;width:48px;height:48px;min-height:48px;max-height:48px;margin:0;padding:12px;box-sizing:border-box; }
 body.online #chat-form button svg { display:block;width:22px;height:22px; }
 body.online #network-dialog #network-room-list { flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain; }
-body.online #network-dialog #network-summary { flex:0 0 auto; }
 body.online #invite-dialog .drawer-body { justify-content:center;align-items:center;overflow-y:auto; }
 body.online #invite-dialog #invite-qr { width:min(100%,320px,calc(var(--drawer-height,100dvh) - 115px));max-width:100%;flex-shrink:0;aspect-ratio:1;padding:0;margin:0;background:white;border-radius:16px;overflow:hidden; }
 body.online #invite-qr svg { display:block;width:100%;height:100%; }
@@ -424,6 +423,25 @@ body.online #room-panel .room-list>div>b { flex:0 0 auto;white-space:nowrap; }
  body.online #lobby { width:1000px!important;max-width:none;height:350px;min-height:350px;margin:10px auto;zoom:var(--garage-fit,1); }
  body.online #room-panel { height:350px;min-height:350px; }
  body.online #room-panel .room-list>div { height:26px;min-height:26px; }
+}
+/* Put readiness next to the room code; the other rows reclaim the old status row. */
+body.online #room-panel { grid-template-rows:auto minmax(110px,1fr) auto 58px!important; }
+body.online #room-panel .room-heading { grid-column:1;grid-row:1;display:grid;grid-template-columns:max-content minmax(0,1fr) 44px;grid-template-rows:auto auto;align-items:center;gap:6px 10px; }
+body.online #room-panel .room-heading h2 { grid-column:1/3;grid-row:1;min-width:0; }
+body.online #room-panel .room-heading #rename-room { grid-column:3;grid-row:1; }
+body.online #room-panel .room-heading #copy-code { grid-column:1;grid-row:2;justify-self:start; }
+body.online #room-panel .room-heading #room-status { grid-column:2/4;grid-row:2;min-width:0;min-height:0;height:auto;margin:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;line-height:1.3; }
+body.online #room-panel .room-list { grid-column:1;grid-row:2; }
+body.online #room-panel #room-browser { grid-column:1;grid-row:3; }
+body.online #room-panel>#start { grid-column:1/-1;grid-row:4; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-panel { grid-template-rows:auto minmax(75px,1fr) auto 42px!important; }
+ body.online #room-panel .room-heading { grid-template-columns:max-content minmax(0,1fr) 30px; }
+ body.online #room-panel .room-heading #rename-room { grid-column:3;grid-row:1;width:28px;height:28px;padding:5px; }
+ body.online #room-panel .room-heading #room-status { font-size:9px; }
+ body.online #room-panel .room-list { grid-row:2; }
+ body.online #room-panel #room-browser { grid-row:3; }
+ body.online #room-panel>#start { grid-row:4; }
 }
 /* Keep the desktop room UI inside the window instead of scrolling the document. */
 @media (pointer:fine){

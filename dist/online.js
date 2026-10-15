@@ -284,7 +284,7 @@ function renderRoom(state){
   if(state.phase==='lobby'){
     onlineRound=-1;localCar=null;localCars.clear();
     mode='lobby';count=0;snapshots=[];renderTarget=-Infinity;$('#lobby').hidden=false;$('#foot').hidden=false;$('#hud').hidden=true;$('#overlay').hidden=true;touch.hidden=true;
-    $('#room-status').textContent='Готовы '+ready+' из '+state.players.length+'. Старт — после готовности всех игроков.';
+    $('#room-status').textContent='Готовы '+ready+' из '+state.players.length;
   }
   if(state.phase==='countdown'){
     $('#room-status').textContent='До общего старта: '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' с. Все, кто в комнате, участвуют!';
@@ -306,7 +306,7 @@ function connect(){
   socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
-  if(state.type==='room-left'){roomState=null;selfRoomRequested=true;window.peerTransport.reset();const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);roomExitNotice=state.reason==='kicked'?'Ведущий удалил вас из комнаты.':'Вы вышли из комнаты.';return;}
+  if(state.type==='room-left'){roomState=null;selfRoomRequested=state.reason!=='left';window.peerTransport.reset();const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);roomExitNotice=state.reason==='kicked'?'Ведущий удалил вас из комнаты.':'Вы вышли из комнаты.';return;}
   if(state.type==='directory'){if(roomState?.room){roomUI.updateDirectory(state);return;}roomUI.directory(state);const requested=new URL(location.href).searchParams.get('room');if(!requested&&!selfRoomRequested){selfRoomRequested=true;send({type:'create-room',track:+$('#track').value,vehicle:+$('#vehicle').value});sendProfile();}if(roomExitNotice)$('#directory-notice').textContent=roomExitNotice;return;}
     if(state.type==='chat'){roomUI.chat(state.messages);return;}
     if(state.type==='notice'){roomUI.notice(state.text);return;}
@@ -333,7 +333,7 @@ function connect(){
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
 window.onlineSession={
- enter(){selfRoomRequested=false;roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;window.assetsReady.then(connect);},
+ enter(){selfRoomRequested=false;const url=new URL(location.href);if(url.searchParams.has('room')&&url.searchParams.get('mode')!=='online'){url.searchParams.delete('room');history.replaceState({},'',url);}roomPanel.hidden=false;onlineBar.hidden=true;renderPick();$('#players').closest('label').hidden=true;roomUI.browser.hidden=false;$('#lobby').hidden=false;window.assetsReady.then(connect);},
  leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };

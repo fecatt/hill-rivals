@@ -53,8 +53,9 @@ export class Lobby {
   }))});
  }
  broadcastDirectory(){for(const client of this.clients.values())this.directory(client.id);}
- removeFromRoom(client){
+ removeFromRoom(client,deleteIfEmpty=false){
   const room=client.room;if(!room)return;room.leave(client.id);client.room=null;this.markOccupancy(room);
+  if(deleteIfEmpty&&room.clients.size===0)this.rooms.delete(room.code);
   this.persistRooms();
  }
  disconnect(id,expectedSend){
@@ -84,9 +85,9 @@ export class Lobby {
    if(!room){client.send({type:'notice',text:'Комната не найдена. Проверьте код.'});return;}
    if(client.room===room)return;
    if(room.seatCount()>=8){client.send({type:'notice',text:'Комната заполнена: максимум 8 гонщиков.'});return;}
-   this.removeFromRoom(client);client.room=room;room.join(client.send,id,client.name);this.markOccupancy(room);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
+   this.removeFromRoom(client,true);client.room=room;room.join(client.send,id,client.name);this.markOccupancy(room);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
-  if(msg.type==='leave-room'){this.removeFromRoom(client);client.send({type:'room-left',reason:'left'});this.directory(id);this.broadcastDirectory();return;}
+  if(msg.type==='leave-room'){this.removeFromRoom(client,true);client.send({type:'room-left',reason:'left'});this.directory(id);this.broadcastDirectory();return;}
   if(msg.type==='kick-player'){
    const room=client.room,targetId=typeof msg.player==='string'?msg.player:'';
    if(!room||room.host!==id||!targetId||targetId===id)return;

@@ -39,7 +39,7 @@ function chooseMode(next,push=true){
   }
   if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.syncOnlineFromGarage?.(savedLocal);window.onlineSession.enter();}
   window.refreshChoices?.();syncGameScreen();window.scrollTo(0,0);
-  if(push){const url=new URL(location.href);url.searchParams.delete('local');if(next!=='online')url.searchParams.delete('room');if(next==='online')url.searchParams.set('mode','online');else url.searchParams.delete('mode');history.pushState({},'',url);}
+  if(push){const url=new URL(location.href);url.searchParams.delete('local');url.searchParams.delete('room');if(next==='online')url.searchParams.set('mode','online');else url.searchParams.delete('mode');history.pushState({},'',url);}
  };
  if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
 }

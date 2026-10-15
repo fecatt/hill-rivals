@@ -74,15 +74,17 @@ test('offline room members stay reconnectable until five minutes, then are remov
  now+=1; lobby.tick();assert.equal(lobby.rooms.get(code).clients.has(guest),false);assert.equal(lobby.sessions.has('guest-session'),false);
 });
 
-test('empty rooms expire after fifteen minutes and occupied rooms never expire',()=>{
- let now=1000;const lobby=new Lobby({now:()=>now}),messages=[];
- const a=lobby.connect(m=>messages.push(m),'home');lobby.message(a,{type:'create-room'});const code=messages.find(m=>m.type==='state').room.code;
- now+=20*60*1000;lobby.tick();assert.ok(lobby.rooms.has(code),'active room survives');
- lobby.message(a,{type:'leave-room'});const emptyAt=now;
- now=emptyAt+15*60*1000-1;lobby.tick();assert.ok(lobby.rooms.has(code));
- lobby.message(a,{type:'join-room',code});lobby.tick();assert.ok(lobby.rooms.has(code),'returning player resets timer');
- now+=20*60*1000;lobby.tick();assert.ok(lobby.rooms.has(code));lobby.disconnect(a);
- now+=15*60*1000;lobby.tick();assert.equal(lobby.rooms.has(code),false);
+test('leaving or switching removes an empty old room; offline sessions still expire after five minutes',()=>{
+ let now=1000;const lobby=new Lobby({now:()=>now}),outA=[],outB=[];
+ const a=lobby.connect(m=>outA.push(m),'home','a'),b=lobby.connect(m=>outB.push(m),'elsewhere','b');
+ lobby.message(a,{type:'create-room'});const oldCode=outA.find(m=>m.type==='state').room.code;
+ lobby.message(b,{type:'create-room'});const targetCode=outB.find(m=>m.type==='state').room.code;
+ lobby.message(a,{type:'join-room',code:targetCode});assert.equal(lobby.rooms.has(oldCode),false,'switching out of a solo room deletes it immediately');assert.equal(lobby.rooms.get(targetCode).clients.size,2);
+ lobby.message(a,{type:'leave-room'});assert.equal(lobby.rooms.has(targetCode),true,'a room with another racer remains');
+ lobby.message(b,{type:'leave-room'});assert.equal(lobby.rooms.has(targetCode),false,'last voluntary leave deletes the room immediately');
+ lobby.message(a,{type:'create-room'});const offlineCode=outA.filter(m=>m.type==='state').at(-1).room.code;lobby.disconnect(a);assert.ok(lobby.rooms.has(offlineCode),'offline session remains reconnectable');
+ now+=5*60*1000-1;lobby.tick();assert.ok(lobby.rooms.get(offlineCode).clients.has(a));now++;lobby.tick();assert.equal(lobby.rooms.get(offlineCode).clients.size,0,'disconnected racer leaves after reconnect window');
+ now=1000+15*60*1000-1;lobby.tick();assert.ok(lobby.rooms.has(offlineCode));now++;lobby.tick();assert.equal(lobby.rooms.has(offlineCode),false,'abandoned room expires after its empty-room window');
 });
 
 test('empty-room deadline persists through server restart and expires from stored directory',()=>{

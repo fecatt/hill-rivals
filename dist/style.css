@@ -305,7 +305,7 @@ body.online #racer-column .ability-select .choice-arrow{width:24px;height:24px;f
 #network-dialog[open]{position:fixed;inset:0 0 0 auto;width:min(410px,92vw);height:100dvh;max-height:100dvh;box-sizing:border-box;margin:0;display:flex;flex-direction:column;gap:10px;overflow:hidden;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom));border:1px solid #d8dfce;border-radius:18px 0 0 18px;background:#fff8e7;color:#20382f;box-shadow:-12px 0 40px #20382f28}
 #network-dialog::backdrop{background:#15251f66;backdrop-filter:blur(2px)}
 #network-dialog #close-network{flex:0 0 38px;align-self:flex-end;width:38px;height:38px;border:1px solid #cfd9c2;border-radius:10px;background:#eef0df;color:#365b48;font-size:24px;line-height:1;padding:0}
-#network-dialog h2{margin:0;font-size:22px}#network-summary{margin:0;color:#687b6b;font-size:12px}
+#network-dialog h2{margin:0;font-size:22px}
 #network-room-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:10px;padding:2px}
 .network-room-card{padding:12px;border:1px solid #d8dfce;border-radius:13px;background:#f4f1e5}
 .network-room-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.network-room-heading b{font-size:14px}.network-room-heading span{padding:4px 7px;border-radius:7px;background:#e6eadb;color:#365b48;font-size:11px;font-weight:800;letter-spacing:1px}
