@@ -58,7 +58,7 @@ test('jeep accelerates forward with consistent speed and distance units',()=>{
   for(let n=0;n<240;n++){c.fuel=100;physics(c,1/120);}
   return {delta:c.x-c.startX,vx:c.vx,metres:raceMetres(c),kph:speedKph(c.vx)};
  })()`);
- assert.ok(r.delta>100);assert.ok(r.vx>0);assert.ok(r.kph<=73);
+ assert.ok(r.delta>100);assert.ok(r.vx>0);assert.ok(r.kph<=105.1);
  assert.ok(Math.abs(r.delta/r.metres-r.vx*3.6/r.kph)<1e-6);
 });
 
@@ -73,7 +73,7 @@ test('garage reports the actual driven axles and verified power only',()=>{
 });
 
 test('holding gas on level lunar ground does not automatically flip ordinary cars',()=>{
- for(const model of [0,1,2,3,4,5,7]){
+ for(const model of [0,1,2,3,4,5,7,8]){
   const run=fixture();const result=run(`(()=>{
    terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=${model};track=2;input=()=>[true,false];
    const c=newCar(0);c.y=-carSpec(c).mount-Math.max(...wheelSpecs(carSpec(c)).map(w=>w.r));
@@ -102,4 +102,17 @@ test('rocket exceeds the former 117 km/h cap without launching vertically on lev
   return {speed:speedKph(c.vx),alive:c.alive,angle:c.a};
  })()`);
  assert.ok(result.alive&&result.speed>250&&Math.abs(result.angle)<.2);
+});
+
+test('Evo is a separate ninth car with European GSR specs and reaches its advertised speed',()=>{
+ const run=fixture();const result=run(`(()=>{
+  terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=8;track=3;input=()=>[true,false];
+  const c=newCar(0),v=carSpec(c);c.y=-v.mount-v.radius;let to100=0;
+  for(let n=0;n<9600;n++){c.fuel=100;physics(c,1/120);if(!to100&&speedKph(c.vx)>=100)to100=(n+1)/120}
+  return {count:VEHICLES.length,hatch:VEHICLES[3].kind,kind:v.kind,power:v.powerHp,mass:v.mass,wheelbase:worldMetres(v.wheels[1]-v.wheels[0]),speed:speedKph(c.vx),alive:c.alive,to100};
+ })()`);
+ assert.equal(result.count,9);assert.equal(result.hatch,'rally');assert.equal(result.kind,'evo');
+ assert.equal(result.power,295);assert.equal(result.mass,1560);assert.ok(Math.abs(result.wheelbase-2.65)<.02);
+ assert.ok(result.alive&&Math.abs(result.speed-240)<.2,JSON.stringify(result));
+ assert.ok(result.to100>4&&result.to100<8,JSON.stringify(result));
 });

@@ -75,7 +75,7 @@ export class Lobby {
    if(client.room)return;
    let code;do{code=Array.from({length:5},()=>String.fromCharCode(65+randomInt(26))).join('');}while(this.rooms.has(code));
    const name=typeof msg.name==='string'?msg.name.trim().replace(/[\u0000-\u001f\u007f]/g,' ').slice(0,36):'';
-   const room=new Room({...this.options,code,name:name||'Гонка '+code});if(Number.isInteger(msg.track)&&msg.track>=0&&msg.track<7)room.track=msg.track;if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<8)room.vehicle=msg.vehicle;this.rooms.set(code,room);client.room=room;
+   const room=new Room({...this.options,code,name:name||'Гонка '+code});if(Number.isInteger(msg.track)&&msg.track>=0&&msg.track<7)room.track=msg.track;if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<9)room.vehicle=msg.vehicle;this.rooms.set(code,room);client.room=room;
    room.join(client.send,id,client.name);this.markOccupancy(room);this.persistRooms();client.send({type:'chat',messages:room.chat});this.broadcastDirectory();return;
   }
   if(msg.type==='join-room'){

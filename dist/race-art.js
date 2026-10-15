@@ -4,6 +4,7 @@ const paintedBodies={};
 const TIRE_DRAW_SCALE=1;
 const BODY_ART_SCALE=1.18;
 const BODY_BOUNDS={"jeep":[22,144,1497,648],"buggy":[30,169,1488,608],"pickup":[12,177,1514,567],"rally":[43,119,1712,634],"monster":[6,157,1527,610],"hotrod":[28,263,1486,469],"rocket":[43,160,1717,538],"van":[44,124,1684,708]};
+BODY_BOUNDS.evo=[43,119,1712,634];
 for(const kind of Object.keys(BODY_BOUNDS)){const im=new Image();im.src=kind==='jeep'?'assets/car-jeep-open-arches.png':'assets/car-'+kind+'.png';paintedBodies[kind]=im}
 // Source anchors are wheel-arch centres in each original painting.
 const BODY_ANCHORS={
@@ -14,6 +15,7 @@ const BODY_ANCHORS={
  monster:{axles:[210,545,1230],y:710,seat:850,floor:540,size:.58},
  hotrod:{axles:[310,1340],y:710,seat:645,floor:520,size:.38,seatDrop:12},
  rocket:{axles:[440,1390],y:690,seat:860,floor:470,size:.35,seatDrop:16},
+ evo:{axles:[335,1440],y:690,seat:930,floor:420,size:.25,seatDrop:9},
  van:{axles:[400,1464],y:730,seat:1260,floor:510,size:.38}
 };
 function vehicleBody(c,v,bob){

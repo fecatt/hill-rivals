@@ -67,7 +67,7 @@ test('only host selects settings; active race visitors spectate; disconnect ends
   room.message(c,{type:'ready',ready:true});assert.equal(room.phase,'countdown');
 });
 test('empty room resets; forgotten controls expire; all models run finite physics',()=>{
- for(let model=0;model<8;model++){
+ for(let model=0;model<9;model++){
     let now=0;const room=new Room({now:()=>now});const a=room.join(()=>{});
     room.message(a,{type:'settings',vehicle:model,track:model});room.message(a,{type:'ready',ready:true});
     now=10000;room.tick();room.message(a,{type:'input',gas:true});

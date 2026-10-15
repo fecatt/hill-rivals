@@ -5,6 +5,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 function setup(){const lobby=new Lobby(),messages=new Map();const connect=network=>{const list=[];const id=lobby.connect(msg=>list.push(structuredClone(msg)),network);messages.set(id,list);return id;};return {lobby,messages,connect,last:(id,type)=>messages.get(id).filter(m=>m.type===type).at(-1)};}
+
+test('Evo can be selected when creating a room and when changing settings',()=>{
+ const {lobby,connect,last}=setup(),id=connect('home');
+ lobby.message(id,{type:'create-room',vehicle:8});assert.equal(last(id,'state').vehicle,8);
+ lobby.message(id,{type:'settings',vehicle:3});assert.equal(last(id,'state').vehicle,3);
+ lobby.message(id,{type:'settings',vehicle:8});assert.equal(last(id,'state').vehicle,8);
+ lobby.message(id,{type:'settings',vehicle:9});assert.equal(last(id,'state').vehicle,8);
+});
 test('room code and settings survive empty room, disconnection and server restart',()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hill-rooms-'));
  try{

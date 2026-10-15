@@ -107,7 +107,7 @@ export class Room {
     }
     if(msg.type==='settings' && this.phase==='lobby' && id===this.host) {
       if(Number.isInteger(msg.track)&&msg.track>=0&&msg.track<7)this.track=msg.track;
-      if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<8)this.vehicle=msg.vehicle;
+      if(Number.isInteger(msg.vehicle)&&msg.vehicle>=0&&msg.vehicle<9)this.vehicle=msg.vehicle;
       for(const c of this.clients.values())c.ready=false;
     }
     this.considerStart(); this.broadcast();
