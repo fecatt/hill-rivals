@@ -1,6 +1,28 @@
 'use strict';
+const fullscreenRoot=document.documentElement;
+const requestGameScreen=fullscreenRoot.requestFullscreen||fullscreenRoot.webkitRequestFullscreen;
+const fullscreenButton=document.createElement('button');fullscreenButton.id='fullscreen-button';fullscreenButton.type='button';
+fullscreenButton.textContent='На весь экран';fullscreenButton.setAttribute('aria-label','На весь экран');fullscreenButton.title='На весь экран';fullscreenButton.hidden=!requestGameScreen;
+window.cardTools.append(fullscreenButton);
+function gameIsFullscreen(){return !!(document.fullscreenElement||document.webkitFullscreenElement);}
+fullscreenButton.onclick=async()=>{
+ try{
+  if(gameIsFullscreen())await (document.exitFullscreen||document.webkitExitFullscreen).call(document);
+  else if(requestGameScreen){
+   await requestGameScreen.call(fullscreenRoot,{navigationUI:'hide'});
+   if(gameIsFullscreen()&&screen.orientation?.lock)await screen.orientation.lock('landscape').catch(()=>{});
+  }
+ }catch{} // Unsupported browsers keep the ordinary game working.
+};
+function fullscreenChanged(){
+ keysClear();resize();
+ const label=gameIsFullscreen()?'Выйти из полного экрана':'На весь экран';fullscreenButton.setAttribute('aria-label',label);fullscreenButton.title=label;fullscreenButton.textContent=label;
+ if(!gameIsFullscreen())screen.orientation?.unlock?.();
+}
+document.addEventListener('fullscreenchange',fullscreenChanged);document.addEventListener('webkitfullscreenchange',fullscreenChanged);
 window.populatePauseSettings=panel=>{
  panel.replaceChildren();
+ if(mobileInput.matches&&requestGameScreen){const full=document.createElement('button');full.id='pause-fullscreen';full.textContent=fullscreenButton.textContent;full.onclick=()=>fullscreenButton.click();panel.append(full);}
  const audioButton=document.createElement('button');audioButton.textContent=$('#sound').textContent;audioButton.onclick=()=>{$('#sound').click();audioButton.textContent=$('#sound').textContent;};panel.append(audioButton);
 };
 document.addEventListener('pointerdown',e=>{const panel=$('#pause-settings');if(panel&&!panel.hidden&&!panel.contains(e.target)&&!e.target.closest('#pause-settings-toggle'))panel.hidden=true;});
@@ -10,9 +32,9 @@ localSettingsButton.onclick=()=>{localOptions.hidden=!localOptions.hidden;};
 window.refreshMobileSettings=()=>{
  if(currentMode==='local'){
   if(localSettingsButton.parentElement!==window.cardTools)window.cardTools.append(localSettingsButton,localOptions);
-  for(const button of [$('#sound'),$('#install-app')])if(button.parentElement!==localOptions)localOptions.append(button);
+  for(const button of [$('#sound'),$('#install-app'),fullscreenButton])if(button.parentElement!==localOptions)localOptions.append(button);
  }else{
-  for(const button of [$('#sound'),$('#install-app')])if(button.parentElement===localOptions)window.cardTools.append(button);
+  for(const button of [$('#sound'),$('#install-app'),fullscreenButton])if(button.parentElement===localOptions)window.cardTools.append(button);
   localSettingsButton.remove();localOptions.remove();localOptions.hidden=true;
  }
 };

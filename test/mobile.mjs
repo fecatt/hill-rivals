@@ -50,7 +50,9 @@ try {
   await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;count=0;});await page.waitForTimeout(150);
   await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;count=0;gameDebug.activateAbility(cars[0]);});assert.ok(await page.evaluate(()=>cars[0].shield>0),'shield ability activates without entering fullscreen');
   await screenshot('portrait-race');
-  await page.evaluate(()=>togglePause());await page.locator('#pause-settings-toggle').click();assert.equal(await page.locator('#pause-fullscreen').count(),0);await page.locator('#resume').click();
+  await page.evaluate(()=>togglePause());await page.locator('#pause-settings-toggle').click();assert.equal(await page.locator('#pause-fullscreen').count(),1,'pause settings expose manual fullscreen control');
+  await page.locator('#pause-fullscreen').click();await page.waitForFunction(()=>!!document.fullscreenElement,'manual setting enters fullscreen');
+  await page.locator('#pause-fullscreen').click();await page.waitForFunction(()=>!document.fullscreenElement,'manual setting exits fullscreen');await page.locator('#resume').click();
   await page.setViewportSize({width:320,height:640});
   await page.waitForTimeout(150);assert.equal((await layout()).overflow,false,'small phone header must fit');
   await page.setViewportSize({width:852,height:393});
