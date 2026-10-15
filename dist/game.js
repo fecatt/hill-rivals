@@ -294,6 +294,7 @@ function resetDrawingSurface(){
 function drawScene(){resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('В ВОЗДУХЕ: ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
 function draw(){window.sceneLayers?.begin();try{drawScene()}finally{window.sceneLayers?.end()}}
 let last=performance.now(),lastDraw=0,acc=0,previousCamera=null;
+const previousCratePoses=new Map();let previousSceneTime=null;
 const previousPoses=new WeakMap(),renderFields=['x','y','a','wheel'];
 const frameTimes=[],frameWorkTimes=[];
 let performanceNext=0,performanceWasRunning=false;
@@ -311,8 +312,12 @@ function recordFramePerformance(cost,now){
 }
 
 function drawInterpolated(alpha){
- const camera=[cam,cameraY,zoom],saved=[];
+ const camera=[cam,cameraY,zoom],sceneTime=time,saved=[],savedCrates=[];
  if(previousCamera&&mode==='race'&&!paused){
+  if(previousSceneTime!==null&&Math.abs(time-previousSceneTime)<.1)time=previousSceneTime+(time-previousSceneTime)*alpha;
+  for(const crate of bonus){
+   const previous=previousCratePoses.get(crate.id);if(!previous)continue;const fields=['x','y','a','age','chuteFade'],current=fields.map(key=>crate[key]);savedCrates.push([crate,fields,current]);fields.forEach((key,i)=>crate[key]=previous[i]+(current[i]-previous[i])*alpha);
+  }
   [cam,cameraY,zoom]=camera.map((value,i)=>previousCamera[i]+(value-previousCamera[i])*alpha);
   for(const car of cars){
    const previous=previousPoses.get(car);if(!previous)continue;
@@ -321,7 +326,8 @@ function drawInterpolated(alpha){
   }
  }
  try{draw();}finally{
-  [cam,cameraY,zoom]=camera;
+  [cam,cameraY,zoom]=camera;time=sceneTime;
+  for(const [crate,fields,current] of savedCrates)fields.forEach((key,i)=>crate[key]=current[i]);
   for(const [car,current] of saved)renderFields.forEach((key,i)=>car[key]=current[i]);
  }
 }
@@ -336,7 +342,8 @@ function frame(now){
  const frameStarted=performance.now();
  const dt=Math.min(.05,(now-last)/1000);last=now;
  acc+=dt;while(acc>=1/120){
-  previousCamera=[cam,cameraY,zoom];
+  previousCamera=[cam,cameraY,zoom];previousSceneTime=time;
+  previousCratePoses.clear();for(const crate of bonus)previousCratePoses.set(crate.id,[crate.x,crate.y,crate.a,crate.age,crate.chuteFade]);
   for(const car of cars)previousPoses.set(car,renderFields.map(key=>car[key]));
   update(1/120);acc-=1/120;
  }

@@ -27,11 +27,11 @@ function hillTexture(im,crop,height){
  const paint=texture.getContext('2d');paint.imageSmoothingEnabled=true;paint.imageSmoothingQuality='high';paint.drawImage(im,x,y,w,h,0,0,texture.width,texture.height);
  textures.set(key,texture);return texture;
 }
-function hillSprite(index,x,y,height,angle=0,flip=false){
+function hillSprite(index,x,y,height,angle=0,flip=false,key=null){
  const isCloud=index===4||index===5,im=index<4?hillTrees[index%2]:isCloud?hillCloud:hillArt,crop=index<4?hillTreeBounds[index%2]:isCloud?hillCloudBounds:hillSprites[index];if(!crop||!im.complete||!im.naturalWidth)return;
  const [sx,sy,sw,sh]=crop,width=height*sw/sh;
  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';ctx.translate(x,y);ctx.rotate(angle);if(flip!==Boolean(isCloud&&index===5))ctx.scale(-1,1);
- const texture=hillTexture(im,crop,isCloud?128:512);if(!window.sceneLayers?.bitmap(texture,-width/2,-height,width,height))ctx.drawImage(texture,-width/2,-height,width,height);ctx.restore();
+ const texture=hillTexture(im,crop,isCloud?128:512);if(!window.sceneLayers?.bitmap(texture,-width/2,-height,width,height,0,key))ctx.drawImage(texture,-width/2,-height,width,height);ctx.restore();
 }
 function paintHillSun(){
  const x=W*.82,y=Math.max(82,H*.17),radius=Math.max(34,Math.min(43,W*.036));
@@ -61,7 +61,7 @@ function paintHillSun(){
 // is filtered every frame. Rasterise it once at the backing-store resolution.
 let hillBackdrop=null,hillSunRaster=null;
 function prepareHillBackground(){
- const ratio=renderRatio,key=W+':'+H+':'+ratio;
+ const ratio=renderRatio,key=W+':'+H+':'+ratio+':'+hillPanorama.naturalWidth+':'+hillPanorama.naturalHeight+':'+hillPanorama.complete;
  if(hillBackdrop?.key===key)return hillBackdrop;
  const sky=document.createElement('canvas');sky.width=Math.ceil(W*ratio);sky.height=Math.ceil(H*ratio);
  const skyPaint=sky.getContext('2d'),gradient=skyPaint.createLinearGradient(0,0,0,sky.height);gradient.addColorStop(0,'#71bce1');gradient.addColorStop(1,'#d7ecd0');skyPaint.fillStyle=gradient;skyPaint.fillRect(0,0,sky.width,sky.height);
@@ -77,24 +77,45 @@ function drawHillSun(){
  }
  const dx=Math.round((x-pad)*ratio)/ratio,dy=Math.round((y-pad)*ratio)/ratio,dw=hillSunRaster.surface.width/ratio,dh=hillSunRaster.surface.height/ratio;if(!window.sceneLayers?.bitmap(hillSunRaster.surface,dx,dy,dw,dh,hillSunRaster.time))ctx.drawImage(hillSunRaster.surface,dx,dy,dw,dh);
 }
+// Small repeating silhouettes provide two independent plans behind the road.
+const hillDepthRasters=new Map();
+function hillDepthTexture(layer){
+ const key=layer+':'+worldSeed;let surface=hillDepthRasters.get(key);if(surface)return surface;
+ const width=1200,height=260;surface=document.createElement('canvas');surface.width=width;surface.height=height;const paint=surface.getContext('2d'),ridge=x=>68+Math.sin(x/width*Math.PI*2+layer)*24+Math.sin(x/width*Math.PI*6-layer)*9;
+ const color=layer===0?'#628f91':'#447c73';paint.fillStyle=color;paint.beginPath();paint.moveTo(0,height);for(let x=0;x<=width;x+=4)paint.lineTo(x,ridge(x));paint.lineTo(width,height);paint.closePath();paint.fill();
+ // Trees are baked once; the frame loop only translates each complete plan.
+ for(let j=0;j<80;j++){const x=j*width/80,base=ridge(x)+5,h=12+hash(j,1100+layer)*28,w=h*.28;paint.fillRect(x-1,base-h*.7,2,h*.7);paint.beginPath();paint.moveTo(x,base-h);paint.lineTo(x-w,base-4);paint.lineTo(x+w,base-4);paint.closePath();paint.fill();}
+ if(hillDepthRasters.size>=4)hillDepthRasters.clear();hillDepthRasters.set(key,surface);return surface;
+}
+function drawHillDepth(){
+ for(let layer=0;layer<2;layer++){
+  const surface=hillDepthTexture(layer),speed=layer===0?.16:.32,height=H*(layer===0?.32:.38),width=height*surface.width/surface.height,offset=cam*speed,top=H*(layer===0?.48:.57)-cameraY*scale()*speed;
+  ctx.save();ctx.globalAlpha=layer===0?.35:.48;
+  for(let cell=Math.floor(offset/width);cell<=Math.floor((offset+W)/width);cell++){
+   const x=cell*width-offset;if(!window.sceneLayers?.bitmap(surface,x,top,width,height,0,'depth:'+layer+':'+cell))ctx.drawImage(surface,x,top,width,height);
+  }
+  ctx.restore();
+ }
+}
 function drawHillBackground(){
  document.body.dataset.biome='hills';
  const backdrop=prepareHillBackground();if(!window.sceneLayers?.sky(backdrop.sky))ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
  ctx.save();ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
  if(backdrop.panorama){
-  const tileWidth=backdrop.tileWidth,offset=cam*.085,y=Math.round(-cameraY*scale()*.07*renderRatio)/renderRatio;
+  const tileWidth=backdrop.tileWidth,offset=cam*.055,y=-cameraY*scale()*.055;
   for(let i=Math.floor(offset/tileWidth);i<=Math.floor((offset+W)/tileWidth);i++){
-   ctx.save();ctx.translate(Math.round((i*tileWidth-offset)*renderRatio)/renderRatio,y);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
-   if(!window.sceneLayers?.bitmap(hillPanorama,0,0,tileWidth,H))ctx.drawImage(backdrop.panorama,0,0,tileWidth,backdrop.panorama.height/renderRatio);ctx.restore();
+   ctx.save();ctx.translate(i*tileWidth-offset,y);if(i%2){ctx.translate(tileWidth,0);ctx.scale(-1,1)}
+   if(!window.sceneLayers?.bitmap(hillPanorama,0,0,tileWidth,H,0,'panorama:'+i))ctx.drawImage(backdrop.panorama,0,0,tileWidth,backdrop.panorama.height/renderRatio);ctx.restore();
   }
  }
  drawHillSun();
  const cloudOffset=cam*.14-time*4;
  for(let cell=Math.floor(cloudOffset/380)-1;cell<Math.ceil((cloudOffset+W)/380)+1;cell++){
   const x=cell*380+hash(cell,941)*130-cloudOffset,y=H*(.14+hash(cell,943)*.17);
-  ctx.globalAlpha=1;hillSprite(4+cell%2+(cell%2<0?2:0),x,y,35+hash(cell,944)*38);
+  ctx.globalAlpha=1;hillSprite(4+cell%2+(cell%2<0?2:0),x,y,35+hash(cell,944)*38,0,false,'cloud:'+cell);
  }
  ctx.globalAlpha=1;
+ drawHillDepth();
  ctx.globalAlpha=.7;
  for(let cell=Math.floor(cam*.2/620)-1;cell<Math.ceil((cam*.2+W)/620)+1;cell++){
   const x=cell*620-cam*.2+hash(cell,953)*180,y=H*(.26+hash(cell,954)*.19);

@@ -181,3 +181,17 @@ test('240 Hz callbacks draw every frame and interpolate the 120 Hz physics',()=>
  assert.ok(Math.abs(c.run('cars[0].x')-c.context.steps)<1e-6,'drawing restores simulation positions');
  assert.ok(Math.abs(c.run('window.gameDebug.getPerformance().fps')-240)<1e-6);
 });
+
+test('falling crates and scene animation interpolate at 240 Hz even when snapshots replace crate objects',()=>{
+ const c=client();c.run(`mode='race';paused=false;cars=[];bonus=[{id:41,x:0,y:0,a:0,age:0,chuteFade:0}];cam=0;cameraY=0;zoom=1;time=0;last=1000;lastDraw=1000;acc=0;
+ globalThis.samples=[];globalThis.steps=0;update=dt=>{time+=dt;bonus=bonus.map(b=>({...b,x:b.x+60*dt,y:b.y+120*dt,age:b.age+dt}));steps++;};
+ draw=()=>samples.push([bonus[0].x,bonus[0].y,time]);animateSuspension=()=>{};syncGameScreen=()=>{};`);
+ for(let i=1;i<=240;i++){c.advance(1000/240);c.run('frame(performance.now())');}
+ for(let i=3;i<c.context.samples.length;i++){
+  assert.ok(Math.abs(c.context.samples[i][0]-c.context.samples[i-1][0]-.25)<1e-6);
+  assert.ok(Math.abs(c.context.samples[i][1]-c.context.samples[i-1][1]-.5)<1e-6);
+  assert.ok(Math.abs(c.context.samples[i][2]-c.context.samples[i-1][2]-1/240)<1e-6);
+ }
+ assert.ok(Math.abs(c.run('bonus[0].y')-c.context.steps)<1e-6,'drawing restores crate simulation state');
+ assert.ok(Math.abs(c.run('time')-c.context.steps/120)<1e-6,'drawing restores simulation clock');
+});
