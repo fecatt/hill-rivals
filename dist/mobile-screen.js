@@ -52,13 +52,17 @@ document.addEventListener('pointerdown',e=>{if(!localOptions.hidden&&!localOptio
 // Fit one fixed landscape composition into the visible browser area as a whole.
 // Cards never change their internal tracks when Android chrome opens or collapses.
 const compactGarageMedia=matchMedia('(pointer:coarse) and (orientation:landscape) and (min-width:700px)');
+let compactGarageViewportHeight=window.visualViewport?.height||innerHeight;
 function fitCompactGarage(){
  const lobby=$('#lobby');if(!lobby)return;
  const viewport=window.visualViewport,width=viewport?.width||innerWidth;
- const keyboard=document.activeElement?.matches('input,textarea')&&viewport&&viewport.height<innerHeight*.75;
- const height=keyboard?innerHeight:(viewport?.height||innerHeight);
+ const visibleHeight=viewport?.height||innerHeight,editingText=document.activeElement?.matches('input,textarea,[contenteditable="true"]');
+ const keyboard=editingText&&visibleHeight<compactGarageViewportHeight*.82;
+ if(!keyboard)compactGarageViewportHeight=visibleHeight;
+ const height=keyboard?Math.max(compactGarageViewportHeight,innerHeight):visibleHeight;
  const fitted=Math.min(1,(width-20)/1000,(height-20)/350);
  lobby.style.setProperty('--garage-fit',String(Math.max(.35,fitted)));
 }
+window.fitCompactGarage=fitCompactGarage;
 compactGarageMedia.addEventListener('change',fitCompactGarage);addEventListener('resize',fitCompactGarage);
 window.visualViewport?.addEventListener('resize',fitCompactGarage);document.addEventListener('focusout',fitCompactGarage);fitCompactGarage();
