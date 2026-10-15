@@ -7,7 +7,7 @@ const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,POR
 let browser;
 try{
  await new Promise((resolve,reject)=>{server.stdout.once('data',resolve);server.once('exit',reject);});
- browser=await chromium.launch();
+ browser=await chromium.launch({executablePath:process.env.CHROME_PATH||undefined,args:['--no-sandbox']});
  const hostContext=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'}),host=await hostContext.newPage();
  await host.goto(base+'/?mode=online');await host.waitForFunction(()=>roomState?.room&&assetsLoaded);
  const code=await host.evaluate(()=>roomState.room.code);

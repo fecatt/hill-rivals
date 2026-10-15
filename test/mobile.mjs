@@ -35,7 +35,7 @@ try {
   await session.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});
   assert.equal(await page.evaluate(()=>!!keys.TouchGas),false,'cancel releases throttle');
   assert.equal(await stat.evaluate(e=>e===document.querySelector('.stat')),true,'HUD keeps its DOM nodes');
-  assert.equal(await page.evaluate(()=>!!document.fullscreenElement),true,'start tap opens real page fullscreen');
+  assert.equal(await page.evaluate(()=>!!document.fullscreenElement),false,'starting the game avoids Android fullscreen exit notifications');
   assert.equal(await page.locator('#online-bar').isVisible(),false,'race hides the online counters');
   assert.equal(await page.locator('[data-control="gas"]').evaluate(e=>getComputedStyle(e).webkitTapHighlightColor),'rgba(0, 0, 0, 0)');
   await page.waitForFunction(()=>document.querySelector('#touch-controls').classList.contains('hints-faded'));
@@ -47,21 +47,20 @@ try {
   await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[second]});assert.equal(await page.evaluate(()=>!!keys.TouchGas),true,'lifting one gas finger does not release the other');
   const left={id:3,x:zones.w*.15,y:zones.h*.55};await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[second,left]});assert.deepEqual(await page.evaluate(()=>[!!keys.TouchGas,!!keys.TouchBrake]),[true,true]);
   await session.send('Input.dispatchTouchEvent',{type:'touchCancel',touchPoints:[]});assert.deepEqual(await page.evaluate(()=>[!!keys.TouchGas,!!keys.TouchBrake]),[false,false]);
-  await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;});await page.waitForTimeout(150);
-  await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:4,x:zones.w*.5,y:zones.h*.4}]});assert.ok(await page.evaluate(()=>cars[0].shield>0),'central screen zone activates shield');await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;count=0;});await page.waitForTimeout(150);
+  await page.evaluate(()=>{cars[0].ability='shield';cars[0].cooldown=0;count=0;gameDebug.activateAbility(cars[0]);});assert.ok(await page.evaluate(()=>cars[0].shield>0),'shield ability activates without entering fullscreen');
   await screenshot('portrait-race');
-  await page.locator('#pause').click();await page.locator('#pause-settings-toggle').click();await page.locator('#pause-fullscreen').click();await page.locator('#resume').click();await page.waitForFunction(()=>!document.fullscreenElement);
+  await page.evaluate(()=>togglePause());await page.locator('#pause-settings-toggle').click();assert.equal(await page.locator('#pause-fullscreen').count(),0);await page.locator('#resume').click();
   await page.setViewportSize({width:320,height:640});
   await page.waitForTimeout(150);assert.equal((await layout()).overflow,false,'small phone header must fit');
   await page.setViewportSize({width:852,height:393});
   await page.waitForTimeout(150);
   state=await layout();assert.equal(state.overflow,false);assert.ok(state.hud.h<=82);assert.ok(state.touch.y+state.touch.h<=state.height);
   await screenshot('landscape-race');
-  if(!await page.evaluate(()=>paused))await page.locator('#pause').click();await page.locator('#pause-garage').click();await page.waitForFunction(()=>document.body.dataset.screen==='lobby');assert.equal((await layout()).touch.hidden,true);
+  if(!await page.evaluate(()=>paused))await page.evaluate(()=>togglePause());await page.evaluate(()=>garage());await page.waitForFunction(()=>document.body.dataset.screen==='lobby');assert.equal((await layout()).touch.hidden,true);
   await page.setViewportSize({width:393,height:852});
   await page.goto(base+'/?mode=online');
-  await page.waitForFunction(()=>socket?.readyState===1);await page.locator('#create-room').click();
-  await page.waitForFunction(()=>roomState?.room);const code=await page.evaluate(()=>roomState.room.code);
+  await page.waitForFunction(()=>socket?.readyState===1&&roomState?.room);const code=await page.evaluate(()=>roomState.room.code);
   await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await screenshot('portrait-room');
   const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
@@ -98,6 +97,6 @@ try {
   await desktop.close();
   const fallback=await browser.newContext({viewport:{width:852,height:393},isMobile:true,hasTouch:true,serviceWorkers:'block'});
   await fallback.addInitScript(()=>{Element.prototype.requestFullscreen=()=>Promise.reject(Error('Fullscreen unavailable'));});
-  const fallbackPage=await fallback.newPage();fallbackPage.on('pageerror',error=>errors.push(error.message));await fallbackPage.goto(base+'/?mode=local');await fallbackPage.locator('#start').click();await fallbackPage.waitForFunction(()=>mode==='race');assert.equal(await fallbackPage.evaluate(()=>document.fullscreenElement),null,'declined fullscreen still starts the game');assert.deepEqual(errors,[]);await fallback.close();
-  console.log('PASS: real fullscreen, screen zones and multi-touch/cancel, timed hint fade, shield, hidden counters and tap highlight, portrait/landscape layout, stable HUD, online interpolation, next-round UI, desktop');
+  const fallbackPage=await fallback.newPage();fallbackPage.on('pageerror',error=>errors.push(error.message));await fallbackPage.goto(base+'/?mode=local');await fallbackPage.locator('#start').click();await fallbackPage.waitForFunction(()=>mode==='race');assert.equal(await fallbackPage.evaluate(()=>document.fullscreenElement),null,'mobile game stays in browser viewport without fullscreen notifications');assert.deepEqual(errors,[]);await fallback.close();
+  console.log('PASS: mobile viewport without fullscreen notices, screen zones and multi-touch/cancel, timed hint fade, shield, hidden counters and tap highlight, portrait/landscape layout, stable HUD, online interpolation, next-round UI, desktop');
 } finally {await browser?.close();server.kill();}

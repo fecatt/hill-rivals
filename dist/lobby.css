@@ -381,6 +381,25 @@ body.online #room-sidebar #network-toggle { width:44px;height:44px;min-width:44p
 body.online #room-panel .room-list .kick-player { flex:0 0 26px;width:26px;height:26px;min-width:26px;min-height:26px;margin:0;padding:4px;border:1px solid #bf806e;border-radius:8px;background:#fbe6dc;color:#963c2d;box-shadow:none; }
 body.online #room-panel .room-list .kick-player>.menu-icon { width:16px;height:16px; }
 body.online #room-panel .room-list .kick-player:hover:not(:disabled) { background:#f5d7c9;color:#7e2d21;box-shadow:none;transform:none; }
+/* Room tools and connection code occupy separate columns; inline editing stays in the title row. */
+body.online #room-panel #room-browser { grid-column:1;grid-row:4;width:100%;min-width:0; }
+body.online #room-panel .room-heading #room-title[contenteditable="true"] { min-width:0;outline:2px solid #93aa86;outline-offset:3px;border-radius:4px;white-space:nowrap; }
+body.online #room-panel .room-heading #rename-room { width:44px;height:44px;min-width:44px;min-height:44px;padding:9px; }
+body.online #room-panel .room-heading #rename-room>.menu-icon { width:24px;height:24px; }
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #room-panel .room-heading #rename-room { width:34px;height:34px;min-width:34px;min-height:34px;padding:5px; }
+ body.online #room-panel #room-browser { grid-column:1;grid-row:4;padding:6px; }
+}
+@media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
+ body.online #racer-column { align-self:stretch;height:350px;min-height:350px;display:block; }
+ body.online #racer-column #picks { height:100%;grid-auto-rows:minmax(0,1fr); }
+ body.online #racer-column .pick { height:100%;max-height:none;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto auto; }
+ body.online #racer-column .pick .portrait { width:100%;height:clamp(90px,34dvh,150px);max-height:none; }
+}
+@media(pointer:coarse),(max-width:750px){
+ body.online #chat-dialog.keyboard-open #room-chat { grid-template-rows:minmax(0,1fr); }
+ body.online #chat-dialog.keyboard-open #chat-log { display:none!important; }
+}
 @media(pointer:coarse) and (orientation:landscape) and (min-width:700px){
  body.online #room-sidebar>button { width:34px;height:34px;min-width:34px;min-height:34px;flex:0 0 34px;padding:5px; }
  body.online #room-sidebar>button>.menu-icon { width:22px;height:22px; }
