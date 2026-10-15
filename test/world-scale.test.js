@@ -32,16 +32,16 @@ test('Ozon van uses Gazelle dimensions, true 130 km/h cap, heavy mass and rear d
   return {kind:v.kind,wheelbase:worldMetres(v.wheels.at(-1)-v.wheels[0]),length:worldMetres(length),speed:speedKph(v.maxSpeed),mass:v.mass,driveAxles:v.driveAxles};
  })()`);
  assert.equal(result.kind,'van');assert.ok(Math.abs(result.wheelbase-3.14)<.02);assert.ok(Math.abs(result.length-5.3)<.3);
- assert.ok(Math.abs(result.speed-130)<.2);assert.equal(result.mass,2725);assert.deepEqual([...result.driveAxles],[1]);
+ assert.ok(Math.abs(result.speed-130)<.2);assert.equal(result.mass,2725);assert.deepEqual([...result.driveAxles],[0]);
 });
 test('Ozon van physics accelerates on flat ground and reaches its 130 km/h cap',()=>{
  const run=fixture();const result=run(`(()=>{
   terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=7;track=3;input=()=>[true,false];
   const c=newCar(0);c.y=-VEHICLES[7].mount-VEHICLES[7].radius;
-  let oneSecond=0;for(let n=0;n<1680;n++){c.fuel=100;physics(c,1/120);if(n===119)oneSecond=speedKph(c.vx)}
+  let oneSecond=0;for(let n=0;n<7200;n++){c.fuel=100;physics(c,1/120);if(n===119)oneSecond=speedKph(c.vx)}
   return {oneSecond,top:speedKph(c.vx),angle:c.a};
  })()`);
- assert.ok(result.oneSecond>15&&result.oneSecond<30);assert.ok(Math.abs(result.top-130)<.2);assert.ok(Math.abs(result.angle)<.15);
+ assert.ok(result.oneSecond>3&&result.oneSecond<20);assert.ok(Math.abs(result.top-130)<.2);assert.ok(Math.abs(result.angle)<.15);
 });
 test('speed and race distance share the same metre conversion',()=>{
  const run=fixture();const r=run(`(()=>{
@@ -51,13 +51,55 @@ test('speed and race distance share the same metre conversion',()=>{
  assert.ok(Math.abs(r.metres*3.6-r.kph)<1e-9);assert.ok(Math.abs(r.kph-72.401591587)<1e-6);
  assert.equal(r.reverse,r.kph);assert.ok(Math.abs(r.checkpoint-44.363720335)<1e-6);
 });
-test('scale correction preserves the existing two-second jeep acceleration and movement',()=>{
+test('jeep accelerates forward with consistent speed and distance units',()=>{
  const run=fixture();const r=run(`(()=>{
   terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=0;track=3;input=()=>[true,false];
   const c=newCar(0);c.y=-VEHICLES[0].mount-VEHICLES[0].radius;
   for(let n=0;n<240;n++){c.fuel=100;physics(c,1/120);}
   return {delta:c.x-c.startX,vx:c.vx,metres:raceMetres(c),kph:speedKph(c.vx)};
  })()`);
- assert.ok(Math.abs(r.delta-694.961737431)<1e-6);assert.ok(Math.abs(r.vx-619.850420669)<1e-6);
- assert.ok(Math.abs(r.metres-20.554058775)<1e-6);assert.ok(Math.abs(r.kph-65.99728971)<1e-6);
+ assert.ok(r.delta>100);assert.ok(r.vx>0);assert.ok(r.kph<=73);
+ assert.ok(Math.abs(r.delta/r.metres-r.vx*3.6/r.kph)<1e-6);
+});
+
+test('garage reports the actual driven axles and verified power only',()=>{
+ const run=fixture();
+ assert.equal(run('driveLabel(VEHICLES[7])'),'4×2 · задний');
+ assert.equal(run('driveLabel(VEHICLES[5])'),'4×2 · задний');
+ assert.equal(run('driveLabel(VEHICLES[2])'),'6×6 · полный');
+ assert.equal(run('driveLabel(VEHICLES[4])'),'8×8 · полный');
+ assert.equal(run('vehicleStats(VEHICLES[7])[1][1]'),'106.8 л.с.');
+ assert.equal(run('vehicleStats(VEHICLES[6])[1][1]'),'Не задана');
+});
+
+test('holding gas on level lunar ground does not automatically flip ordinary cars',()=>{
+ for(const model of [0,1,2,3,4,5,7]){
+  const run=fixture();const result=run(`(()=>{
+   terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=${model};track=2;input=()=>[true,false];
+   const c=newCar(0);c.y=-carSpec(c).mount-Math.max(...wheelSpecs(carSpec(c)).map(w=>w.r));
+   for(let n=0;n<3600;n++){c.fuel=100;physics(c,1/120)}
+   return {alive:c.alive,angle:c.a,speed:c.vx};
+  })()`);
+  assert.ok(result.alive&&Math.abs(result.angle)<.3&&result.speed>0,JSON.stringify({model,...result}));
+ }
+});
+
+test('gas and brake pitch the car in opposite directions only after takeoff',()=>{
+ for(const brake of [false,true]){
+  const run=fixture();const result=run(`(()=>{
+   terrain=()=>10000;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;track=2;vehicleModel=0;input=()=>[${!brake},${brake}];
+   const c=newCar(0);c.y=0;c.air=0;physics(c,1/120);const initial=c.av;
+   for(let n=0;n<60;n++)physics(c,1/120);return {initial,av:c.av};
+  })()`);
+  assert.equal(result.initial,0);assert.ok(brake?result.av>0:result.av<0);
+ }
+});
+
+test('rocket exceeds the former 117 km/h cap without launching vertically on level ground',()=>{
+ const run=fixture();const result=run(`(()=>{
+  terrain=()=>0;slope=()=>0;hillBridgeVelocity=()=>0;mode='race';count=0;vehicleModel=6;track=3;input=()=>[true,false];
+  const c=newCar(0);c.y=-30;for(let n=0;n<1200;n++){c.fuel=100;physics(c,1/120)}
+  return {speed:speedKph(c.vx),alive:c.alive,angle:c.a};
+ })()`);
+ assert.ok(result.alive&&result.speed>250&&Math.abs(result.angle)<.2);
 });

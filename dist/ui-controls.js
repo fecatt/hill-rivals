@@ -41,11 +41,8 @@ function refreshChoices(){
  for(const button of document.querySelectorAll('#picks [data-char-seat]'))if(!button.querySelector('svg'))button.innerHTML=menuIcon(button.dataset.step==='-1'?'left':'right');
  const v=VEHICLES[+$('#vehicle').value];
  if($('#car-specs').dataset.model!==$('#vehicle').value){
-  const drive=v.wheels.length*2+'×'+v.wheels.length*2;
-  // The physics engine uses mass/900 and world units. Convert force × speed to metric hp.
-  const forceNewtons=v.engine*900/WORLD_UNITS_PER_METRE,powerHp=Math.round(forceNewtons*worldMetres(v.maxSpeed)/735.5);
-  const rows=[['Макс. скорость',Math.round(speedKph(v.maxSpeed))+' км/ч'],['Мощность',powerHp+' л.с.'],['Масса',v.mass+' кг'],['Привод',drive],['Колёса / оси',v.wheels.length*2+' / '+v.wheels.length],['Ход подвески',Math.round(worldMetres(v.travel*2)*100)+' см']];
-  $('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML=rows.map(([label,value])=>'<div'+(label==='Мощность'?' title="Расчётная игровая мощность на колёсах: сила тяги × максимальная скорость."':'')+'><dt>'+label+'</dt><dd>'+value+'</dd></div>').join('');
+  const rows=vehicleStats(v);
+  $('#car-specs').dataset.model=$('#vehicle').value;$('#car-specs').innerHTML=rows.map(([label,value])=>'<div'+(label==='Характеристики'&&v.specSource?' title="'+v.specSource+'"':'')+'><dt>'+label+'</dt><dd>'+value+'</dd></div>').join('');
  }
  $('#world-description').textContent=MAPS[+$('#track').value].description;
  const map=MAPS[+$('#track').value];
