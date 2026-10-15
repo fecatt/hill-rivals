@@ -18,7 +18,7 @@ try {
   });
   const screenshot=async name=>{if(process.env.TEST_SCREENSHOT_DIR){await mkdir(process.env.TEST_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/'+name+'.png'});}};
   await page.goto(base+'/?mode=local');
-  await page.evaluate(()=>chooseMode('local',false));
+  assert.equal(await page.evaluate(()=>currentMode),'local','the local-mode URL opens the offline garage directly');
   assert.equal((await layout()).overflow,false,'garage must fit phone width');
   await page.locator('#local-settings-button').click();assert.equal(await page.locator('#local-options #fullscreen-button').count(),1,'garage settings expose fullscreen');await page.locator('#local-settings-button').click();
   await page.locator('#start').click();
@@ -67,6 +67,11 @@ try {
   await page.waitForFunction(()=>socket?.readyState===1&&roomState?.room);const code=await page.evaluate(()=>roomState.room.code);
   await page.waitForFunction(()=>document.querySelector('#start')?.textContent==='ГОТОВО');
   await screenshot('portrait-room');
+  const offlineSolo=await context.newPage();offlineSolo.on('pageerror',error=>errors.push(error.message));await offlineSolo.goto(base+'/?mode=online');await offlineSolo.waitForFunction(()=>socket?.readyState===1&&roomState?.room&&assetsLoaded);
+  await offlineSolo.evaluate(()=>socket.close());await offlineSolo.waitForFunction(()=>document.querySelector('#start')?.textContent==='НАЧАТЬ ОФЛАЙН');
+  await offlineSolo.locator('#start').click();await offlineSolo.waitForFunction(()=>mode==='race'&&!window.onlineActive);
+  await offlineSolo.waitForFunction(()=>count<=0);const offlineStart=await offlineSolo.evaluate(()=>cars[0].x);await offlineSolo.evaluate(()=>keys.KeyD=true);
+  await offlineSolo.waitForFunction(start=>cars[0].x>start+1,offlineStart);await offlineSolo.close();
   const opponent=await context.newPage();await opponent.goto(base+'/?mode=online');
   await opponent.waitForFunction(()=>socket?.readyState===1);await opponent.locator('#room-code').fill(code);await opponent.waitForFunction(()=>roomState?.room);
   await page.bringToFront();await page.locator('#start').click();

@@ -1,6 +1,7 @@
 'use strict';
 // The online lobby is the single web entry point. Keep the local build for file:// previews.
-let selectedMode=location.protocol==='file:'?'local':'online';
+const modeFromUrl=()=>location.protocol==='file:'||new URL(location.href).searchParams.get('mode')==='local'?'local':'online';
+let selectedMode=modeFromUrl();
 if(!$('#players').querySelector('option[value="4"]'))$('#players').add(new Option('4 игрока','4'));
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
 document.querySelector('nav').prepend(modeButton);
@@ -12,7 +13,7 @@ const installButton=document.createElement('button');installButton.id='install-a
 const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
 let currentMode=null;
 let savedLocal={colors:[...colors],chosen:[...chosen],abilities:[...abilities],playerCount,track:+$('#track').value,vehicle:+$('#vehicle').value};
-function chooseMode(next,push=true){
+function chooseMode(next,push=true,afterApply=null,transition=true){
  if(!['online','local'].includes(next))next='local';
  if(currentMode===next&&currentMode!==undefined)return;
  const apply=()=>{
@@ -21,6 +22,7 @@ function chooseMode(next,push=true){
   mode='lobby';count=0;time=0;cam=0;zoom=1;cameraY=0;cars=[];bonus=[];particles=[];keysClear();resetHillBridges();window.onlineIndex=undefined;
   currentMode=selectedMode=next;
   document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.remove('choosing');
+  modeButton.hidden=next==='online';modeButton.onclick=()=>chooseMode(next==='online'?'local':'online');
   const hooks=next==='online'?window.onlineGameHooks:window.localGameHooks;
   update=hooks.update;input=hooks.input;activateAbility=hooks.activateAbility;togglePause=hooks.togglePause;garage=hooks.garage;
   start=next==='local'?()=>{if(assetsLoaded)window.localGameHooks.start();}:window.localGameHooks.start;
@@ -41,12 +43,17 @@ function chooseMode(next,push=true){
   }
   if(next==='online'){window.onlineActive=true;$('#vehicle-description').hidden=false;$('#map-description').hidden=false;window.syncOnlineFromGarage?.(savedLocal);window.onlineSession.enter();}
   window.refreshChoices?.();syncGameScreen();window.scrollTo(0,0);
-  if(push){const url=new URL(location.href);url.searchParams.delete('local');url.searchParams.delete('room');if(next==='online')url.searchParams.set('mode','online');else url.searchParams.delete('mode');history.pushState({},'',url);}
+  if(push){const url=new URL(location.href);url.searchParams.delete('room');url.searchParams.set('mode',next);history.pushState({},'',url);}
+  afterApply?.();
  };
- if(document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
+ if(transition&&document.startViewTransition&&!matchMedia('(prefers-reduced-motion: reduce)').matches)document.startViewTransition(apply);else apply();
 }
-modeButton.onclick=()=>{};
-addEventListener('popstate',()=>{chooseMode(location.protocol==='file:'?'local':'online',false);});
+window.startOfflineSolo=()=>{
+ const setup=window.getOfflineSoloSetup?.()||{};
+ savedLocal={...savedLocal,...setup,playerCount:1};
+ chooseMode('local',true,()=>window.localGameHooks.start(),false);
+};
+addEventListener('popstate',()=>{chooseMode(modeFromUrl(),false);});
 let installPrompt;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;});
 installButton.onclick=async()=>{

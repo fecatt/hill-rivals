@@ -5,7 +5,7 @@ window.localGameHooks={update,input,activateAbility,togglePause,garage,start,tra
 document.body.classList.add('online');
 $('#players').closest('label').hidden=true;
 const connectionSession=sessionStorage.getItem('hill-session')||crypto.randomUUID();sessionStorage.setItem('hill-session',connectionSession);
-let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer,selfRoomRequested=false,roomExitNotice='';
+let socket,roomState=null,onlineRound=-1,clockOffset=0,oldPhase='',reconnectTimer,selfRoomRequested=false,roomExitNotice='',connectionOpenedAt=0;
 let snapshots=[],snapshotReceived=0,renderedCountdown=-1;
 let localCar=null,localCars=new Map(),localControls=[false,false];
 let poseSequence=0,lastPoseSent=-Infinity,localSimTime=0,seenRewards=new Set();
@@ -129,6 +129,11 @@ window.syncOnlineFromGarage=setup=>{
  if(Number.isInteger(setup.track))$('#track').value=String(setup.track);if(Number.isInteger(setup.vehicle))$('#vehicle').value=String(setup.vehicle);
  localCharacter=onlineCharacters[0]||0;localAbility=onlineAbilities[0]||'turbo';renderPick();
 };
+window.getOfflineSoloSetup=()=>{
+ const offlineChosen=[...chosen],offlineAbilities=[...abilities];
+ offlineChosen[0]=onlineCharacters[0]??offlineChosen[0];offlineAbilities[0]=onlineAbilities[0]||offlineAbilities[0];
+ return {colors:[...colors],chosen:offlineChosen,abilities:offlineAbilities,playerCount:1,track:+$('#track').value,vehicle:+$('#vehicle').value};
+};
 function send(msg){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(msg));}
 let profileNameTimer;
 function renderPick(){
@@ -154,7 +159,16 @@ window.changeOnlineParty=delta=>{
  const max=Math.min(4,8-(roomState?.players.length-onlineSeatCount||0));
  setOnlineSeatCount(Math.max(1,Math.min(max,onlineSeatCount+delta)));
 };
-$('#start').onclick=()=>{if(assetsLoaded)send({type:'ready',ready:!roomState?.players.find(p=>playerOwner(p)===roomState.you)?.ready});};
+const readyOnline=()=>{
+ if(!assetsLoaded)return;
+ const ready=!!roomState?.players.find(p=>playerOwner(p)===roomState.you)?.ready;
+ send({type:'ready',ready:!ready});
+ if(!ready)setTimeout(()=>{
+  const acknowledged=!!roomState?.players.find(p=>playerOwner(p)===roomState.you)?.ready;
+  if(window.onlineActive&&mode==='lobby'&&!acknowledged)offerOfflineSolo();
+ },5000);
+};
+$('#start').onclick=readyOnline;
 $('#track').onchange=()=>{updateMapDescription();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 $('#vehicle').onchange=()=>{describeVehicle();send({type:'settings',track:+$('#track').value,vehicle:+$('#vehicle').value});};
 togglePause=()=>{if(mode!=='race')return;paused=!paused;keysClear();sendInput();$('#overlay').hidden=!paused;if(paused)showPauseMenu();};
@@ -290,6 +304,7 @@ function installGame(state){
   if(state.phase==='race'&&!paused)$('#overlay').hidden=true;
 }
 function renderRoom(state){
+  onlineBar.hidden=true;
   roomUI.state(state);
   track=state.track;vehicleModel=state.vehicle;
   const owned=state.players.filter(p=>playerOwner(p)===state.you).sort((a,b)=>(a.slot??0)-(b.slot??0));
@@ -306,6 +321,7 @@ function renderRoom(state){
   $('#picks').querySelectorAll('.remove-seat').forEach(control=>control.disabled=state.phase!=='lobby');
   updateMapDescription();describeVehicle();
   $('#start').disabled=state.phase==='race';
+  $('#start').onclick=readyOnline;
   const myReady=state.players.find(p=>playerOwner(p)===state.you)?.ready;
   $('#start').textContent=state.phase==='countdown'?'СТАРТ ЧЕРЕЗ '+Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000))+' С · ОТМЕНИТЬ':myReady?'ОТМЕНИТЬ ГОТОВНОСТЬ':'ГОТОВО';
   $('#menu').disabled=false;$('#menu').textContent='Выйти из комнаты';$('#pause').hidden=state.phase!=='race';
@@ -329,9 +345,9 @@ function renderRoom(state){
 function connect(){
   if(!window.onlineActive)return;
   if(socket&&[0,1].includes(socket.readyState))return;
-  clearTimeout(reconnectTimer);onlineBar.textContent='Подключение к серверу…';
+  clearTimeout(reconnectTimer);connectionOpenedAt=performance.now();onlineBar.textContent='Подключение к серверу…';
   socket=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws?session='+connectionSession);
-  socket.onopen=()=>{serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
+  socket.onopen=()=>{connectionOpenedAt=performance.now();lastStateReceived=connectionOpenedAt;serverToLocal=null;bestRtt=Infinity;lastPacketAt=0;sendProfile();const code=roomState?.room.code||new URL(location.href).searchParams.get('room');if(/^[A-Z]{5}$/i.test(code||''))send({type:'join-room',code});send({type:'ping',sent:performance.now()});};
   socket.onmessage=e=>{
     const state=JSON.parse(e.data);
   if(state.type==='room-left'){roomState=null;selfRoomRequested=state.reason!=='left';window.peerTransport.reset();const url=new URL(location.href);url.searchParams.delete('room');history.replaceState({},'',url);roomExitNotice=state.reason==='kicked'?'Ведущий удалил вас из комнаты.':'Вы вышли из комнаты.';return;}
@@ -354,10 +370,15 @@ function connect(){
     window.peerTransport.update(state);
     if(joined){if(state.room.host!==state.you){const owned=state.players.filter(p=>playerOwner(p)===state.you).length;onlineSeatCount=Math.max(1,Math.min(onlineSeatCount,8-(state.players.length-owned)));$('#lobby').dataset.party=String(onlineSeatCount);document.body.dataset.players=String(onlineSeatCount);renderPick();}sendProfile();}
     const seconds=state.phase==='countdown'?Math.max(0,Math.ceil((state.startAt-state.serverNow)/1000)):-1;
-    if(changed||seconds!==renderedCountdown)renderRoom(state);
+    if(changed||seconds!==renderedCountdown||$('#start').textContent==='НАЧАТЬ ОФЛАЙН')renderRoom(state);
     renderedCountdown=seconds;
   };
-  socket.onclose=()=>{connectionLost=true;if(mode!=='race'){$('#start').disabled=true;touch.hidden=true;}refreshConnectionIndicator();if(window.onlineActive){onlineBar.textContent='Связь потеряна. Идёт переподключение…';reconnectTimer=setTimeout(connect,1500);}};
+  socket.onclose=()=>{
+    connectionLost=true;let offlineAvailable=false;
+    if(mode!=='race'){$('#start').disabled=true;touch.hidden=true;offlineAvailable=offerOfflineSolo();}
+    refreshConnectionIndicator();
+    if(window.onlineActive){onlineBar.textContent=offlineAvailable?'Сервер недоступен. Одиночный заезд можно начать без интернета.':'Связь потеряна. Идёт переподключение…';reconnectTimer=setTimeout(connect,1500);}
+  };
   socket.onerror=()=>socket.close();
 }
 window.onlineGameHooks={update,input,activateAbility,togglePause,garage,start:$('#start').onclick,trackChange:$('#track').onchange,vehicleChange:$('#vehicle').onchange};
@@ -366,8 +387,31 @@ window.onlineSession={
  leaveRoom(){send({type:'leave-room'});},
  exit(){send({type:'leave-room'});clearTimeout(reconnectTimer);if(socket){socket.onclose=null;socket.onmessage=null;socket.onopen=null;socket.onerror=null;socket.close();}roomState=null;localCar=null;onlineRound=-1;oldPhase='';window.peerTransport.reset();roomUI.hide();roomPanel.hidden=true;onlineBar.hidden=true;},
 };
+function canFallbackToSolo(){
+ if(onlineSeatCount!==1)return false;
+ if(!roomState)return !new URL(location.href).searchParams.has('room');
+ const owners=new Set(roomState.players.map(playerOwner));
+ return owners.size===1&&owners.has(roomState.you);
+}
+function offerOfflineSolo(){
+ if(!window.onlineActive||mode!=='lobby'||!assetsLoaded||!canFallbackToSolo())return false;
+ onlineBar.hidden=false;onlineBar.textContent='Сервер не отвечает. Одиночный заезд можно начать без интернета.';
+ $('#start').disabled=false;$('#start').textContent='НАЧАТЬ ОФЛАЙН';$('#start').onclick=()=>window.startOfflineSolo?.();
+ return true;
+}
 setInterval(()=>{if(window.onlineActive){window.peerTransport.probe();const status=$('#connection-status');if(status)status.textContent=window.peerTransport.summary();refreshConnectionIndicator();}},1000);
 setInterval(()=>{if(socket?.readyState===WebSocket.OPEN)send({type:'ping',sent:performance.now()});},2000);
+setInterval(()=>{
+ if(!window.onlineActive)return;
+ const now=performance.now();
+ if(socket?.readyState===0&&now-connectionOpenedAt>8000){socket.close();return;}
+ if(socket?.readyState===WebSocket.OPEN&&lastStateReceived&&now-lastStateReceived>5000){
+  connectionLost=true;refreshConnectionIndicator();
+  if(mode!=='race')offerOfflineSolo();
+  socket.close();
+ }
+ if(socket?.readyState===WebSocket.OPEN&&!roomState&&now-connectionOpenedAt>8000)offerOfflineSolo();
+},1000);
 let deployedVersion;
 setInterval(async()=>{
   if(!window.onlineActive)return;

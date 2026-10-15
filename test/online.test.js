@@ -6,7 +6,7 @@ import {webcrypto} from 'node:crypto';
 import {createSimulation} from '../server/simulation.js';
 
 function client(){
- let clock=1000;const elements=new Map();
+ let clock=1000;const elements=new Map(),webSockets=[];
  const element=selector=>{
   if(!elements.has(selector))elements.set(selector,{
    value:'0',dataset:{},style:{},hidden:false,disabled:false,innerHTML:'',textContent:'',firstChild:{},
@@ -20,21 +20,34 @@ function client(){
   document:{body:element('body'),querySelector:element,querySelectorAll:s=>s==='.hint'?[element('hint')]:[],createElement:()=>element('created'),addEventListener(){}},
   Image:class {},innerWidth:1280,innerHeight:800,devicePixelRatio:1,addEventListener(){},requestAnimationFrame(){},
   performance:{now:()=>clock},matchMedia:()=>({matches:false,addEventListener(){}}),crypto:webcrypto,
-  sessionStorage:{getItem(){},setItem(){}},window:{assetsReady:Promise.resolve(),onlineActive:true},localStorage:{getItem(){},setItem(){}},location:{protocol:'http:',host:'localhost'},
+  sessionStorage:{getItem(){},setItem(){}},window:{assetsReady:Promise.resolve(),onlineActive:true},localStorage:{getItem(){},setItem(){}},location:{protocol:'http:',host:'localhost',href:'http://localhost/'},
   createRoomsUI:()=>({browser:{hidden:true},state(){},directory(){},chat(){},notice(){},hide(){}}),
   createPeerTransport:()=>({pose(){},update(){},probe(){},reset(){},broadcast(){},signal(){},relay(){},summary(){return '';}}),
-  WebSocket:class {static OPEN=1;readyState=1;send(){}},setInterval(){},setTimeout(){},clearTimeout(){},
+  WebSocket:class {static OPEN=1;readyState=1;constructor(){webSockets.push(this)}send(){}close(){}},setInterval(){},setTimeout(){},clearTimeout(){},
   console,Date,structuredClone,assetsLoaded:true,
  });
  context.document.body.classList={add(){}};
  for(const file of ['maps.js','vehicles.js','hills.js','race-art.js','game.js','online.js'])vm.runInContext(fs.readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
- return {context,run:code=>vm.runInContext(code,context),advance:ms=>clock+=ms};
+ return {context,run:code=>vm.runInContext(code,context),advance:ms=>clock+=ms,webSockets};
 }
 function state(){
  const profiles=[{id:'a',character:0,ability:'turbo',color:'red',gas:false},{id:'b',character:1,ability:'jump',color:'blue',gas:false}];
  const sim=createSimulation(profiles,3,0);for(let i=0;i<240;i++)sim.step();
  return {type:'state',you:'a',phase:'race',round:1,serverNow:1000,track:3,vehicle:0,online:2,inRace:2,players:profiles,racers:profiles,game:structuredClone(sim.state())};
 }
+test('a solo room can start locally after the WebSocket connection closes',()=>{
+ const c=client();c.run("roomState={you:'a',phase:'lobby',players:[{id:'a',owner:'a'}]};mode='lobby';connect()");
+ c.webSockets[0].onclose();
+ assert.equal(c.context.document.querySelector('#start').disabled,false);
+ assert.equal(c.context.document.querySelector('#start').textContent,'НАЧАТЬ ОФЛАЙН');
+ assert.equal(typeof c.context.document.querySelector('#start').onclick,'function');
+});
+test('a multiplayer room is not silently converted to an offline solo race',()=>{
+ const c=client();c.run("roomState={you:'a',phase:'lobby',players:[{id:'a',owner:'a'},{id:'b',owner:'b'}]};mode='lobby';connect()");
+ c.webSockets[0].onclose();
+ assert.equal(c.context.document.querySelector('#start').disabled,true);
+ assert.notEqual(c.context.document.querySelector('#start').textContent,'НАЧАТЬ ОФЛАЙН');
+});
 test('our car responds locally while server elimination still ends its participation',()=>{
  const c=client();c.context.sample=state();c.run('roomState=sample;installGame(sample)');
  const before=c.run('cars[0].vx');
