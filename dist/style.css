@@ -315,7 +315,10 @@ body.online #racer-column .ability-select .choice-arrow{width:24px;height:24px;f
 
 /* Single online garage: four local racers in a balanced 2×2 grid. */
 body.online header>div{display:block!important;font-size:11px;letter-spacing:2px}
-body.online header nav #menu,body.online header nav #pause{display:none!important}
+body.online header nav #menu{display:none!important}
+#pause{display:grid;place-items:center;width:40px;height:40px;min-width:40px;padding:0}
+#pause .pause-glyph{display:flex;align-items:center;gap:4px}
+#pause .pause-glyph i{display:block;width:4px;height:16px;border-radius:1px;background:currentColor}
 body.online #online-bar{display:none!important}
 body.online #lobby{width:calc(100% - 48px);max-width:1640px;margin:12px auto 24px;padding:20px 22px;display:grid;grid-template-columns:minmax(270px,.75fr) minmax(500px,1.35fr) minmax(410px,1.1fr);grid-template-areas:"eyebrow eyebrow eyebrow" "title title title" "intro intro intro" "settings racer room";gap:10px 18px;align-items:stretch;max-height:calc(100dvh - 76px);overflow:auto;background:#fff8e7ed;border:2px solid #fff;border-radius:24px;box-shadow:0 12px 35px #20382f20}
 body.online #lobby>.eyebrow{grid-area:eyebrow;margin:0;color:#526957}

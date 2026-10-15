@@ -5,6 +5,9 @@ if(!$('#players').querySelector('option[value="4"]'))$('#players').add(new Optio
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
 document.querySelector('nav').prepend(modeButton);
 modeButton.hidden=true;
+document.querySelector('header>div')?.remove();
+const pauseButton=$('#pause');pauseButton.setAttribute('aria-label','Пауза');pauseButton.title='Пауза · Esc';
+const pauseGlyph=document.createElement('span');pauseGlyph.className='pause-glyph';pauseGlyph.setAttribute('aria-hidden','true');pauseGlyph.append(document.createElement('i'),document.createElement('i'));pauseButton.replaceChildren(pauseGlyph);
 const installButton=document.createElement('button');installButton.id='install-app';installButton.textContent='Установить';document.querySelector('nav').append(installButton);
 const cardTools=document.createElement('div');cardTools.className='card-tools';cardTools.append(modeButton,$('#sound'),installButton);window.cardTools=cardTools;$('#lobby').append(cardTools);
 let currentMode=null;
@@ -25,7 +28,6 @@ function chooseMode(next,push=true){
   $('#menu').onclick=garage;$('#pause').onclick=togglePause;$('#pause').hidden=next!=='local';$('#menu').hidden=next!=='local';$('#menu').disabled=false;$('#menu').textContent='Гараж';
   $('#overlay').hidden=true;$('#hud').hidden=true;$('#touch-controls').hidden=true;$('#foot').hidden=true;
   $('#lobby').hidden=false;$('#room-browser').hidden=next!=='online';$('#players').closest('label').hidden=next==='online'||mobileInput.matches;
-  document.querySelector('header>div').textContent=next==='online'?'ОНЛАЙН-КОМНАТЫ':'ЕДИНЫЙ ГАРАЖ';
   modeButton.textContent=next==='online'?'Вернуться в гараж':'Играть онлайн';
   cardTools.hidden=false;
   (next==='online'?($('#room-options .drawer-body')||$('#room-options')):$('#lobby')).append(cardTools);
