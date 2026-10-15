@@ -18,11 +18,20 @@ const BODY_ANCHORS={
  evo:{axles:[335,1440],y:690,seat:930,floor:420,size:.25,seatDrop:9},
  van:{axles:[400,1464],y:730,seat:1260,floor:510,size:.38}
 };
-function vehicleBody(c,v,bob){
+// Personal wheel alignment changes rendering only; wheelSpecs remains the physics geometry.
+const WHEEL_ALIGNMENT_KEY='hill-rivals-wheel-alignment-v1';
+const DEFAULT_WHEEL_ALIGNMENTS={};
+let wheelAlignments={...DEFAULT_WHEEL_ALIGNMENTS};
+function validWheelAlignment(v,raw){return v.wheels.map((_,i)=>{const w=raw?.[i]||{};const limit=(n,lo,hi,fallback)=>typeof n==='number'&&Number.isFinite(n)?Math.max(lo,Math.min(hi,n)):fallback;return {x:limit(w.x,-35,35,0),y:limit(w.y,-35,35,0),scale:limit(w.scale,.4,1.8,1)}})}
+try{if(typeof localStorage!=='undefined'){const saved=JSON.parse(localStorage.getItem(WHEEL_ALIGNMENT_KEY)||'{}');for(const v of VEHICLES)if(Array.isArray(saved?.[v.kind]))wheelAlignments[v.kind]=validWheelAlignment(v,saved[v.kind]);}}catch{}
+function wheelAppearance(v,index,alignment=wheelAlignments[v.kind]){return alignment?.[index]??{x:0,y:0,scale:1}}
+function saveAllWheelAlignments(raw){const next=Object.fromEntries(VEHICLES.map(v=>[v.kind,validWheelAlignment(v,raw[v.kind])]));try{localStorage.setItem(WHEEL_ALIGNMENT_KEY,JSON.stringify(next));}catch{return false}wheelAlignments=next;return true}
+function exportWheelAlignments(raw=wheelAlignments){return {format:'hill-rivals-wheel-alignment',version:1,vehicles:VEHICLES.map(v=>({kind:v.kind,name:v.name,wheels:validWheelAlignment(v,raw[v.kind])}))}}
+function vehicleBody(c,v,bob,paint=ctx){
  const im=paintedBodies[v.kind],crop=BODY_BOUNDS[v.kind],a=BODY_ANCHORS[v.kind];if(!im?.complete||!im.naturalWidth)return;
  // Undo the old model-wide horizontal stretch. The painting's vertical scale comes
  // from its real axle spacing, never an arbitrary rectangular height.
- ctx.save();ctx.scale(1/v.bodyScale,1);ctx.imageSmoothingEnabled=true;
+ paint.save();paint.scale(1/v.bodyScale,1);paint.imageSmoothingEnabled=true;
  const specs=wheelSpecs(v),pose=visualPose(c),first=specs[0].x,last=specs[specs.length-1].x;
  const unit=(last-first)/(a.axles[a.axles.length-1]-a.axles[0])*BODY_ART_SCALE;
  const wheelY=pose.wheels.reduce((sum,y,j)=>sum+y+specs[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
@@ -41,11 +50,11 @@ function vehicleBody(c,v,bob){
  const openCabin=['jeep','buggy','hotrod','rocket'].includes(v.kind);
  const driverSize=a.size*(openCabin?1.32:1.15),driverFloor=floor+79*(driverSize-a.size)+(openCabin?3:0);
  // Draw the complete seated figure FIRST; the entire body is then in front of it.
- if(!c.emptyCabin){ctx.save();ctx.beginPath();ctx.rect(seatX-24,top-20,48,Math.max(20,driverFloor-top+20));ctx.clip();ctx.translate(seatX+6*driverSize,driverFloor-13*driverSize);ctx.scale(driverSize,driverSize);seatedDriver(c,0);ctx.restore();}
+ if(!c.emptyCabin){paint.save();paint.beginPath();paint.rect(seatX-24,top-20,48,Math.max(20,driverFloor-top+20));paint.clip();paint.translate(seatX+6*driverSize,driverFloor-13*driverSize);paint.scale(driverSize,driverSize);seatedDriver(c,0);paint.restore();}
  // Wheels are drawn first. Use the painting's own transparent wheel wells;
  // never erase the foreground fenders with a circular wheel mask.
- for(const [s1,s2,x1,x2] of strips)ctx.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,top,x2-x1+.15,height);
- ctx.restore();
+ for(const [s1,s2,x1,x2] of strips)paint.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,top,x2-x1+.15,height);
+ paint.restore();
 }
 function drawTurboFlame(x,y,power=1){
  ctx.save();ctx.translate(x,y);const pulse=1+Math.sin(time*39)*.12+Math.sin(time*67)*.08,length=(36+power*24)*pulse;
@@ -59,7 +68,7 @@ function drawTurboFlame(x,y,power=1){
 function drawVehicle(c){
  const v=carSpec(c),p=visualPose(c),wheels=wheelSpecs(v);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.a);if(!c.alive)ctx.globalAlpha=.4;
  if(c.alive&&(c.boost>0||v.rocket&&c.rocketOn)){ctx.save();ctx.scale(v.bodyScale,1);drawTurboFlame(v.rocket?-70:-54,v.rocket?-17:7,c.boost>0?1.25:.65);ctx.restore()}
- for(let j=0;j<wheels.length;j++){const {x:rx,r:physicalR}=wheels[j],r=physicalR*TIRE_DRAW_SCALE,yy=p.wheels[j]+physicalR-r;ctx.save();ctx.translate(rx,yy);ctx.rotate(c.wheel*18/r);
+ for(let j=0;j<wheels.length;j++){const {x:rx,r:physicalR}=wheels[j],adjustment=wheelAppearance(v,j),r=physicalR*TIRE_DRAW_SCALE*adjustment.scale,yy=p.wheels[j]+adjustment.y;ctx.save();ctx.translate(rx+adjustment.x,yy);ctx.rotate(c.wheel*18/r);
   const tire=ctx.createRadialGradient(-r*.3,-r*.35,2,0,0,r);tire.addColorStop(0,'#536271');tire.addColorStop(.65,'#293946');tire.addColorStop(1,'#142431');circle(0,0,r,tire,'#122230');circle(0,0,r*.62,'#bdd0d9','#354d5d');circle(0,0,r*.43,'#617b8e');for(let k=0;k<6;k++){ctx.rotate(Math.PI/3);strokeLine([[r*.17,0],[r*.49,0]],'#e3eef0',2.3)}circle(0,0,3,'#e7efef');
   if(c.mud>0){for(let k=0;k<7;k++){const a=k*.9;circle(Math.cos(a)*r*.62,Math.sin(a)*r*.62,r*(k%2?.21:.28),k%2?'#9b713f':'#674b30')}circle(-r*.18,r*.1,r*.25,'#886039')}
   ctx.restore();

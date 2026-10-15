@@ -11,6 +11,7 @@
     "test:rooms": "node test/rooms.mjs",
     "test:room-toolbar": "node test/room-toolbar.mjs",
     "test:render": "node test/render.mjs",
+    "test:wheels": "node test/wheel-editor.mjs",
     "test:menu": "node test/menu.mjs"
   },
   "dependencies": {

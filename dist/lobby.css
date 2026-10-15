@@ -466,3 +466,21 @@ body.online #network-dialog .drawer-body::-webkit-scrollbar{width:10px}
 body.online #network-dialog .drawer-body::-webkit-scrollbar-track{margin-block:8px;border-radius:8px;background:#e8e9da}
 body.online #network-dialog .drawer-body::-webkit-scrollbar-thumb{border:2px solid #e8e9da;border-radius:8px;background:#8b9b79}
 body.online #network-dialog #network-room-list{flex:0 0 auto;min-height:0;overflow:visible;padding:4px 4px 12px;border:0;border-radius:0;scrollbar-width:auto}
+/* Personal wheel alignment editor: fixed body, draggable visual wheel centres. */
+#wheel-editor-open{margin-top:6px;padding:6px 10px;min-height:30px;font-size:11px;flex-shrink:0;}
+#wheel-editor{box-sizing:border-box;width:min(860px,calc(100vw - 24px));max-width:860px;max-height:calc(100dvh - 24px);padding:22px;border:2px solid #627b59;border-radius:20px;background:#fff8e7;color:#20382f;overflow:auto;box-shadow:0 20px 90px #142a3570;}
+#wheel-editor::backdrop{background:#142a3599;}
+.wheel-editor-head{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.wheel-editor-head h2{margin:0;font-size:24px;}
+#wheel-editor-close{padding:0;min-width:40px;height:40px;font-size:26px;}
+#wheel-editor p{font-size:13px;line-height:1.5;letter-spacing:0;}
+#wheel-editor label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:bold;letter-spacing:0;}
+#wheel-editor select,#wheel-editor input{box-sizing:border-box;width:100%;padding:10px;border:1px solid #aab99c;border-radius:8px;background:#fffdf6;color:#20382f;font:inherit;font-size:15px;min-height:42px;}
+#wheel-editor-preview{position:static;inset:auto;display:block;width:100%;height:auto;margin:16px 0;border:1px solid #bdcbb2;border-radius:12px;touch-action:none;cursor:grab;}
+#wheel-editor-preview:active{cursor:grabbing;}
+.wheel-editor-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px;}
+.wheel-editor-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:16px;}
+.wheel-editor-actions button{padding:10px 14px;font-size:13px;}
+#wheel-editor-save{background:#365b48;color:#fff8e7;}
+#wheel-editor-status{min-height:40px;}
+@media(max-width:550px){#wheel-editor{padding:14px;}.wheel-editor-head h2{font-size:20px;}.wheel-editor-fields{gap:6px;}#wheel-editor label{font-size:11px;}.wheel-editor-actions button{flex:1 1 100%;}}

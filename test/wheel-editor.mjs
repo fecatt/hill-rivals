@@ -1,0 +1,32 @@
+import {chromium} from 'playwright';
+import {spawn} from 'node:child_process';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'3126'},stdio:['ignore','pipe','inherit']});
+let browser;
+try{
+ await new Promise(r=>server.stdout.once('data',r));browser=await chromium.launch({channel:process.env.TEST_BROWSER_CHANNEL||undefined});
+ const context=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'}),page=await context.newPage(),errors=[];
+ page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:3126/');await page.waitForFunction(()=>assetsLoaded);
+ await page.locator('#wheel-editor-open').click();await page.locator('#wheel-editor-car').selectOption('8');
+ const original=await page.evaluate(()=>JSON.stringify(wheelSpecs(VEHICLES[8])));
+ const target=await page.evaluate(()=>{const v=VEHICLES[8],z=Math.min(4.5,850/(v.wheels.at(-1)-v.wheels[0]+140)),r=document.querySelector('#wheel-editor-preview').getBoundingClientRect();return {x:r.left+(500+v.wheels[0]*z)*r.width/1000,y:r.top+(290+v.mount*z)*r.height/480};});
+ await page.mouse.move(target.x,target.y);await page.mouse.down();await page.mouse.move(target.x+22,target.y-10,{steps:5});await page.mouse.up();
+ assert.ok(Number(await page.locator('#wheel-editor-x').inputValue())>1);assert.ok(Number(await page.locator('#wheel-editor-y').inputValue())<0);
+ await page.locator('#wheel-editor-x').fill('4.5');await page.locator('#wheel-editor-y').fill('-2');await page.locator('#wheel-editor-scale').fill('115');
+ await page.locator('#wheel-editor-save').click();assert.equal(await page.evaluate(()=>JSON.stringify(wheelSpecs(VEHICLES[8]))),original,'visual edits must not change physics');
+ const downloadPromise=page.waitForEvent('download');await page.locator('#wheel-editor-export').click();const download=await downloadPromise;
+ const payload=JSON.parse(fs.readFileSync(await download.path(),'utf8'));assert.equal(payload.format,'hill-rivals-wheel-alignment');assert.equal(payload.version,1);assert.equal(payload.vehicles.length,9);
+ assert.deepEqual(payload.vehicles.find(v=>v.kind==='evo').wheels[0],{x:4.5,y:-2,scale:1.15});assert.ok(payload.vehicles.every(v=>v.wheels.length>=2));
+ await page.reload();await page.waitForFunction(()=>assetsLoaded);await page.locator('#wheel-editor-open').click();await page.locator('#wheel-editor-car').selectOption('8');assert.equal(await page.locator('#wheel-editor-x').inputValue(),'4.5');
+ if(process.env.TEST_SCREENSHOT_DIR)await page.screenshot({path:process.env.TEST_SCREENSHOT_DIR+'/wheel-editor.png'});
+ await page.locator('#wheel-editor-reset').click();assert.equal(await page.locator('#wheel-editor-x').inputValue(),'0');await page.locator('#wheel-editor-save').click();assert.equal(await page.evaluate(()=>wheelAppearance(VEHICLES[8],0).scale),1);
+ await page.locator('#wheel-editor-car').selectOption('4');assert.equal(await page.locator('#wheel-editor-axle option').count(),4);
+ const phoneContext=await browser.newContext({viewport:{width:393,height:852},isMobile:true,hasTouch:true,serviceWorkers:'block'}),phone=await phoneContext.newPage();phone.on('pageerror',e=>errors.push(e.message));
+ await phone.goto('http://127.0.0.1:3126/');await phone.waitForFunction(()=>assetsLoaded);await phone.locator('#wheel-editor-open').tap();await phone.locator('#wheel-editor-car').selectOption('8');
+ const phoneTarget=await phone.evaluate(()=>{const v=VEHICLES[8],z=Math.min(4.5,850/(v.wheels.at(-1)-v.wheels[0]+140)),r=document.querySelector('#wheel-editor-preview').getBoundingClientRect();return {x:r.left+(500+v.wheels[0]*z)*r.width/1000,y:r.top+(290+v.mount*z)*r.height/480};});
+ const cdp=await phoneContext.newCDPSession(phone);await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:phoneTarget.x,y:phoneTarget.y,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:phoneTarget.x+15,y:phoneTarget.y+5,id:1}]});await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ assert.ok(Number(await phone.locator('#wheel-editor-x').inputValue())>1,'touch drag moves the wheel');
+ assert.equal(await phone.evaluate(()=>document.querySelector('#wheel-editor').scrollWidth>document.querySelector('#wheel-editor').clientWidth),false,'editor fits a phone');
+ assert.deepEqual(errors,[]);console.log('PASS: mouse/touch placement, numeric size and coordinates, save/reload, reset, all-car export, four axles, mobile fit, unchanged physics.');
+}finally{await browser?.close();server.kill();}
