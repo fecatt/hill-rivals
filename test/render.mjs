@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const server=spawn(process.execPath,['server/index.js'],{env:{...process.env,PORT:'3120'},stdio:['ignore','pipe','inherit']});
 let browser;
 try{
- await new Promise(r=>server.stdout.once('data',r));browser=await chromium.launch();const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await new Promise(r=>server.stdout.once('data',r));browser=await chromium.launch(process.env.TEST_BROWSER_CHANNEL?{channel:process.env.TEST_BROWSER_CHANNEL}:{});const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:3120/?mode=online');await page.waitForFunction(()=>assetsLoaded&&roomState?.room);await page.locator('#start').click();await page.waitForFunction(()=>mode==='race');
  const result=await page.evaluate(()=>{
   const failures=[];let states=0;
@@ -21,5 +21,5 @@ try{
   chosen[0]=undefined;draw();return {failures,states,recovered,suspension,afterFailure};
  });
  assert.deepEqual(result.failures,[]);assert.equal(result.states,441);assert.ok(result.recovered,'opacity, transform and clip cannot corrupt following frames');assert.ok(result.afterFailure,'an interrupted vehicle draw cannot corrupt following frames');assert.ok(result.suspension,'new vehicle rebuilds cached suspension');assert.deepEqual(errors,[]);
- console.log('PASS: 343 map/vehicle/character states with effects; pixel-identical recovery from dirty or interrupted draw; vehicle change; absent portrait.');
+ console.log('PASS: 441 map/vehicle/character states with effects; pixel-identical recovery from dirty or interrupted draw; vehicle change; absent portrait.');
 }finally{await browser?.close();server.kill();}

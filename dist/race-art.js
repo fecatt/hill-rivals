@@ -29,14 +29,14 @@ try{if(typeof localStorage!=='undefined'){const saved=JSON.parse(localStorage.ge
 function wheelAppearance(v,index,alignment=wheelAlignmentPreview?.[v.kind]??wheelAlignments[v.kind]){return alignment?.[index]??{x:0,y:0,scale:1}}
 function saveAllWheelAlignments(raw,rawDrivers=driverAlignments){const next=Object.fromEntries(VEHICLES.map(v=>[v.kind,validWheelAlignment(v,raw[v.kind])])),drivers=Object.fromEntries(VEHICLES.map(v=>[v.kind,validDriverAlignment(rawDrivers[v.kind])]));try{localStorage.setItem(WHEEL_ALIGNMENT_KEY,JSON.stringify({...next,__drivers:drivers}));}catch{return false}wheelAlignments=next;driverAlignments=drivers;return true}
 function exportWheelAlignments(raw=wheelAlignments,rawDrivers=driverAlignments){return {format:'hill-rivals-wheel-alignment',version:2,vehicles:VEHICLES.map(v=>({kind:v.kind,name:v.name,wheels:validWheelAlignment(v,raw[v.kind]),driver:validDriverAlignment(rawDrivers[v.kind])}))}}
-function vehicleBody(c,v,bob,paint=ctx){
+function vehicleBodyRaw(c,v,bob,paint=ctx,wheelYOverride=null){
  const im=paintedBodies[v.kind],crop=BODY_BOUNDS[v.kind],a=BODY_ANCHORS[v.kind];if(!im?.complete||!im.naturalWidth)return;
  // Undo the old model-wide horizontal stretch. The painting's vertical scale comes
  // from its real axle spacing, never an arbitrary rectangular height.
  paint.save();paint.scale(1/v.bodyScale,1);paint.imageSmoothingEnabled=true;
  const specs=baseWheelSpecs(v),pose=visualPose(c),physical=wheelSpecs(v),first=specs[0].x,last=specs[specs.length-1].x;
  const unit=(last-first)/(a.axles[a.axles.length-1]-a.axles[0])*BODY_ART_SCALE;
- const wheelY=pose.wheels.reduce((sum,y,j)=>sum+y-(physical[j].y-v.mount)+specs[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
+ const wheelY=wheelYOverride??pose.wheels.reduce((sum,y,j)=>sum+y-(physical[j].y-v.mount)+specs[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
  const top=wheelY+(crop[1]-a.y)*unit,height=crop[3]*unit;
  let strips=[];
  if(v.kind==='monster'){
@@ -58,6 +58,28 @@ function vehicleBody(c,v,bob,paint=ctx){
  for(const [s1,s2,x1,x2] of strips)paint.drawImage(im,s1,crop[1],s2-s1,crop[3],x1,top,x2-x1+.15,height);
  paint.restore();
 }
+// Bake the unchanged body and driver once; suspension only moves the bitmap.
+const bodyRasterCache=new Map();
+function vehicleBody(c,v,bob,paint=ctx){
+ const im=paintedBodies[v.kind],driver=images[chosen[c.i]];
+ if(!im?.complete||!im.naturalWidth)return;
+ const m=paint.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)))),key=[v.kind,chosen[c.i],driver?.naturalWidth||0,!!c.emptyCabin,JSON.stringify(driverAppearance(v)),density].join('|');
+ let raster=bodyRasterCache.get(key);
+ if(!raster){
+  const surface=document.createElement('canvas'),left=-260,top=-280,width=520,height=460;surface.width=width*density;surface.height=height*density;
+  const target=surface.getContext('2d');target.scale(density,density);target.translate(-left,-top);
+  withDrawingContext(target,()=>vehicleBodyRaw(c,v,0,target,0));
+  // Trim transparent padding so moving a small car never copies a large rectangle.
+  const pixels=target.getImageData(0,0,surface.width,surface.height);let x0=surface.width,y0=surface.height,x1=-1,y1=-1;
+  for(let y=0;y<surface.height;y++)for(let x=0;x<surface.width;x++)if(pixels.data[(y*surface.width+x)*4+3]){x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+  if(x1<0)return;
+  const trimmed=document.createElement('canvas');trimmed.width=x1-x0+1;trimmed.height=y1-y0+1;trimmed.getContext('2d').drawImage(surface,x0,y0,trimmed.width,trimmed.height,0,0,trimmed.width,trimmed.height);
+  raster={canvas:trimmed,x:left+x0/density,y:top+y0/density,w:trimmed.width/density,h:trimmed.height/density};
+  if(bodyRasterCache.size>=16)bodyRasterCache.delete(bodyRasterCache.keys().next().value);bodyRasterCache.set(key,raster);
+ }
+ const base=baseWheelSpecs(v),physical=wheelSpecs(v),pose=visualPose(c),wheelY=pose.wheels.reduce((sum,y,j)=>sum+y-(physical[j].y-v.mount)+base[j].r*(1-TIRE_DRAW_SCALE),0)/pose.wheels.length+bob;
+ paint.drawImage(raster.canvas,raster.x,raster.y+wheelY,raster.w,raster.h);
+}
 function withDrawingContext(paint,action){const previous=ctx;try{ctx=paint;return action()}finally{ctx=previous}}
 function drawVehicleOn(paint,c){return withDrawingContext(paint,()=>drawVehicle(c))}
 function drawTurboFlame(x,y,power=1){
@@ -69,12 +91,23 @@ function drawTurboFlame(x,y,power=1){
  for(let j=0;j<5;j++){const age=(time*3.2+j*.21)%1;ctx.globalAlpha=1-age;circle(-length*.5-age*45,Math.sin(j*4+time*8)*(3+age*7),1.8*(1-age),'#ffd36c')}
  ctx.restore();
 }
+const wheelRasterCache=new Map();
+function drawWheelRaster(r,muddy){
+ const m=ctx.getTransform(),density=Math.max(1,Math.min(3,Math.ceil(Math.hypot(m.a,m.b)))),key=[r,muddy,density].join('|');let image=wheelRasterCache.get(key);
+ if(!image){
+  const size=Math.ceil((r+2)*2),surface=document.createElement('canvas');surface.width=surface.height=size*density;const target=surface.getContext('2d');target.scale(density,density);target.translate(size/2,size/2);
+  withDrawingContext(target,()=>{  const tire=ctx.createRadialGradient(-r*.3,-r*.35,2,0,0,r);tire.addColorStop(0,'#536271');tire.addColorStop(.65,'#293946');tire.addColorStop(1,'#142431');circle(0,0,r,tire,'#122230');circle(0,0,r*.62,'#bdd0d9','#354d5d');circle(0,0,r*.43,'#617b8e');for(let k=0;k<6;k++){ctx.rotate(Math.PI/3);strokeLine([[r*.17,0],[r*.49,0]],'#e3eef0',2.3)}circle(0,0,3,'#e7efef');
+
+  if(muddy){for(let k=0;k<7;k++){const a=k*.9;circle(Math.cos(a)*r*.62,Math.sin(a)*r*.62,r*(k%2?.21:.28),k%2?'#9b713f':'#674b30')}circle(-r*.18,r*.1,r*.25,'#886039')}});
+  image={surface,size};if(wheelRasterCache.size>=64)wheelRasterCache.delete(wheelRasterCache.keys().next().value);wheelRasterCache.set(key,image);
+ }
+ ctx.drawImage(image.surface,-image.size/2,-image.size/2,image.size,image.size);
+}
 function drawVehicle(c){
  const v=carSpec(c),p=visualPose(c),wheels=wheelSpecs(v);ctx.save();ctx.translate(c.x,c.y);ctx.rotate(c.a);if(!c.alive)ctx.globalAlpha=.4;
  if(c.alive&&(c.boost>0||v.rocket&&c.rocketOn)){ctx.save();ctx.scale(v.bodyScale,1);drawTurboFlame(v.rocket?-70:-54,v.rocket?-17:7,c.boost>0?1.25:.65);ctx.restore()}
  for(let j=0;j<wheels.length;j++){const {x:rx,r:physicalR}=wheels[j],r=physicalR*TIRE_DRAW_SCALE,yy=p.wheels[j];ctx.save();ctx.translate(rx,yy);ctx.rotate(c.wheel*18/r);
-  const tire=ctx.createRadialGradient(-r*.3,-r*.35,2,0,0,r);tire.addColorStop(0,'#536271');tire.addColorStop(.65,'#293946');tire.addColorStop(1,'#142431');circle(0,0,r,tire,'#122230');circle(0,0,r*.62,'#bdd0d9','#354d5d');circle(0,0,r*.43,'#617b8e');for(let k=0;k<6;k++){ctx.rotate(Math.PI/3);strokeLine([[r*.17,0],[r*.49,0]],'#e3eef0',2.3)}circle(0,0,3,'#e7efef');
-  if(c.mud>0){for(let k=0;k<7;k++){const a=k*.9;circle(Math.cos(a)*r*.62,Math.sin(a)*r*.62,r*(k%2?.21:.28),k%2?'#9b713f':'#674b30')}circle(-r*.18,r*.1,r*.25,'#886039')}
+  drawWheelRaster(r,c.mud>0);
   ctx.restore();
   if(c.mud>0&&input(c.i)[0]){for(let k=0;k<5;k++){const age=(time*4+k*.19+j*.13)%1;ctx.globalAlpha=(1-age)*(c.alive?1:.4);circle(rx-age*36,yy-r*.3-age*32+age*age*25,2.8*(1-age)+.8,k%2?'#8b613c':'#5f4530')}ctx.globalAlpha=c.alive?1:.4}
  }

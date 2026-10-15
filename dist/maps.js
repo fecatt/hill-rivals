@@ -59,8 +59,8 @@ function mapCloudTexture(b,w,h){
 }
 function mapBackground(t,x){if(t===0){drawHillBackground();return}
  const b=mapBiome(t,x),p=PALETTES[b];if(document.body&&document.body.dataset.biome!==b)document.body.dataset.biome=b;
- const sky=mapSkyTexture(b);ctx.drawImage(sky,0,0,sky.width/renderRatio,sky.height/renderRatio);
- if(b!=='moon')for(let j=0;j<6;j++){const cx=((j*305-cam*.12)%(W+360)+W+360)%(W+360)-150,cy=92+(j%3)*43,w=118+(j%3)*23,h=42+(j%2)*10,cloud=mapCloudTexture(b,w,h);ctx.drawImage(cloud.surface,Math.round((cx-cloud.left)*renderRatio)/renderRatio,Math.round((cy-cloud.top)*renderRatio)/renderRatio,cloud.surface.width/renderRatio,cloud.surface.height/renderRatio);}
+ const sky=mapSkyTexture(b);if(!window.sceneLayers?.sky(sky))ctx.drawImage(sky,0,0,sky.width/renderRatio,sky.height/renderRatio);
+ if(b!=='moon')for(let j=0;j<6;j++){const cx=((j*305-cam*.12)%(W+360)+W+360)%(W+360)-150,cy=92+(j%3)*43,w=118+(j%3)*23,h=42+(j%2)*10,cloud=mapCloudTexture(b,w,h);const dx=Math.round((cx-cloud.left)*renderRatio)/renderRatio,dy=Math.round((cy-cloud.top)*renderRatio)/renderRatio,dw=cloud.surface.width/renderRatio,dh=cloud.surface.height/renderRatio;if(!window.sceneLayers?.bitmap(cloud.surface,dx,dy,dw,dh))ctx.drawImage(cloud.surface,dx,dy,dw,dh);}
  const ridge=layer=>{const speed=.075+layer*.075,base=H*(.37+layer*.15),step=18,pts=[];for(let sx=-step;sx<=W+step;sx+=step){const wx=sx+cam*speed;let y=base;
   if(b==='mountains'||b==='winter'){y-=mountainHeight(wx,layer);y+=smoothNoise(wx/(115+layer*32),layer+901)*7}
   else if(b==='highway')y+=Math.sin(wx/(370-layer*30))*13+smoothNoise(wx/(270+layer*18),layer+911)*11;
@@ -75,6 +75,7 @@ function mapBackground(t,x){if(t===0){drawHillBackground();return}
 const envSpriteRasters=new Map();let envSpriteRasterPixels=0;
 function drawEnvSprite(index,x,bottom,height,flip=false,angle=0){
  if(!environmentAtlas.complete||!environmentAtlas.naturalWidth)return false;
+ if(window.sceneLayers?.active){const crop=ENV_CROPS[index],width=height*crop[2]/crop[3];ctx.save();ctx.translate(x,bottom);ctx.rotate(angle);if(flip)ctx.scale(-1,1);window.sceneLayers.bitmap(hillTexture(environmentAtlas,crop,512),-width/2,-height,width,height);ctx.restore();return true;}
  const matrix=ctx.getTransform(),pixelScale=Math.hypot(matrix.a,matrix.b),factor=Math.max(.25,Math.abs(zoom-1)<1e-6?pixelScale:Math.round(pixelScale*20)/20),pixels=Math.max(1,Math.round(height*factor)),rotation=Math.round(angle*1000)/1000,key=index+':'+pixels+':'+factor+':'+flip+':'+rotation;
  let raster=envSpriteRasters.get(key);
  if(!raster){
