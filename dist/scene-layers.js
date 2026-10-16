@@ -14,7 +14,7 @@
   const layer=ctx===mainContext?1:0,index=key===null?used[layer]++:key,pool=key===null?pools[layer]:keyedPools[layer];let item=key===null?pool[index]:pool.get(key);
   const image=source instanceof HTMLImageElement;
   if(!item||item.image!==image){item?.node.remove();const node=document.createElement(image?'img':'canvas');Object.assign(node.style,{position:'absolute',inset:'auto',left:'0',top:'0',transformOrigin:'0 0',pointerEvents:'none',willChange:'transform'});node.draggable=false;(layer?scenery:back).append(node);item={node,image,source:null,version:null};if(key===null)pool[index]=item;else pool.set(key,item);}
-  item.lastFrame=frameId;const node=item.node;node.hidden=false;node.dataset.layerKey=key??'';assign(node.style,'zIndex',key==='sky:sun'?'0':key?.startsWith('sky:cloud:')?'5':key?.startsWith('landscape:far:')?'10':key?.startsWith('landscape:middle:')?'20':key?.startsWith('landscape:near:')?'30':'10');
+  item.lastFrame=frameId;const node=item.node;node.hidden=false;node.dataset.layerKey=key??'';assign(node.style,'zIndex',key?.startsWith('countryside:')?'-1':key==='sky:sun'?'0':key?.startsWith('sky:cloud:')?'5':key?.startsWith('landscape:far:')?'10':key?.startsWith('landscape:middle:')?'20':key?.startsWith('landscape:near:')?'30':'10');
   if(item.source!==source||item.version!==version){if(image){node.src=source.currentSrc||source.src;node.alt='';}else{node.width=source.width;node.height=source.height;node.getContext('2d').drawImage(source,0,0);}item.source=source;item.version=version;}
   const m=ctx.getTransform(),r=renderRatio;
   assign(node.style,'width',width+'px');assign(node.style,'height',height+'px');assign(node.style,'opacity',String(ctx.globalAlpha));

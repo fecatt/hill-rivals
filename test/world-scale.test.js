@@ -142,7 +142,7 @@ test('driver placement does not alter physical wheel geometry and exported setti
 test('slow drawing reduces backing resolution without changing the world or simulation state',()=>{
  const run=fixture(),result=run(`(()=>{
   const c=newCar(0),before={width:W,height:H,ratio:renderRatio,car:JSON.stringify(c)};
-  for(let n=0;n<180;n++)adaptRenderQuality(25);
+  for(let n=0;n<180;n++){adaptRenderQuality(25);applyPendingQualityResize();}
   return {before,width:W,height:H,ratio:renderRatio,backing:canvas.width,car:JSON.stringify(c),hz:window.gameDebug.getPerformance().physicsHz};
  })()`);
  assert.ok(result.ratio<result.before.ratio);assert.equal(result.width,result.before.width);assert.equal(result.height,result.before.height);
@@ -167,7 +167,8 @@ test('wheel cache follows preview edits, in-place dragging, save and model chang
 });
 
 test('adaptive quality responds to missed presentation deadlines even with fast JavaScript',()=>{
- const run=fixture(),result=run(`(()=>{targetFrameMs=1000/120;for(let i=0;i<60;i++)frameTimes.push(1000/80);const before=renderRatio;for(let i=0;i<30;i++)adaptRenderQuality(2);return {before,after:renderRatio};})()`);
+ const run=fixture(),result=run(`(()=>{targetFrameMs=1000/120;for(let i=0;i<60;i++)frameTimes.push(1000/80);const before=renderRatio;for(let i=0;i<30;i++)adaptRenderQuality(2);const preserved=renderRatio===before,pending=pendingQualityResize;applyPendingQualityResize();return {before,after:renderRatio,preserved,pending};})()`);
+ assert.ok(result.preserved,'quality measurement must not erase the frame that was just drawn');assert.ok(result.pending);
  assert.ok(result.after<result.before);
  const stable=fixture()(`(()=>{targetFrameMs=1000/60;for(let i=0;i<60;i++)frameTimes.push(1000/60);for(let i=0;i<300;i++)adaptRenderQuality(2);return renderQuality;})()`);
  assert.equal(stable,1,'a 60 Hz screen must not trigger a quality reduction');

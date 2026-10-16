@@ -2,11 +2,8 @@
 // Hills art and bridge simulation are deliberately isolated from the other maps.
 const hillArt=queuedGameImage('assets/hills-atlas.webp'),hillSprites=[];
 // tops retain placement after trimming transparent rows from the small textures.
-const hillLandscapeLayers=[
- {name:'far',sourceHeight:724,tops:[154,291,246],speed:.08,vertical:.055,top:.05,height:.8},
- {name:'middle',sourceHeight:724,tops:[173,255,233],speed:.22,vertical:.16,top:.27,height:.62},
- {name:'near',sourceHeight:724,tops:[153,181,191],speed:.46,vertical:.32,top:.44,height:.5}
-].map(layer=>({...layer,images:[0,1,2].map(index=>{return queuedGameImage('assets/hills-'+layer.name+'-'+index+'.webp');})}));
+const hillCountryside=queuedGameImage(typeof location==='undefined'?'assets/hills-countryside.webp':location.origin+'/assets/hills-countryside.webp');
+const hillLandscapeLayers=[{images:[hillCountryside]}];
 const hillTrees=['hills-oak-clean.webp','hills-birch-clean.webp'].map(name=>{return queuedGameImage('assets/'+name)});
 const hillTreeBounds=[[109,98,1062,1107],[26,13,970,1500]];
 const hillCrestSun=queuedGameImage('assets/hills-crest-sun.webp');
@@ -79,25 +76,23 @@ function drawHillSun(){
  const dx=Math.round((x-pad)*ratio)/ratio,dy=Math.round((y-pad)*ratio)/ratio,dw=hillSunRaster.surface.width/ratio,dh=hillSunRaster.surface.height/ratio;if(!window.sceneLayers?.bitmap(hillSunRaster.surface,dx,dy,dw,dh,hillSunRaster.time,'sky:sun'))ctx.drawImage(hillSunRaster.surface,dx,dy,dw,dh);
 }
 function drawHillLandscape(){
- for(const layer of hillLandscapeLayers){
-  if(layer.images.some(im=>!im.complete||!im.naturalWidth))continue;
-  const unit=H*layer.height/layer.sourceHeight,total=layer.images.reduce((sum,im)=>sum+im.naturalWidth*unit,0),offset=cam*layer.speed,top=H*layer.top-cameraY*scale()*layer.vertical;
-  // Each cycle contains the original panorama plus its generated connecting scene.
-  // Chunks are exact neighbouring crops. Every copy faces the same direction.
-  for(let cycle=Math.floor(offset/total);cycle<=Math.floor((offset+W)/total);cycle++){
-   let x=cycle*total-offset;
-   for(let j=0;j<layer.images.length;j++){
-    const image=layer.images[j],width=image.naturalWidth*unit,height=image.naturalHeight*unit,y=top+layer.tops[j]*unit;
-    if(x+width>=0&&x<=W&&!window.sceneLayers?.bitmap(image,x,y,width+.25,height,0,'landscape:'+layer.name+':'+cycle+':'+j))ctx.drawImage(image,x,y,width+.25,height);
-    x+=width;
-   }
-  }
+ if(!hillCountryside.complete||!hillCountryside.naturalWidth)return;
+ // Overscan all four sides; even the deepest valley cannot reveal the image edge.
+ const height=H*1.10,width=Math.max(W,height*hillCountryside.naturalWidth/hillCountryside.naturalHeight);
+ const top=-H*.05-Math.max(-H*.035,Math.min(H*.035,cameraY*scale()*.025));
+ const offset=cam*.14;
+ for(let tile=Math.floor(offset/width)-1;tile<=Math.ceil((offset+W)/width);tile++){
+  const left=tile*width-offset,flip=Math.abs(tile%2)===1;
+  ctx.save();ctx.translate(left+(flip?width:0),top);if(flip)ctx.scale(-1,1);
+  if(!window.sceneLayers?.bitmap(hillCountryside,0,0,width+.5,height,0,'countryside:'+tile))ctx.drawImage(hillCountryside,0,0,width+.5,height);
+  ctx.restore();
  }
 }
 function drawHillBackground(){
  document.body.dataset.biome='hills';const backdrop=prepareHillBackground();
  if(!window.sceneLayers?.sky(backdrop.sky))ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
  ctx.save();ctx.globalAlpha=1;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
+ drawHillLandscape();
  drawHillSun();
  // Sun and cloud positions depend on the viewport only, never the camera or clock.
  const count=W<700?3:5;
@@ -105,7 +100,7 @@ function drawHillBackground(){
   const x=W*((j+.15)/count),y=H*(.14+(j%3)*.055),height=Math.max(26,Math.min(66,H*(.045+(j%2)*.015)));
   hillSprite(4+j%2,x,y,height,0,false,'sky:cloud:'+j);
  }
- drawHillLandscape();ctx.restore();
+ ctx.restore();
 }
 function drawHillTree(cell,x,angle){
  // Broad clearings alternate with dense groves, determined by the world seed.

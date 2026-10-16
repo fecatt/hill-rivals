@@ -1,6 +1,7 @@
 'use strict';
 // The online lobby is the single web entry point. Keep the local build for file:// previews.
-const modeFromUrl=()=>location.protocol==='file:'||new URL(location.href).searchParams.get('mode')==='local'?'local':'online';
+// Every entry point opens the same responsive garage.
+const modeFromUrl=()=> 'online';
 let selectedMode=modeFromUrl();
 if(!$('#players').querySelector('option[value="4"]'))$('#players').add(new Option('4 игрока','4'));
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
@@ -21,8 +22,8 @@ function chooseMode(next,push=true,afterApply=null,transition=true){
   window.onlineActive=false;window.onlineSession.exit();
   mode='lobby';count=0;time=0;cam=0;zoom=1;cameraY=0;cars=[];bonus=[];particles=[];keysClear();resetHillBridges();window.onlineIndex=undefined;
   currentMode=selectedMode=next;
-  document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.remove('choosing');
-  modeButton.hidden=next==='online';modeButton.onclick=()=>chooseMode(next==='online'?'local':'online');
+  document.body.classList.add('online');document.body.classList.remove('local');document.body.classList.remove('choosing');
+  modeButton.hidden=true;modeButton.onclick=()=>chooseMode(next==='online'?'local':'online');
   const hooks=next==='online'?window.onlineGameHooks:window.localGameHooks;
   update=hooks.update;input=hooks.input;activateAbility=hooks.activateAbility;togglePause=hooks.togglePause;garage=hooks.garage;
   start=next==='local'?()=>{if(assetsLoaded)window.localGameHooks.start();}:window.localGameHooks.start;
@@ -69,6 +70,9 @@ addEventListener('appinstalled',()=>{installButton.hidden=true;installPrompt=nul
 if('serviceWorker' in navigator&&location.protocol!=='file:')window.assetsReady.then(()=>navigator.serviceWorker.register('/sw.js').then(reg=>reg.update())).catch(()=>{});
 let appVersion;
 setInterval(async()=>{if(window.onlineActive||location.protocol==='file:')return;try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}appVersion=health.version;}catch{}},5000);
-currentMode=undefined;chooseMode(selectedMode,false);
+// A solo race returns to the same garage as a shared race.
+const returnFromSolo=window.localGameHooks.garage;
+window.localGameHooks.garage=()=>{returnFromSolo();chooseMode('online',true,null,false);};
+currentMode=undefined;queueMicrotask(()=>chooseMode(selectedMode,false));
 window.gameDebug.start=()=>start();
 window.assetsReady.then(()=>{if(currentMode==='local')$('#start').disabled=false;});

@@ -19,14 +19,16 @@ function resize(){
  canvas.width=Math.round(W*renderRatio);canvas.height=Math.round(H*renderRatio);
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
+let pendingQualityResize=false;
+function applyPendingQualityResize(){if(pendingQualityResize){pendingQualityResize=false;resize();}}
 function adaptRenderQuality(cost){
  if(!Number.isFinite(cost)||cost<0)return;
  if(renderQualityCooldown>0){renderQualityCooldown--;return;}
  renderCostTotal+=cost;if(++renderCostSamples<30)return;
  renderCostAverage=renderCostTotal/renderCostSamples;renderCostTotal=0;renderCostSamples=0;
  const recent=frameTimes.slice(-60).sort((a,b)=>a-b),cadence=recent[Math.floor(recent.length*.75)]||targetFrameMs,meanFrame=recent.length?recent.reduce((sum,n)=>sum+Math.min(n,targetFrameMs*2),0)/recent.length:targetFrameMs;
- if((renderCostAverage>targetFrameMs*.85||cadence>targetFrameMs*1.35||recent.length>=30&&meanFrame>targetFrameMs*1.08)&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.9);renderQualityCooldown=90;renderQualityGoodFrames=0;resize();}
- else if(renderCostAverage<targetFrameMs*.45&&cadence<targetFrameMs*1.12&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=600){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=180;resize();}}
+ if((renderCostAverage>targetFrameMs*.85||cadence>targetFrameMs*1.35||recent.length>=30&&meanFrame>targetFrameMs*1.08)&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.9);renderQualityCooldown=90;renderQualityGoodFrames=0;pendingQualityResize=true;}
+ else if(renderCostAverage<targetFrameMs*.45&&cadence<targetFrameMs*1.12&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=600){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=180;pendingQualityResize=true;}}
  else renderQualityGoodFrames=0;
 }
 addEventListener('resize',resize);mobileInput.addEventListener('change',resize);resize();
@@ -296,7 +298,7 @@ function resetDrawingSurface(){
  else canvas.width=canvas.width;
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
-function drawScene(){resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('В ВОЗДУХЕ: ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
+function drawScene(){applyPendingQualityResize();resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('В ВОЗДУХЕ: ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
 function draw(){window.sceneLayers?.begin();try{drawScene()}finally{window.sceneLayers?.end()}}
 let last=performance.now(),lastDraw=0,acc=0,previousCamera=null;
 const previousCratePoses=new Map();let previousSceneTime=null;

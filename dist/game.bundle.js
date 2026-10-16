@@ -137,35 +137,16 @@ function drawSuspensionBridge(a,b,biome){if(track===0){drawHillBridge(a,b);retur
 }
 function drawCityBridge(a,b){const mid=(a+b)*.5,deck=x=>groundHeight(track,x),level=mapTerrain(track,mid)+145;drawWater(track,a,b,a-150,b+150,level+360);ctx.strokeStyle='#59636a';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(a,deck(a)+3);ctx.quadraticCurveTo(mid,deck(mid)+34,b,deck(b)+3);ctx.stroke();ctx.strokeStyle='#bac0bd';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(a,deck(a));ctx.quadraticCurveTo(mid,deck(mid)+28,b,deck(b));ctx.stroke();for(const x of [a+(b-a)*.25,a+(b-a)*.75]){ctx.fillStyle='#66747b';ctx.fillRect(x-9,deck(x)+8,18,level-deck(x)-2);ctx.fillStyle='#9ba6a7';ctx.fillRect(x-20,deck(x)+5,40,8)}for(let x=a+12;x<b;x+=30){ctx.strokeStyle='#68777b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,deck(x)-2);ctx.lineTo(x,deck(x)-24);ctx.stroke()}}
 
-// Cache only static banks. Loaded bridges remain live physics and live geometry.
-// Fixed world-space tiles also stop soil detail from shimmering as the camera moves.
-const groundTiles=new Map();let groundTilePixels=0,groundTileSeed=null;
-function drawGround(t,left,right,bottom,flat=false){
- if(flat||bridgesInRange(t,left-600,right+600).length||t===6&&biomeBoundaries(left-600,right+600).length){drawGroundRaw(t,left,right,bottom,flat);return;}
- if(groundTileSeed!==worldSeed){groundTiles.clear();groundTilePixels=0;groundTileSeed=worldSeed;}
- const transform=ctx.getTransform(),pixelScale=Math.hypot(transform.a,transform.b),factor=Math.abs(zoom-1)<1e-6?pixelScale:Math.max(.25,Math.round(pixelScale*20)/20),size=512;
- for(let tile=Math.floor(left/size);tile<=Math.floor(right/size);tile++){
-  const x=tile*size,key=t+':'+tile+':'+factor;let raster=groundTiles.get(key);
-  if(!raster){
-   let high=Infinity,low=-Infinity;for(let wx=x-24;wx<=x+size+24;wx+=4){const y=rawTerrain(t,wx);high=Math.min(high,y);low=Math.max(low,y);}
-   const top=Math.floor(high)-20,end=Math.ceil(low)+230,height=end-top,surface=document.createElement('canvas');surface.width=Math.ceil(size*factor);surface.height=Math.ceil(height*factor);
-   const paint=surface.getContext('2d');paint.setTransform(factor,0,0,factor,-x*factor,-top*factor);withDrawingContext(paint,()=>drawGroundRaw(t,x-24,x+size+24,end));
-   const pixels=surface.width*surface.height;while(groundTiles.size&&(groundTilePixels+pixels>24000000||groundTiles.size>=32)){const old=groundTiles.keys().next().value;groundTilePixels-=groundTiles.get(old).pixels;groundTiles.delete(old);}
-   raster={surface,top,end,pixels};groundTiles.set(key,raster);groundTilePixels+=pixels;
-  }else{groundTiles.delete(key);groundTiles.set(key,raster);}
-  // The raster covers all detail; the remaining underground is a solid colour.
-  ctx.fillStyle=PALETTES[mapBiome(t,x+size/2)].soil;if(bottom>raster.end)ctx.fillRect(x,raster.end-1,size,bottom-raster.end+1);
-  const px=transform.b===0&&transform.c===0?(Math.round(transform.a*x+transform.e)-transform.e)/transform.a:x,py=transform.b===0&&transform.c===0?(Math.round(transform.d*raster.top+transform.f)-transform.f)/transform.d:raster.top;
-  ctx.drawImage(raster.surface,px,py,raster.surface.width/factor,raster.surface.height/factor);
- }
-}
+// A continuous path shares one transform across the whole visible bank.
+// Independent raster-tile snapping caused moving cracks and one-pixel steps.
+function drawGround(t,left,right,bottom,flat=false){drawGroundRaw(t,left,right,bottom,flat);}
 function drawGroundRaw(t,left,right,bottom,flat=false){
  const surfaceHeight=flat?()=>0:x=>groundHeight(t,x);
  ctx.save();if(t===0&&!flat){clipHillBanks(left,right,bottom)}
  const bounds=[left,...(t===6?biomeBoundaries(left,right):[]),right];
- for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)],pts=[[a,bottom]];for(let x=a;x<b;x+=6)pts.push([x,surfaceHeight(x)]);pts.push([b,surfaceHeight(b)],[b,bottom]);path(pts,p.soil)}
+ for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)],pts=[[a,bottom],[a,surfaceHeight(a)]];for(let x=(Math.floor(a/6)+1)*6;x<b;x+=6)pts.push([x,surfaceHeight(x)]);pts.push([b,surfaceHeight(b)],[b,bottom]);path(pts,p.soil)}
  for(let cell=Math.floor(left/58)-1;cell<=Math.ceil(right/58)+1;cell++){const x=cell*58+hash(cell,721)*58,b=mapBiome(t,x),y=surfaceHeight(x),count=b==='moon'?4:3;for(let j=0;j<count;j++){const px=x+(hash(cell*5+j,722)-.5)*46,py=y+24+j*(b==='moon'?48:37)+hash(cell+j,723)*21,w=3+hash(cell+j,724)*(b==='moon'?10:7),h=2+hash(cell+j,725)*4,shade=hash(cell+j,726);ctx.beginPath();ctx.moveTo(px-w,py);ctx.lineTo(px-w*.35,py-h);ctx.lineTo(px+w*.72,py-h*.55);ctx.lineTo(px+w,py+h*.2);ctx.lineTo(px-w*.45,py+h);ctx.closePath();ctx.fillStyle=b==='moon'?(shade>.5?'#b9bdc766':'#555c6d99'):b==='winter'?(shade>.55?'#f3fbff9c':'#718c9a77'):b==='city'?(shade>.55?'#c3b49a77':'#665e5688'):(shade>.5?'#c4996177':'#6d593f88');ctx.fill()}if(b==='city'&&hash(cell,727)>.35){ctx.strokeStyle='#665e5655';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-18,y+120+hash(cell,728)*45);ctx.lineTo(x+25,y+120+hash(cell,729)*45);ctx.stroke()}}
- for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)];ctx.beginPath();ctx.moveTo(a,surfaceHeight(a));for(let x=a+5;x<b;x+=5)ctx.lineTo(x,surfaceHeight(x));ctx.lineTo(b,surfaceHeight(b));ctx.lineWidth=14;ctx.strokeStyle=p.edge;ctx.stroke();ctx.lineWidth=9;ctx.strokeStyle=p.top;ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle=p.shine;ctx.stroke()}
+ for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)];ctx.beginPath();ctx.moveTo(a,surfaceHeight(a));for(let x=(Math.floor(a/6)+1)*6;x<b;x+=6)ctx.lineTo(x,surfaceHeight(x));ctx.lineTo(b,surfaceHeight(b));ctx.lineWidth=14;ctx.strokeStyle=p.edge;ctx.stroke();ctx.lineWidth=9;ctx.strokeStyle=p.top;ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle=p.shine;ctx.stroke()}
  for(let x=Math.floor(left/65)*65;x<right;x+=65)if(['city','highway'].includes(mapBiome(t,x))&&(flat||!bridgeAt(t,x))){ctx.beginPath();ctx.moveTo(x,surfaceHeight(x)-2);ctx.lineTo(x+26,surfaceHeight(x+26)-2);ctx.lineWidth=3;ctx.strokeStyle='#f5e4a9';ctx.stroke()}
  ctx.restore();
  if(!flat)for(const [a,b] of bridgesInRange(t,left,right)){const biome=mapBiome(t,(a+b)/2);if(biome==='city')drawCityBridge(a,b);else drawSuspensionBridge(a,b,biome)}
@@ -244,11 +225,8 @@ function seatedDriver(c,lift){
 // Hills art and bridge simulation are deliberately isolated from the other maps.
 const hillArt=queuedGameImage('assets/hills-atlas.webp'),hillSprites=[];
 // tops retain placement after trimming transparent rows from the small textures.
-const hillLandscapeLayers=[
- {name:'far',sourceHeight:724,tops:[154,291,246],speed:.08,vertical:.055,top:.05,height:.8},
- {name:'middle',sourceHeight:724,tops:[173,255,233],speed:.22,vertical:.16,top:.27,height:.62},
- {name:'near',sourceHeight:724,tops:[153,181,191],speed:.46,vertical:.32,top:.44,height:.5}
-].map(layer=>({...layer,images:[0,1,2].map(index=>{return queuedGameImage('assets/hills-'+layer.name+'-'+index+'.webp');})}));
+const hillCountryside=queuedGameImage(typeof location==='undefined'?'assets/hills-countryside.webp':location.origin+'/assets/hills-countryside.webp');
+const hillLandscapeLayers=[{images:[hillCountryside]}];
 const hillTrees=['hills-oak-clean.webp','hills-birch-clean.webp'].map(name=>{return queuedGameImage('assets/'+name)});
 const hillTreeBounds=[[109,98,1062,1107],[26,13,970,1500]];
 const hillCrestSun=queuedGameImage('assets/hills-crest-sun.webp');
@@ -321,25 +299,23 @@ function drawHillSun(){
  const dx=Math.round((x-pad)*ratio)/ratio,dy=Math.round((y-pad)*ratio)/ratio,dw=hillSunRaster.surface.width/ratio,dh=hillSunRaster.surface.height/ratio;if(!window.sceneLayers?.bitmap(hillSunRaster.surface,dx,dy,dw,dh,hillSunRaster.time,'sky:sun'))ctx.drawImage(hillSunRaster.surface,dx,dy,dw,dh);
 }
 function drawHillLandscape(){
- for(const layer of hillLandscapeLayers){
-  if(layer.images.some(im=>!im.complete||!im.naturalWidth))continue;
-  const unit=H*layer.height/layer.sourceHeight,total=layer.images.reduce((sum,im)=>sum+im.naturalWidth*unit,0),offset=cam*layer.speed,top=H*layer.top-cameraY*scale()*layer.vertical;
-  // Each cycle contains the original panorama plus its generated connecting scene.
-  // Chunks are exact neighbouring crops. Every copy faces the same direction.
-  for(let cycle=Math.floor(offset/total);cycle<=Math.floor((offset+W)/total);cycle++){
-   let x=cycle*total-offset;
-   for(let j=0;j<layer.images.length;j++){
-    const image=layer.images[j],width=image.naturalWidth*unit,height=image.naturalHeight*unit,y=top+layer.tops[j]*unit;
-    if(x+width>=0&&x<=W&&!window.sceneLayers?.bitmap(image,x,y,width+.25,height,0,'landscape:'+layer.name+':'+cycle+':'+j))ctx.drawImage(image,x,y,width+.25,height);
-    x+=width;
-   }
-  }
+ if(!hillCountryside.complete||!hillCountryside.naturalWidth)return;
+ // Overscan all four sides; even the deepest valley cannot reveal the image edge.
+ const height=H*1.10,width=Math.max(W,height*hillCountryside.naturalWidth/hillCountryside.naturalHeight);
+ const top=-H*.05-Math.max(-H*.035,Math.min(H*.035,cameraY*scale()*.025));
+ const offset=cam*.14;
+ for(let tile=Math.floor(offset/width)-1;tile<=Math.ceil((offset+W)/width);tile++){
+  const left=tile*width-offset,flip=Math.abs(tile%2)===1;
+  ctx.save();ctx.translate(left+(flip?width:0),top);if(flip)ctx.scale(-1,1);
+  if(!window.sceneLayers?.bitmap(hillCountryside,0,0,width+.5,height,0,'countryside:'+tile))ctx.drawImage(hillCountryside,0,0,width+.5,height);
+  ctx.restore();
  }
 }
 function drawHillBackground(){
  document.body.dataset.biome='hills';const backdrop=prepareHillBackground();
  if(!window.sceneLayers?.sky(backdrop.sky))ctx.drawImage(backdrop.sky,0,0,backdrop.sky.width/renderRatio,backdrop.sky.height/renderRatio);
  ctx.save();ctx.globalAlpha=1;ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='medium';
+ drawHillLandscape();
  drawHillSun();
  // Sun and cloud positions depend on the viewport only, never the camera or clock.
  const count=W<700?3:5;
@@ -347,7 +323,7 @@ function drawHillBackground(){
   const x=W*((j+.15)/count),y=H*(.14+(j%3)*.055),height=Math.max(26,Math.min(66,H*(.045+(j%2)*.015)));
   hillSprite(4+j%2,x,y,height,0,false,'sky:cloud:'+j);
  }
- drawHillLandscape();ctx.restore();
+ ctx.restore();
 }
 function drawHillTree(cell,x,angle){
  // Broad clearings alternate with dense groves, determined by the world seed.
@@ -603,14 +579,16 @@ function resize(){
  canvas.width=Math.round(W*renderRatio);canvas.height=Math.round(H*renderRatio);
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
+let pendingQualityResize=false;
+function applyPendingQualityResize(){if(pendingQualityResize){pendingQualityResize=false;resize();}}
 function adaptRenderQuality(cost){
  if(!Number.isFinite(cost)||cost<0)return;
  if(renderQualityCooldown>0){renderQualityCooldown--;return;}
  renderCostTotal+=cost;if(++renderCostSamples<30)return;
  renderCostAverage=renderCostTotal/renderCostSamples;renderCostTotal=0;renderCostSamples=0;
  const recent=frameTimes.slice(-60).sort((a,b)=>a-b),cadence=recent[Math.floor(recent.length*.75)]||targetFrameMs,meanFrame=recent.length?recent.reduce((sum,n)=>sum+Math.min(n,targetFrameMs*2),0)/recent.length:targetFrameMs;
- if((renderCostAverage>targetFrameMs*.85||cadence>targetFrameMs*1.35||recent.length>=30&&meanFrame>targetFrameMs*1.08)&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.9);renderQualityCooldown=90;renderQualityGoodFrames=0;resize();}
- else if(renderCostAverage<targetFrameMs*.45&&cadence<targetFrameMs*1.12&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=600){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=180;resize();}}
+ if((renderCostAverage>targetFrameMs*.85||cadence>targetFrameMs*1.35||recent.length>=30&&meanFrame>targetFrameMs*1.08)&&renderQuality>.5){renderQuality=Math.max(.5,renderQuality*.9);renderQualityCooldown=90;renderQualityGoodFrames=0;pendingQualityResize=true;}
+ else if(renderCostAverage<targetFrameMs*.45&&cadence<targetFrameMs*1.12&&renderQuality<1){renderQualityGoodFrames+=30;if(renderQualityGoodFrames>=600){renderQuality=Math.min(1,renderQuality+.05);renderQualityGoodFrames=0;renderQualityCooldown=180;pendingQualityResize=true;}}
  else renderQualityGoodFrames=0;
 }
 addEventListener('resize',resize);mobileInput.addEventListener('change',resize);resize();
@@ -880,7 +858,7 @@ function resetDrawingSurface(){
  else canvas.width=canvas.width;
  ctx.setTransform(renderRatio,0,0,renderRatio,0,0);
 }
-function drawScene(){resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('В ВОЗДУХЕ: ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
+function drawScene(){applyPendingQualityResize();resetDrawingSurface();background();if(mode==='lobby'){drawGarageRoad();return}world();drawWeather();renderHud();if(!mobileInput.matches){ctx.fillStyle='#20382f';ctx.font='bold 12px Arial';ctx.fillText(MAPS[track].name+' · '+(track===2?'ГРАВИТАЦИЯ ×⅙ · ':'')+'∞',26,H-32);ctx.textAlign='right';ctx.fillText('В ВОЗДУХЕ: ГАЗ ↑ НОС  /  ТОРМОЗ ↓ НОС     •     '+time.toFixed(1)+' с',W-26,H-32);ctx.textAlign='left';ctx.fillStyle='#20382f30';ctx.fillRect(26,H-20,W-52,5);cars.forEach(c=>{ctx.fillStyle=colors[c.i];ctx.fillRect(26+Math.min(1,Math.max(0,(c.x-cam)/(W/scale())))*(W-52),H-24,7,13)});}if(count>0){ctx.fillStyle='#fff8e7';ctx.strokeStyle='#35543d';ctx.lineWidth=6;ctx.font='bold 100px Arial';ctx.textAlign='center';ctx.strokeText(Math.ceil(count),W/2,H*.4);ctx.fillText(Math.ceil(count),W/2,H*.4);ctx.font='bold 16px Arial';ctx.fillStyle='#20382f';ctx.fillText('ПРИГОТОВЬТЕСЬ',W/2,H*.4+40);ctx.textAlign='left'}}
 function draw(){window.sceneLayers?.begin();try{drawScene()}finally{window.sceneLayers?.end()}}
 let last=performance.now(),lastDraw=0,acc=0,previousCamera=null;
 const previousCratePoses=new Map();let previousSceneTime=null;
@@ -4011,7 +3989,8 @@ setInterval(async()=>{
 // app.js
 'use strict';
 // The online lobby is the single web entry point. Keep the local build for file:// previews.
-const modeFromUrl=()=>location.protocol==='file:'||new URL(location.href).searchParams.get('mode')==='local'?'local':'online';
+// Every entry point opens the same responsive garage.
+const modeFromUrl=()=> 'online';
 let selectedMode=modeFromUrl();
 if(!$('#players').querySelector('option[value="4"]'))$('#players').add(new Option('4 игрока','4'));
 const modeButton=document.createElement('button');modeButton.id='mode-button';modeButton.textContent='Режим игры';
@@ -4032,8 +4011,8 @@ function chooseMode(next,push=true,afterApply=null,transition=true){
   window.onlineActive=false;window.onlineSession.exit();
   mode='lobby';count=0;time=0;cam=0;zoom=1;cameraY=0;cars=[];bonus=[];particles=[];keysClear();resetHillBridges();window.onlineIndex=undefined;
   currentMode=selectedMode=next;
-  document.body.classList.toggle('online',next==='online');document.body.classList.toggle('local',next==='local');document.body.classList.remove('choosing');
-  modeButton.hidden=next==='online';modeButton.onclick=()=>chooseMode(next==='online'?'local':'online');
+  document.body.classList.add('online');document.body.classList.remove('local');document.body.classList.remove('choosing');
+  modeButton.hidden=true;modeButton.onclick=()=>chooseMode(next==='online'?'local':'online');
   const hooks=next==='online'?window.onlineGameHooks:window.localGameHooks;
   update=hooks.update;input=hooks.input;activateAbility=hooks.activateAbility;togglePause=hooks.togglePause;garage=hooks.garage;
   start=next==='local'?()=>{if(assetsLoaded)window.localGameHooks.start();}:window.localGameHooks.start;
@@ -4080,7 +4059,10 @@ addEventListener('appinstalled',()=>{installButton.hidden=true;installPrompt=nul
 if('serviceWorker' in navigator&&location.protocol!=='file:')window.assetsReady.then(()=>navigator.serviceWorker.register('/sw.js').then(reg=>reg.update())).catch(()=>{});
 let appVersion;
 setInterval(async()=>{if(window.onlineActive||location.protocol==='file:')return;try{const health=await fetch('/health',{cache:'no-store'}).then(r=>r.json());if(appVersion&&health.version!==appVersion){if(mode!=='race')location.reload();return;}appVersion=health.version;}catch{}},5000);
-currentMode=undefined;chooseMode(selectedMode,false);
+// A solo race returns to the same garage as a shared race.
+const returnFromSolo=window.localGameHooks.garage;
+window.localGameHooks.garage=()=>{returnFromSolo();chooseMode('online',true,null,false);};
+currentMode=undefined;queueMicrotask(()=>chooseMode(selectedMode,false));
 window.gameDebug.start=()=>start();
 window.assetsReady.then(()=>{if(currentMode==='local')$('#start').disabled=false;});
 
@@ -4258,7 +4240,7 @@ window.refreshChoices=refreshChoices;refreshChoices();
   const layer=ctx===mainContext?1:0,index=key===null?used[layer]++:key,pool=key===null?pools[layer]:keyedPools[layer];let item=key===null?pool[index]:pool.get(key);
   const image=source instanceof HTMLImageElement;
   if(!item||item.image!==image){item?.node.remove();const node=document.createElement(image?'img':'canvas');Object.assign(node.style,{position:'absolute',inset:'auto',left:'0',top:'0',transformOrigin:'0 0',pointerEvents:'none',willChange:'transform'});node.draggable=false;(layer?scenery:back).append(node);item={node,image,source:null,version:null};if(key===null)pool[index]=item;else pool.set(key,item);}
-  item.lastFrame=frameId;const node=item.node;node.hidden=false;node.dataset.layerKey=key??'';assign(node.style,'zIndex',key==='sky:sun'?'0':key?.startsWith('sky:cloud:')?'5':key?.startsWith('landscape:far:')?'10':key?.startsWith('landscape:middle:')?'20':key?.startsWith('landscape:near:')?'30':'10');
+  item.lastFrame=frameId;const node=item.node;node.hidden=false;node.dataset.layerKey=key??'';assign(node.style,'zIndex',key?.startsWith('countryside:')?'-1':key==='sky:sun'?'0':key?.startsWith('sky:cloud:')?'5':key?.startsWith('landscape:far:')?'10':key?.startsWith('landscape:middle:')?'20':key?.startsWith('landscape:near:')?'30':'10');
   if(item.source!==source||item.version!==version){if(image){node.src=source.currentSrc||source.src;node.alt='';}else{node.width=source.width;node.height=source.height;node.getContext('2d').drawImage(source,0,0);}item.source=source;item.version=version;}
   const m=ctx.getTransform(),r=renderRatio;
   assign(node.style,'width',width+'px');assign(node.style,'height',height+'px');assign(node.style,'opacity',String(ctx.globalAlpha));

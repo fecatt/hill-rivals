@@ -135,35 +135,16 @@ function drawSuspensionBridge(a,b,biome){if(track===0){drawHillBridge(a,b);retur
 }
 function drawCityBridge(a,b){const mid=(a+b)*.5,deck=x=>groundHeight(track,x),level=mapTerrain(track,mid)+145;drawWater(track,a,b,a-150,b+150,level+360);ctx.strokeStyle='#59636a';ctx.lineWidth=13;ctx.beginPath();ctx.moveTo(a,deck(a)+3);ctx.quadraticCurveTo(mid,deck(mid)+34,b,deck(b)+3);ctx.stroke();ctx.strokeStyle='#bac0bd';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(a,deck(a));ctx.quadraticCurveTo(mid,deck(mid)+28,b,deck(b));ctx.stroke();for(const x of [a+(b-a)*.25,a+(b-a)*.75]){ctx.fillStyle='#66747b';ctx.fillRect(x-9,deck(x)+8,18,level-deck(x)-2);ctx.fillStyle='#9ba6a7';ctx.fillRect(x-20,deck(x)+5,40,8)}for(let x=a+12;x<b;x+=30){ctx.strokeStyle='#68777b';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,deck(x)-2);ctx.lineTo(x,deck(x)-24);ctx.stroke()}}
 
-// Cache only static banks. Loaded bridges remain live physics and live geometry.
-// Fixed world-space tiles also stop soil detail from shimmering as the camera moves.
-const groundTiles=new Map();let groundTilePixels=0,groundTileSeed=null;
-function drawGround(t,left,right,bottom,flat=false){
- if(flat||bridgesInRange(t,left-600,right+600).length||t===6&&biomeBoundaries(left-600,right+600).length){drawGroundRaw(t,left,right,bottom,flat);return;}
- if(groundTileSeed!==worldSeed){groundTiles.clear();groundTilePixels=0;groundTileSeed=worldSeed;}
- const transform=ctx.getTransform(),pixelScale=Math.hypot(transform.a,transform.b),factor=Math.abs(zoom-1)<1e-6?pixelScale:Math.max(.25,Math.round(pixelScale*20)/20),size=512;
- for(let tile=Math.floor(left/size);tile<=Math.floor(right/size);tile++){
-  const x=tile*size,key=t+':'+tile+':'+factor;let raster=groundTiles.get(key);
-  if(!raster){
-   let high=Infinity,low=-Infinity;for(let wx=x-24;wx<=x+size+24;wx+=4){const y=rawTerrain(t,wx);high=Math.min(high,y);low=Math.max(low,y);}
-   const top=Math.floor(high)-20,end=Math.ceil(low)+230,height=end-top,surface=document.createElement('canvas');surface.width=Math.ceil(size*factor);surface.height=Math.ceil(height*factor);
-   const paint=surface.getContext('2d');paint.setTransform(factor,0,0,factor,-x*factor,-top*factor);withDrawingContext(paint,()=>drawGroundRaw(t,x-24,x+size+24,end));
-   const pixels=surface.width*surface.height;while(groundTiles.size&&(groundTilePixels+pixels>24000000||groundTiles.size>=32)){const old=groundTiles.keys().next().value;groundTilePixels-=groundTiles.get(old).pixels;groundTiles.delete(old);}
-   raster={surface,top,end,pixels};groundTiles.set(key,raster);groundTilePixels+=pixels;
-  }else{groundTiles.delete(key);groundTiles.set(key,raster);}
-  // The raster covers all detail; the remaining underground is a solid colour.
-  ctx.fillStyle=PALETTES[mapBiome(t,x+size/2)].soil;if(bottom>raster.end)ctx.fillRect(x,raster.end-1,size,bottom-raster.end+1);
-  const px=transform.b===0&&transform.c===0?(Math.round(transform.a*x+transform.e)-transform.e)/transform.a:x,py=transform.b===0&&transform.c===0?(Math.round(transform.d*raster.top+transform.f)-transform.f)/transform.d:raster.top;
-  ctx.drawImage(raster.surface,px,py,raster.surface.width/factor,raster.surface.height/factor);
- }
-}
+// A continuous path shares one transform across the whole visible bank.
+// Independent raster-tile snapping caused moving cracks and one-pixel steps.
+function drawGround(t,left,right,bottom,flat=false){drawGroundRaw(t,left,right,bottom,flat);}
 function drawGroundRaw(t,left,right,bottom,flat=false){
  const surfaceHeight=flat?()=>0:x=>groundHeight(t,x);
  ctx.save();if(t===0&&!flat){clipHillBanks(left,right,bottom)}
  const bounds=[left,...(t===6?biomeBoundaries(left,right):[]),right];
- for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)],pts=[[a,bottom]];for(let x=a;x<b;x+=6)pts.push([x,surfaceHeight(x)]);pts.push([b,surfaceHeight(b)],[b,bottom]);path(pts,p.soil)}
+ for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)],pts=[[a,bottom],[a,surfaceHeight(a)]];for(let x=(Math.floor(a/6)+1)*6;x<b;x+=6)pts.push([x,surfaceHeight(x)]);pts.push([b,surfaceHeight(b)],[b,bottom]);path(pts,p.soil)}
  for(let cell=Math.floor(left/58)-1;cell<=Math.ceil(right/58)+1;cell++){const x=cell*58+hash(cell,721)*58,b=mapBiome(t,x),y=surfaceHeight(x),count=b==='moon'?4:3;for(let j=0;j<count;j++){const px=x+(hash(cell*5+j,722)-.5)*46,py=y+24+j*(b==='moon'?48:37)+hash(cell+j,723)*21,w=3+hash(cell+j,724)*(b==='moon'?10:7),h=2+hash(cell+j,725)*4,shade=hash(cell+j,726);ctx.beginPath();ctx.moveTo(px-w,py);ctx.lineTo(px-w*.35,py-h);ctx.lineTo(px+w*.72,py-h*.55);ctx.lineTo(px+w,py+h*.2);ctx.lineTo(px-w*.45,py+h);ctx.closePath();ctx.fillStyle=b==='moon'?(shade>.5?'#b9bdc766':'#555c6d99'):b==='winter'?(shade>.55?'#f3fbff9c':'#718c9a77'):b==='city'?(shade>.55?'#c3b49a77':'#665e5688'):(shade>.5?'#c4996177':'#6d593f88');ctx.fill()}if(b==='city'&&hash(cell,727)>.35){ctx.strokeStyle='#665e5655';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-18,y+120+hash(cell,728)*45);ctx.lineTo(x+25,y+120+hash(cell,729)*45);ctx.stroke()}}
- for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)];ctx.beginPath();ctx.moveTo(a,surfaceHeight(a));for(let x=a+5;x<b;x+=5)ctx.lineTo(x,surfaceHeight(x));ctx.lineTo(b,surfaceHeight(b));ctx.lineWidth=14;ctx.strokeStyle=p.edge;ctx.stroke();ctx.lineWidth=9;ctx.strokeStyle=p.top;ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle=p.shine;ctx.stroke()}
+ for(let j=0;j<bounds.length-1;j++){const a=bounds[j],b=bounds[j+1],p=PALETTES[mapBiome(t,(a+b)/2)];ctx.beginPath();ctx.moveTo(a,surfaceHeight(a));for(let x=(Math.floor(a/6)+1)*6;x<b;x+=6)ctx.lineTo(x,surfaceHeight(x));ctx.lineTo(b,surfaceHeight(b));ctx.lineWidth=14;ctx.strokeStyle=p.edge;ctx.stroke();ctx.lineWidth=9;ctx.strokeStyle=p.top;ctx.stroke();ctx.lineWidth=3;ctx.strokeStyle=p.shine;ctx.stroke()}
  for(let x=Math.floor(left/65)*65;x<right;x+=65)if(['city','highway'].includes(mapBiome(t,x))&&(flat||!bridgeAt(t,x))){ctx.beginPath();ctx.moveTo(x,surfaceHeight(x)-2);ctx.lineTo(x+26,surfaceHeight(x+26)-2);ctx.lineWidth=3;ctx.strokeStyle='#f5e4a9';ctx.stroke()}
  ctx.restore();
  if(!flat)for(const [a,b] of bridgesInRange(t,left,right)){const biome=mapBiome(t,(a+b)/2);if(biome==='city')drawCityBridge(a,b);else drawSuspensionBridge(a,b,biome)}
